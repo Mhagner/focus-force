@@ -1,0 +1,32 @@
+import { cn } from '@/lib/utils';
+
+interface ProjectBadgeProps {
+  name: string;
+  color: string;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+
+export function ProjectBadge({ name, color, size = 'md', className }: ProjectBadgeProps) {
+  return (
+    <div className={cn(
+      "inline-flex items-center gap-2 rounded-full px-3 py-1",
+      "bg-gray-900/50 border border-gray-700",
+      size === 'sm' && "px-2 py-0.5 text-xs",
+      size === 'md' && "px-3 py-1 text-sm", 
+      size === 'lg' && "px-4 py-2 text-base",
+      className
+    )}>
+      <div 
+        className={cn(
+          "rounded-full",
+          size === 'sm' && "w-2 h-2",
+          size === 'md' && "w-3 h-3",
+          size === 'lg' && "w-4 h-4"
+        )}
+        style={{ backgroundColor: color }}
+      />
+      <span className="font-medium text-white truncate">{name}</span>
+    </div>
+  );
+}
