@@ -1,110 +1,114 @@
 import { Project, Task, FocusSession, PomodoroSettings, DailyPlan } from '@/types';
 
-const STORAGE_KEYS = {
-  projects: 'focusforge/projects',
-  tasks: 'focusforge/tasks',
-  sessions: 'focusforge/sessions',
-  pomodoroSettings: 'focusforge/pomodoro-settings',
-  dailyPlans: 'focusforge/daily-plans',
-  timerState: 'focusforge/timer-state',
-} as const;
+const headers = { 'Content-Type': 'application/json' };
 
 export const storage = {
   // Projects
-  getProjects: (): Project[] => {
-    if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.projects);
-    return data ? JSON.parse(data) : [];
+  getProjects: async (): Promise<Project[]> => {
+    const res = await fetch('/api/projects');
+    return res.json();
   },
-  setProjects: (projects: Project[]) => {
-    localStorage.setItem(STORAGE_KEYS.projects, JSON.stringify(projects));
+  addProject: async (project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> => {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(project),
+    });
+    return res.json();
+  },
+  updateProject: async (id: string, updates: Partial<Project>): Promise<Project> => {
+    const res = await fetch(`/api/projects/${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(updates),
+    });
+    return res.json();
+  },
+  deleteProject: async (id: string): Promise<void> => {
+    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
   },
 
   // Tasks
-  getTasks: (): Task[] => {
-    if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.tasks);
-    return data ? JSON.parse(data) : [];
+  getTasks: async (): Promise<Task[]> => {
+    const res = await fetch('/api/tasks');
+    return res.json();
   },
-  setTasks: (tasks: Task[]) => {
-    localStorage.setItem(STORAGE_KEYS.tasks, JSON.stringify(tasks));
+  addTask: async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> => {
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(task),
+    });
+    return res.json();
+  },
+  updateTask: async (id: string, updates: Partial<Task>): Promise<Task> => {
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(updates),
+    });
+    return res.json();
+  },
+  deleteTask: async (id: string): Promise<void> => {
+    await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
   },
 
   // Sessions
-  getSessions: (): FocusSession[] => {
-    if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.sessions);
-    return data ? JSON.parse(data) : [];
+  getSessions: async (): Promise<FocusSession[]> => {
+    const res = await fetch('/api/sessions');
+    return res.json();
   },
-  setSessions: (sessions: FocusSession[]) => {
-    localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
+  addSession: async (session: Omit<FocusSession, 'id'>): Promise<FocusSession> => {
+    const res = await fetch('/api/sessions', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(session),
+    });
+    return res.json();
+  },
+  updateSession: async (id: string, updates: Partial<FocusSession>): Promise<FocusSession> => {
+    const res = await fetch(`/api/sessions/${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(updates),
+    });
+    return res.json();
+  },
+  deleteSession: async (id: string): Promise<void> => {
+    await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
   },
 
-  // Pomodoro Settings
+  // Pomodoro Settings (local for now)
   getPomodoroSettings: (): PomodoroSettings => {
     if (typeof window === 'undefined') return getDefaultPomodoroSettings();
-    const data = localStorage.getItem(STORAGE_KEYS.pomodoroSettings);
+    const data = localStorage.getItem('focusforge/pomodoro-settings');
     return data ? JSON.parse(data) : getDefaultPomodoroSettings();
   },
   setPomodoroSettings: (settings: PomodoroSettings) => {
-    localStorage.setItem(STORAGE_KEYS.pomodoroSettings, JSON.stringify(settings));
+    localStorage.setItem('focusforge/pomodoro-settings', JSON.stringify(settings));
   },
 
-  // Daily Plans
+  // Daily Plans (local for now)
   getDailyPlans: (): DailyPlan[] => {
     if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.dailyPlans);
+    const data = localStorage.getItem('focusforge/daily-plans');
     return data ? JSON.parse(data) : [];
   },
   setDailyPlans: (plans: DailyPlan[]) => {
-    localStorage.setItem(STORAGE_KEYS.dailyPlans, JSON.stringify(plans));
+    localStorage.setItem('focusforge/daily-plans', JSON.stringify(plans));
   },
 
-  // Timer State
+  // Timer state
   getTimerState: () => {
     if (typeof window === 'undefined') return null;
-    const data = localStorage.getItem(STORAGE_KEYS.timerState);
+    const data = localStorage.getItem('focusforge/timer-state');
     return data ? JSON.parse(data) : null;
   },
   setTimerState: (state: any) => {
-    localStorage.setItem(STORAGE_KEYS.timerState, JSON.stringify(state));
+    localStorage.setItem('focusforge/timer-state', JSON.stringify(state));
   },
   clearTimerState: () => {
-    localStorage.removeItem(STORAGE_KEYS.timerState);
-  },
-
-  // Clear all data
-  clearAll: () => {
-    Object.values(STORAGE_KEYS).forEach(key => {
-      localStorage.removeItem(key);
-    });
-  },
-
-  // Export all data
-  exportData: () => {
-    const data = {
-      projects: storage.getProjects(),
-      tasks: storage.getTasks(),
-      sessions: storage.getSessions(),
-      pomodoroSettings: storage.getPomodoroSettings(),
-      dailyPlans: storage.getDailyPlans(),
-    };
-    return JSON.stringify(data, null, 2);
-  },
-
-  // Import data
-  importData: (jsonData: string) => {
-    try {
-      const data = JSON.parse(jsonData);
-      if (data.projects) storage.setProjects(data.projects);
-      if (data.tasks) storage.setTasks(data.tasks);
-      if (data.sessions) storage.setSessions(data.sessions);
-      if (data.pomodoroSettings) storage.setPomodoroSettings(data.pomodoroSettings);
-      if (data.dailyPlans) storage.setDailyPlans(data.dailyPlans);
-      return true;
-    } catch {
-      return false;
-    }
+    localStorage.removeItem('focusforge/timer-state');
   },
 };
 
