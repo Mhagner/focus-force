@@ -43,9 +43,9 @@ model Task {
   projectId   String
   title       String
   description String?
-  priority    Priority
+  priority    Priority      @default(media)
   plannedFor  String?
-  status      Status
+  status      Status        @default(todo)
   estimateMin Int?
   createdAt   DateTime      @default(now())
   sessions    FocusSession[]

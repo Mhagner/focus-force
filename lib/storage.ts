@@ -34,10 +34,11 @@ export const storage = {
     return res.json();
   },
   addTask: async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> => {
+    const payload = { priority: 'media', status: 'todo', ...task };
     const res = await fetch('/api/tasks', {
       method: 'POST',
       headers,
-      body: JSON.stringify(task),
+      body: JSON.stringify(payload),
     });
     return res.json();
   },
