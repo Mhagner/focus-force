@@ -13,9 +13,9 @@ export interface Task {
   projectId: string;
   title: string;
   description?: string;
-  priority: 'alta' | 'media' | 'baixa';
+  priority?: 'alta' | 'media' | 'baixa';
   plannedFor?: 'today' | string; // dateISO
-  status: 'todo' | 'doing' | 'done';
+  status?: 'todo' | 'doing' | 'done';
   estimateMin?: number;
   createdAt: string;
 }
