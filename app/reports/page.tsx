@@ -24,17 +24,18 @@ export default function ReportsPage() {
     const sessionDate = new Date(session.start);
     const start = startOfDay(new Date(startDate));
     const end = endOfDay(new Date(endDate));
-    
+
     const inDateRange = sessionDate >= start && sessionDate <= end;
     const matchesProject = selectedProjectId === 'all' || session.projectId === selectedProjectId;
-    
+
     return inDateRange && matchesProject;
   });
 
   // Calculate metrics
-  const totalHours = filteredSessions.reduce((sum, session) => sum + session.durationSec, 0);
+  const totalSeconds = filteredSessions.reduce((sum, session) => sum + session.durationSec, 0);
+  const totalHours = totalSeconds / 3600;
   const totalDays = Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000)));
-  const avgHoursPerDay = totalHours / totalDays;
+  const avgHoursPerDay = totalSeconds / totalDays;
 
   // Top projects
   const projectHours = projects.map(project => ({
@@ -54,14 +55,14 @@ export default function ReportsPage() {
   for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
     const dayStart = startOfDay(d);
     const dayEnd = endOfDay(d);
-    
+
     const dayHours = filteredSessions
       .filter(session => {
         const sessionDate = new Date(session.start);
         return sessionDate >= dayStart && sessionDate <= dayEnd;
       })
       .reduce((sum, session) => sum + session.durationSec, 0) / 3600;
-      
+
     dailyData.push({
       date: format(d, 'dd/MM'),
       hours: Number(dayHours.toFixed(1)),
@@ -83,7 +84,7 @@ export default function ReportsPage() {
     const exportData = filteredSessions.map(session => {
       const project = projects.find(p => p.id === session.projectId);
       const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
-      
+
       return {
         'Data': format(new Date(session.start), 'dd/MM/yyyy'),
         'Início': format(new Date(session.start), 'HH:mm'),
@@ -96,7 +97,7 @@ export default function ReportsPage() {
         'Notas': session.notes || '',
       };
     });
-    
+
     exportToCsv(exportData, `focusforge-sessoes-${startDate}-${endDate}.csv`);
   };
 
@@ -109,7 +110,7 @@ export default function ReportsPage() {
             Análise detalhada da sua produtividade
           </p>
         </div>
-        
+
         <Button onClick={handleExportSessions} variant="outline">
           <Download className="h-4 w-4 mr-2" />
           Exportar CSV
@@ -122,7 +123,7 @@ export default function ReportsPage() {
           <Filter className="h-5 w-5 text-gray-400" />
           <h2 className="text-lg font-semibold text-white">Filtros</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -135,7 +136,7 @@ export default function ReportsPage() {
               className="bg-gray-800 border-gray-700 text-white"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Data Fim
@@ -147,7 +148,7 @@ export default function ReportsPage() {
               className="bg-gray-800 border-gray-700 text-white"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Projeto
@@ -161,9 +162,9 @@ export default function ReportsPage() {
                 {projects.filter(p => p.active).map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: project.color }} 
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: project.color }}
                       />
                       {project.name}
                     </div>
@@ -180,12 +181,12 @@ export default function ReportsPage() {
         <Card className="p-6 bg-gray-900/50 border-gray-800">
           <div className="text-center">
             <p className="text-3xl font-bold text-white">
-              {formatDuration(totalHours)}
+              {formatDuration(totalSeconds)}
             </p>
             <p className="text-sm text-gray-400">Horas Totais</p>
           </div>
         </Card>
-        
+
         <Card className="p-6 bg-gray-900/50 border-gray-800">
           <div className="text-center">
             <p className="text-3xl font-bold text-white">
@@ -194,14 +195,14 @@ export default function ReportsPage() {
             <p className="text-sm text-gray-400">Média por Dia</p>
           </div>
         </Card>
-        
+
         <Card className="p-6 bg-gray-900/50 border-gray-800">
           <div className="text-center">
             <p className="text-3xl font-bold text-white">{projectHours.length}</p>
             <p className="text-sm text-gray-400">Projetos Ativos</p>
           </div>
         </Card>
-        
+
         <Card className="p-6 bg-gray-900/50 border-gray-800">
           <div className="text-center">
             <p className="text-3xl font-bold text-white">{completedTasks}</p>
@@ -220,17 +221,17 @@ export default function ReportsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="date" stroke="#9CA3AF" />
                 <YAxis stroke="#9CA3AF" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1F2937', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1F2937',
                     border: '1px solid #374151',
-                    borderRadius: '8px' 
+                    borderRadius: '8px'
                   }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="hours" 
-                  stroke="#3B82F6" 
+                <Line
+                  type="monotone"
+                  dataKey="hours"
+                  stroke="#3B82F6"
                   strokeWidth={2}
                   dot={{ fill: '#3B82F6', strokeWidth: 2 }}
                 />
@@ -273,7 +274,7 @@ export default function ReportsPage() {
       {/* Top Projects */}
       <Card className="p-6 bg-gray-900/50 border-gray-800">
         <h2 className="text-lg font-semibold text-white mb-4">Top 3 Projetos</h2>
-        
+
         {projectHours.length > 0 ? (
           <div className="space-y-3">
             {projectHours.map((item, index) => (
@@ -282,9 +283,9 @@ export default function ReportsPage() {
                   <div className="text-lg font-bold text-gray-400 w-6">
                     #{index + 1}
                   </div>
-                  <ProjectBadge 
-                    name={item.project.name} 
-                    color={item.project.color} 
+                  <ProjectBadge
+                    name={item.project.name}
+                    color={item.project.color}
                   />
                 </div>
                 <div className="text-right">
@@ -293,7 +294,7 @@ export default function ReportsPage() {
                   </p>
                   {item.project.hourlyRate && (
                     <p className="text-sm text-green-400">
-                      R$ {((item.totalSeconds / 3600) * item.project.hourlyRate).toFixed(2)}
+                      R$ {(((item.totalSeconds / 3600) * Number(item.project.hourlyRate)).toFixed(2))}
                     </p>
                   )}
                 </div>

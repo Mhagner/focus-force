@@ -1,15 +1,52 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+export const dynamic = 'force-dynamic';
+import { z } from 'zod';
 
-interface Params { params: { id: string } }
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const schema = z.object({
+      projectId: z.string().min(1).optional(),
+      title: z.string().min(1).optional(),
+      description: z.string().optional().nullable(),
+      priority: z.enum(['alta', 'media', 'baixa']).optional(),
+      plannedFor: z.string().optional().nullable(),
+      status: z.enum(['todo', 'doing', 'done']).optional(),
+      estimateMin: z
+        .union([z.string(), z.number()])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : Number(v)))
+        .refine((v) => v === undefined || (Number.isFinite(v) && Number.isInteger(v) && v >= 0), 'estimateMin inválido'),
+    });
 
-export async function PATCH(req: Request, { params }: Params) {
-  const data = await req.json();
-  const task = await prisma.task.update({ where: { id: params.id }, data });
-  return NextResponse.json(task);
+    const parsed = schema.parse(body);
+
+    const data: any = {};
+    if (parsed.projectId !== undefined) data.projectId = parsed.projectId;
+    if (parsed.title !== undefined) data.title = parsed.title;
+    if (parsed.description !== undefined) data.description = parsed.description || undefined;
+    if (parsed.priority !== undefined) data.priority = parsed.priority;
+    if (parsed.plannedFor !== undefined) data.plannedFor = parsed.plannedFor || undefined;
+    if (parsed.status !== undefined) data.status = parsed.status;
+    if (parsed.estimateMin !== undefined) data.estimateMin = parsed.estimateMin;
+
+    const task = await prisma.task.update({ where: { id }, data });
+    return NextResponse.json(task);
+  } catch (err: any) {
+    return NextResponse.json({ message: err.message ?? 'Erro ao atualizar tarefa' }, { status: 400 });
+  }
 }
 
-export async function DELETE(req: Request, { params }: Params) {
-  await prisma.task.delete({ where: { id: params.id } });
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  await prisma.task.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

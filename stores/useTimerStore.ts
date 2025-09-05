@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { TimerState } from '@/types';
 import { storage } from '@/lib/storage';
+import { useAppStore } from '@/stores/useAppStore';
 
 interface TimerStore extends TimerState {
   startTimer: (type: 'pomodoro' | 'manual', projectId: string, taskId?: string) => void;
@@ -75,9 +76,13 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
           end: new Date().toISOString(),
           durationSec,
           type: state.currentPhase === 'manual' ? 'manual' as const : 'pomodoro' as const,
-          pomodoroCycles: state.currentCycle,
+          pomodoroCycles: state.currentPhase === 'manual' ? undefined : state.currentCycle,
         };
-        storage.addSession(newSession);
+        storage.addSession(newSession).then((created) => {
+          try {
+            useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
+          } catch {}
+        });
       }
     }
 
@@ -123,6 +128,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         timeRemaining: nextTime,
         totalTime: nextTime,
         currentCycle: isLongBreak ? 1 : state.currentCycle + 1,
+        sessionStart: new Date().toISOString(),
       });
     } else {
       const workTime = pomodoroSettings.workMin * 60;
@@ -130,6 +136,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         currentPhase: 'work',
         timeRemaining: workTime,
         totalTime: workTime,
+        sessionStart: new Date().toISOString(),
       });
     }
 
@@ -150,10 +157,33 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
             '{"workMin":50,"shortBreakMin":10,"longBreakMin":20,"cyclesToLongBreak":3,"autoStartNext":true,"soundOn":true}'
         );
 
+        // Persist finished phase as a session (typically a work phase)
+        if (state.selectedProjectId && state.sessionStart && state.currentPhase === 'work') {
+          const endIso = new Date().toISOString();
+          const durationSec = state.totalTime; // completed phase duration
+          const newSession = {
+            projectId: state.selectedProjectId,
+            taskId: state.selectedTaskId,
+            start: state.sessionStart,
+            end: endIso,
+            durationSec,
+            type: 'pomodoro' as const,
+            pomodoroCycles: state.currentCycle,
+          };
+          storage.addSession(newSession).then((created) => {
+            try {
+              useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
+            } catch {}
+          });
+        }
+
         if (pomodoroSettings.autoStartNext) {
           get().nextPhase();
         } else {
           set({ isRunning: false });
+          // reset sessionStart when stopping automatically at boundary
+          set({ sessionStart: undefined });
+          get().saveState();
         }
       } else {
         get().stopTimer();
