@@ -73,7 +73,7 @@ async function request<T>(
   const controller = new AbortController();
 
   // Por padrão, GET não deve ser pré-renderizado/SSG => no-store
-  const computedInit: RequestInit & { next?: any } = {
+  const computedInit: RequestInit & { next?: { revalidate?: number } } = {
     method,
     headers: { ...JSON_HEADERS, ...headers },
     signal: controller.signal,
