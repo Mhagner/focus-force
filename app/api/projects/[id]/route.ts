@@ -5,8 +5,12 @@ export const dynamic = 'force-dynamic';
 
 interface Params { params: { id: string } }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const {id} = await params;
     const body = await req.json();
     const schema = z.object({
       name: z.string().min(1).optional(),
@@ -29,14 +33,18 @@ export async function PATCH(req: Request, { params }: Params) {
     if (parsed.hourlyRate !== undefined) data.hourlyRate = parsed.hourlyRate;
     if (parsed.active !== undefined) data.active = parsed.active;
 
-    const project = await prisma.project.update({ where: { id: params.id }, data });
+    const project = await prisma.project.update({ where: { id }, data });
     return NextResponse.json(project);
   } catch (err: any) {
     return NextResponse.json({ message: err.message ?? 'Erro ao atualizar projeto' }, { status: 400 });
   }
 }
 
-export async function DELETE(req: Request, { params }: Params) {
-  await prisma.project.delete({ where: { id: params.id } });
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  await prisma.project.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

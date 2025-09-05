@@ -63,7 +63,6 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.6.0",
     "vaul": "^0.9.9",
     "zod": "^3.23.8",
     "zustand": "^5.0.8"
@@ -72,6 +71,7 @@
     "@types/eslint": "^9.0.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.0.0",
-    "prisma": "^6.15.0"
+    "prisma": "^6.15.0",
+    "typescript": "^5.9.2"
   }
 }
