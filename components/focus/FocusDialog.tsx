@@ -19,23 +19,23 @@ interface FocusDialogProps {
 export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
   const { projects, tasks } = useAppStore();
   const { startTimer } = useTimerStore();
-  
+
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [timerType, setTimerType] = useState<'pomodoro' | 'manual'>('pomodoro');
 
   const activeProjects = projects.filter(p => p.active);
   const todayTasks = getTodayTasks(tasks);
-  const projectTasks = selectedProjectId 
+  const projectTasks = selectedProjectId
     ? tasks.filter(t => t.projectId === selectedProjectId && t.status !== 'done')
     : [];
 
   const handleStart = () => {
     if (!selectedProjectId) return;
-    
-    startTimer(timerType, selectedProjectId, selectedTaskId || undefined);
+    const taskId = selectedTaskId && selectedTaskId !== 'none' ? selectedTaskId : undefined;
+    startTimer(timerType, selectedProjectId, taskId);
     onOpenChange(false);
-    
+
     // Reset selections
     setSelectedProjectId('');
     setSelectedTaskId('');
@@ -88,9 +88,9 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
                 {activeProjects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     <div className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: project.color }} 
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: project.color }}
                       />
                       <span>{project.name}</span>
                     </div>
@@ -111,11 +111,11 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
                   <SelectValue placeholder="Selecione uma tarefa" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700">
-                  <SelectItem value="">Sem tarefa específica</SelectItem>
+                  <SelectItem value="none">Sem tarefa específica</SelectItem>
                   {projectTasks.map((task) => (
                     <SelectItem key={task.id} value={task.id}>
                       <div className="flex items-center gap-2">
-                        <PriorityTag priority={task.priority} />
+                        <PriorityTag priority={task.priority || 'media'} />
                         <span className="truncate">{task.title}</span>
                       </div>
                     </SelectItem>
@@ -135,9 +135,9 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
                 {todayTasks.slice(0, 4).map((task) => {
                   const project = projects.find(p => p.id === task.projectId);
                   if (!project) return null;
-                  
+
                   return (
-                    <div 
+                    <div
                       key={task.id}
                       className="flex items-center gap-2 p-2 rounded bg-gray-800/30 text-sm cursor-pointer hover:bg-gray-800/50"
                       onClick={() => {
@@ -145,7 +145,7 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
                         setSelectedTaskId(task.id);
                       }}
                     >
-                      <PriorityTag priority={task.priority} />
+                      <PriorityTag priority={task.priority || 'media'} />
                       <span className="text-gray-300 truncate">{task.title}</span>
                     </div>
                   );
@@ -156,14 +156,14 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => onOpenChange(false)}
               className="flex-1"
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleStart}
               disabled={!selectedProjectId}
               className="flex-1 bg-blue-600 hover:bg-blue-700"

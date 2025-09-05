@@ -10,12 +10,14 @@ import { Plus, Filter } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { getTodayTasks } from '@/lib/utils';
+import { TaskDialog } from '@/components/tasks/TaskDialog';
 
 export default function TasksPage() {
   const { tasks, projects } = useAppStore();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [showOnlyToday, setShowOnlyToday] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const filteredTasks = tasks.filter(task => {
     if (selectedProjectId !== 'all' && task.projectId !== selectedProjectId) {
@@ -33,99 +35,110 @@ export default function TasksPage() {
 
   const handleEdit = (task: Task) => {
     setEditingTask(task);
+    setIsDialogOpen(true);
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Tarefas</h1>
-          <p className="text-gray-400">
-            Organize suas tarefas em um kanban simples
-          </p>
-        </div>
-        
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Tarefa
-        </Button>
-      </div>
+    <>
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Tarefas</h1>
+            <p className="text-gray-400">
+              Organize suas tarefas em um kanban simples
+            </p>
+          </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-gray-400" />
-          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-            <SelectTrigger className="w-48 bg-gray-900/50 border-gray-700">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-gray-800 border-gray-700">
-              <SelectItem value="all">Todos os projetos</SelectItem>
-              {projects.filter(p => p.active).map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: project.color }} 
-                    />
-                    {project.name}
-                  </div>
-                </SelectItem>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => { setEditingTask(undefined); setIsDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Tarefa
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-400" />
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger className="w-48 bg-gray-900/50 border-gray-700">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectItem value="all">Todos os projetos</SelectItem>
+                {projects.filter(p => p.active).map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: project.color }}
+                      />
+                      {project.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="today-only"
+              checked={showOnlyToday}
+              onCheckedChange={setShowOnlyToday}
+            />
+            <Label htmlFor="today-only" className="text-gray-300">
+              Somente de hoje
+            </Label>
+          </div>
+        </div>
+
+        {/* Kanban Board */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-gray-500" />
+              Todo ({todoTasks.length})
+            </h2>
+            <div className="space-y-4">
+              {todoTasks.map((task) => (
+                <TaskCard key={task.id} task={task} onEdit={handleEdit} />
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch 
-            id="today-only" 
-            checked={showOnlyToday}
-            onCheckedChange={setShowOnlyToday}
-          />
-          <Label htmlFor="today-only" className="text-gray-300">
-            Somente de hoje
-          </Label>
-        </div>
-      </div>
-
-      {/* Kanban Board */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div>
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gray-500" />
-            Todo ({todoTasks.length})
-          </h2>
-          <div className="space-y-4">
-            {todoTasks.map((task) => (
-              <TaskCard key={task.id} task={task} onEdit={handleEdit} />
-            ))}
+            </div>
           </div>
-        </div>
 
-        <div>
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
-            Fazendo ({doingTasks.length})
-          </h2>
-          <div className="space-y-4">
-            {doingTasks.map((task) => (
-              <TaskCard key={task.id} task={task} onEdit={handleEdit} />
-            ))}
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              Fazendo ({doingTasks.length})
+            </h2>
+            <div className="space-y-4">
+              {doingTasks.map((task) => (
+                <TaskCard key={task.id} task={task} onEdit={handleEdit} />
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div>
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            Feito ({doneTasks.length})
-          </h2>
-          <div className="space-y-4">
-            {doneTasks.map((task) => (
-              <TaskCard key={task.id} task={task} onEdit={handleEdit} />
-            ))}
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+              Feito ({doneTasks.length})
+            </h2>
+            <div className="space-y-4">
+              {doneTasks.map((task) => (
+                <TaskCard key={task.id} task={task} onEdit={handleEdit} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      <TaskDialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setEditingTask(undefined);
+        }}
+        task={editingTask}
+      />
+    </>
   );
 }

@@ -1,118 +1,170 @@
+// src/lib/storage.ts
 import { Project, Task, FocusSession, PomodoroSettings, DailyPlan } from '@/types';
 
-const headers = { 'Content-Type': 'application/json' };
+/**
+ * ------------------------------------------------------------
+ * Fetch helpers (tipado, com timeout e no-store em GET)
+ * ------------------------------------------------------------
+ */
 
-export const storage = {
-  // Projects
-  getProjects: async (): Promise<Project[]> => {
-    const res = await fetch('/api/projects');
-    return res.json();
-  },
-  addProject: async (project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> => {
-    const res = await fetch('/api/projects', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(project),
-    });
-    return res.json();
-  },
-  updateProject: async (id: string, updates: Partial<Project>): Promise<Project> => {
-    const res = await fetch(`/api/projects/${id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(updates),
-    });
-    return res.json();
-  },
-  deleteProject: async (id: string): Promise<void> => {
-    await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-  },
+type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-  // Tasks
-  getTasks: async (): Promise<Task[]> => {
-    const res = await fetch('/api/tasks');
-    return res.json();
-  },
-  addTask: async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> => {
-    const payload = { priority: 'media', status: 'todo', ...task };
-    const res = await fetch('/api/tasks', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
-    return res.json();
-  },
-  updateTask: async (id: string, updates: Partial<Task>): Promise<Task> => {
-    const res = await fetch(`/api/tasks/${id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(updates),
-    });
-    return res.json();
-  },
-  deleteTask: async (id: string): Promise<void> => {
-    await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-  },
+const JSON_HEADERS: HeadersInit = { 'Content-Type': 'application/json' };
 
-  // Sessions
-  getSessions: async (): Promise<FocusSession[]> => {
-    const res = await fetch('/api/sessions');
-    return res.json();
-  },
-  addSession: async (session: Omit<FocusSession, 'id'>): Promise<FocusSession> => {
-    const res = await fetch('/api/sessions', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(session),
-    });
-    return res.json();
-  },
-  updateSession: async (id: string, updates: Partial<FocusSession>): Promise<FocusSession> => {
-    const res = await fetch(`/api/sessions/${id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(updates),
-    });
-    return res.json();
-  },
-  deleteSession: async (id: string): Promise<void> => {
-    await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
-  },
+/** Timeout padrão (ms) para chamadas HTTP */
+const DEFAULT_TIMEOUT_MS = 15_000;
 
-  // Pomodoro Settings (local for now)
-  getPomodoroSettings: (): PomodoroSettings => {
-    if (typeof window === 'undefined') return getDefaultPomodoroSettings();
-    const data = localStorage.getItem('focusforge/pomodoro-settings');
-    return data ? JSON.parse(data) : getDefaultPomodoroSettings();
-  },
-  setPomodoroSettings: (settings: PomodoroSettings) => {
-    localStorage.setItem('focusforge/pomodoro-settings', JSON.stringify(settings));
-  },
+/** Erro HTTP padronizado */
+export class HttpError extends Error {
+  status: number;
+  payload?: unknown;
 
-  // Daily Plans (local for now)
-  getDailyPlans: (): DailyPlan[] => {
-    if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem('focusforge/daily-plans');
-    return data ? JSON.parse(data) : [];
-  },
-  setDailyPlans: (plans: DailyPlan[]) => {
-    localStorage.setItem('focusforge/daily-plans', JSON.stringify(plans));
-  },
+  constructor(message: string, status: number, payload?: unknown) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+    this.payload = payload;
+  }
+}
 
-  // Timer state
-  getTimerState: () => {
-    if (typeof window === 'undefined') return null;
-    const data = localStorage.getItem('focusforge/timer-state');
-    return data ? JSON.parse(data) : null;
-  },
-  setTimerState: (state: any) => {
-    localStorage.setItem('focusforge/timer-state', JSON.stringify(state));
-  },
-  clearTimerState: () => {
-    localStorage.removeItem('focusforge/timer-state');
-  },
-};
+/** Util: aguarda com timeout */
+function withTimeout<T>(p: Promise<T>, ms: number, controller: AbortController): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`Request timeout after ${ms}ms`));
+    }, ms);
+    p.then(
+      (v) => {
+        clearTimeout(id);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(id);
+        reject(e);
+      }
+    );
+  });
+}
 
+/** Wrapper de fetch tipado e resiliente */
+async function request<T>(
+  input: string,
+  options: {
+    method?: HttpMethod;
+    body?: unknown;
+    headers?: HeadersInit;
+    timeoutMs?: number;
+    cache?: RequestCache; // sobrescreve se precisar
+    next?: any;
+    revalidate?: number;
+  } = {}
+): Promise<T> {
+  const {
+    method = 'GET',
+    body,
+    headers,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    cache,
+    next,
+    revalidate,
+  } = options;
+
+  const controller = new AbortController();
+
+  // Por padrão, GET não deve ser pré-renderizado/SSG => no-store
+  const computedInit: RequestInit & { next?: any } = {
+    method,
+    headers: { ...JSON_HEADERS, ...headers },
+    signal: controller.signal,
+  };
+
+  if (body !== undefined) {
+    computedInit.body = typeof body === 'string' ? body : JSON.stringify(body);
+  }
+
+  // Controle de cache (prioridade: arg explicit > revalidate > default GET=no-store)
+  if (cache) {
+    computedInit.cache = cache;
+  } else if (typeof revalidate === 'number') {
+    computedInit.next = { revalidate, ...next };
+  } else if (method === 'GET') {
+    computedInit.cache = 'no-store';
+  } else if (next) {
+    computedInit.next = next;
+  }
+
+  const res = await withTimeout(fetch(input, computedInit), timeoutMs, controller);
+
+  let payload: unknown = undefined;
+  const contentType = res.headers.get('Content-Type') || '';
+
+  if (contentType.includes('application/json')) {
+    // Tenta JSON; se falhar, cai para texto
+    try {
+      payload = await res.json();
+    } catch {
+      payload = undefined;
+    }
+  } else {
+    try {
+      payload = await res.text();
+    } catch {
+      payload = undefined;
+    }
+  }
+
+  if (!res.ok) {
+    const msg =
+      typeof payload === 'object' && payload && 'message' in (payload as any)
+        ? String((payload as any).message)
+        : `HTTP ${res.status} on ${input}`;
+    throw new HttpError(msg, res.status, payload);
+  }
+
+  return payload as T;
+}
+
+/**
+ * ------------------------------------------------------------
+ * Safe localStorage helpers (SSR-safe)
+ * ------------------------------------------------------------
+ */
+const isBrowser = typeof window !== 'undefined';
+
+function readLS<T>(key: string, fallback: T): T {
+  if (!isBrowser) return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLS<T>(key: string, value: T): void {
+  if (!isBrowser) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // noop
+  }
+}
+
+function removeLS(key: string): void {
+  if (!isBrowser) return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // noop
+  }
+}
+
+/**
+ * ------------------------------------------------------------
+ * Domínio: Pomodoro (defaults)
+ * ------------------------------------------------------------
+ */
 function getDefaultPomodoroSettings(): PomodoroSettings {
   return {
     workMin: 50,
@@ -123,3 +175,142 @@ function getDefaultPomodoroSettings(): PomodoroSettings {
     soundOn: true,
   };
 }
+
+/**
+ * ------------------------------------------------------------
+ * API pública do módulo
+ * ------------------------------------------------------------
+ */
+const LS_KEYS = {
+  pomo: 'focusforge/pomodoro-settings',
+  plans: 'focusforge/daily-plans',
+  timer: 'focusforge/timer-state',
+} as const;
+
+export const storage = {
+  /**
+   * ---------------------------
+   * Projects
+   * ---------------------------
+   */
+  async getProjects(): Promise<Project[]> {
+    return request<Project[]>('/api/projects');
+  },
+
+  async addProject(project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
+    return request<Project>('/api/projects', {
+      method: 'POST',
+      body: project,
+    });
+  },
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
+    return request<Project>(`/api/projects/${id}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+  },
+
+  async deleteProject(id: string): Promise<void> {
+    await request<unknown>(`/api/projects/${id}`, { method: 'DELETE' });
+  },
+
+  /**
+   * ---------------------------
+   * Tasks
+   * ---------------------------
+   */
+  async getTasks(): Promise<Task[]> {
+    return request<Task[]>('/api/tasks');
+  },
+
+  async addTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
+    const payload: Omit<Task, 'id' | 'createdAt'> & { priority?: Task['priority']; status?: Task['status'] } =
+      { priority: 'media', status: 'todo', ...task };
+    return request<Task>('/api/tasks', {
+      method: 'POST',
+      body: payload,
+    });
+  },
+
+  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
+    return request<Task>(`/api/tasks/${id}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+  },
+
+  async deleteTask(id: string): Promise<void> {
+    await request<unknown>(`/api/tasks/${id}`, { method: 'DELETE' });
+  },
+
+  /**
+   * ---------------------------
+   * Focus Sessions
+   * ---------------------------
+   */
+  async getSessions(): Promise<FocusSession[]> {
+    return request<FocusSession[]>('/api/sessions');
+  },
+
+  async addSession(session: Omit<FocusSession, 'id'>): Promise<FocusSession> {
+    return request<FocusSession>('/api/sessions', {
+      method: 'POST',
+      body: session,
+    });
+  },
+
+  async updateSession(id: string, updates: Partial<FocusSession>): Promise<FocusSession> {
+    return request<FocusSession>(`/api/sessions/${id}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+  },
+
+  async deleteSession(id: string): Promise<void> {
+    await request<unknown>(`/api/sessions/${id}`, { method: 'DELETE' });
+  },
+
+  /**
+   * ---------------------------
+   * Pomodoro (local)
+   * ---------------------------
+   */
+  getPomodoroSettings(): PomodoroSettings {
+    return readLS<PomodoroSettings>(LS_KEYS.pomo, getDefaultPomodoroSettings());
+  },
+
+  setPomodoroSettings(settings: PomodoroSettings): void {
+    writeLS(LS_KEYS.pomo, settings);
+  },
+
+  /**
+   * ---------------------------
+   * Daily Plans (local)
+   * ---------------------------
+   */
+  getDailyPlans(): DailyPlan[] {
+    return readLS<DailyPlan[]>(LS_KEYS.plans, []);
+  },
+
+  setDailyPlans(plans: DailyPlan[]): void {
+    writeLS(LS_KEYS.plans, plans);
+  },
+
+  /**
+   * ---------------------------
+   * Timer state (local)
+   * ---------------------------
+   */
+  getTimerState<T = any>(): T | null {
+    return readLS<T | null>(LS_KEYS.timer, null);
+  },
+
+  setTimerState<T = any>(state: T): void {
+    writeLS(LS_KEYS.timer, state);
+  },
+
+  clearTimerState(): void {
+    removeLS(LS_KEYS.timer);
+  },
+};

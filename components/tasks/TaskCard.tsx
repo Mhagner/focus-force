@@ -8,6 +8,8 @@ import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { formatDuration } from '@/lib/utils';
 import { Play, Calendar, Clock, MoreVertical } from 'lucide-react';
+import { useTimerStore } from '@/stores/useTimerStore';
+import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface TaskCardProps {
@@ -17,7 +19,9 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onEdit }: TaskCardProps) {
   const { projects, updateTask, deleteTask } = useAppStore();
-  
+  const { startTimer } = useTimerStore();
+  const router = useRouter();
+
   const project = projects.find(p => p.id === task.projectId);
   if (!project) return null;
 
@@ -30,14 +34,14 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
     updateTask(task.id, { plannedFor: newPlannedFor });
   };
 
-  const isPlannedForToday = task.plannedFor === 'today' || 
+  const isPlannedForToday = task.plannedFor === 'today' ||
     task.plannedFor === new Date().toISOString().split('T')[0];
 
   return (
     <Card className="p-4 bg-gray-900/50 border-gray-800 hover:bg-gray-900/70 transition-colors">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <PriorityTag priority={task.priority} />
+          <PriorityTag priority={task.priority || 'media'} />
           {isPlannedForToday && (
             <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-950/50 text-blue-400 text-xs">
               <Calendar className="h-3 w-3" />
@@ -45,7 +49,7 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
             </div>
           )}
         </div>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
@@ -59,8 +63,8 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
             <DropdownMenuItem onClick={handlePlanForToday} className="cursor-pointer">
               {isPlannedForToday ? 'Remover de hoje' : 'Planejar para hoje'}
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => deleteTask(task.id)} 
+            <DropdownMenuItem
+              onClick={() => deleteTask(task.id)}
               className="cursor-pointer text-red-400"
             >
               Excluir
@@ -70,7 +74,7 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
       </div>
 
       <h4 className="font-medium text-white mb-2">{task.title}</h4>
-      
+
       {task.description && (
         <p className="text-sm text-gray-400 mb-3">{task.description}</p>
       )}
@@ -100,7 +104,16 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
           ))}
         </div>
 
-        <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-blue-400 hover:text-blue-300"
+          onClick={() => {
+            if (!project) return;
+            startTimer('pomodoro', project.id, task.id);
+            router.push('/focus');
+          }}
+        >
           <Play className="h-4 w-4 mr-1" />
           Foco
         </Button>
