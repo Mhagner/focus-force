@@ -193,15 +193,14 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
   restoreState: () => {
     const savedState = storage.getTimerState();
-    if (savedState && savedState.sessionStart) {
-      const now = Date.now();
-      const sessionStart = new Date(savedState.sessionStart).getTime();
-      const timePassed = Math.floor((now - sessionStart) / 1000);
-      const adjustedTimeRemaining = Math.max(0, savedState.timeRemaining - timePassed);
-
+    if (savedState) {
       set({
         ...savedState,
-        timeRemaining: adjustedTimeRemaining,
+        // Reset session start to now so elapsed time while away isn't counted
+        sessionStart:
+          savedState.isRunning && !savedState.isPaused
+            ? new Date().toISOString()
+            : savedState.sessionStart,
       });
     }
   },
