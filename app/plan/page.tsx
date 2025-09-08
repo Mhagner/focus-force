@@ -3,14 +3,20 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { formatDuration, getProjectHoursToday } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { Save, Calendar } from 'lucide-react';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import { Save, Calendar, Plus, Trash } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -22,6 +28,7 @@ export default function PlanPage() {
   
   const [blocks, setBlocks] = useState<{ projectId: string; targetMinutes: number }[]>([]);
   const [notes, setNotes] = useState('');
+  const [newProjectId, setNewProjectId] = useState('');
 
   useEffect(() => {
     if (todayPlan) {
@@ -42,11 +49,26 @@ export default function PlanPage() {
   }, 0);
 
   const handleBlockChange = (projectId: string, minutes: number) => {
-    setBlocks(blocks.map(block => 
-      block.projectId === projectId 
+    setBlocks(blocks.map(block =>
+      block.projectId === projectId
         ? { ...block, targetMinutes: minutes }
         : block
     ));
+  };
+
+  const availableProjects = projects.filter(
+    p => p.active && !blocks.some(b => b.projectId === p.id)
+  );
+
+  const handleAddBlock = () => {
+    if (newProjectId) {
+      setBlocks([...blocks, { projectId: newProjectId, targetMinutes: 120 }]);
+      setNewProjectId('');
+    }
+  };
+
+  const handleRemoveBlock = (projectId: string) => {
+    setBlocks(blocks.filter(b => b.projectId !== projectId));
   };
 
   const handleSave = () => {
@@ -113,26 +135,52 @@ export default function PlanPage() {
       {/* Time Blocks */}
       <Card className="p-6 bg-gray-900/50 border-gray-800 mb-6">
         <h2 className="text-lg font-semibold text-white mb-4">Blocos de Tempo</h2>
-        
+
+        <div className="flex items-center gap-2 mb-6">
+          <Select value={newProjectId} onValueChange={setNewProjectId}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Selecionar projeto" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableProjects.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleAddBlock} disabled={!newProjectId} className="bg-green-600 hover:bg-green-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar
+          </Button>
+        </div>
+
         <div className="space-y-6">
           {blocks.map((block) => {
             const project = projects.find(p => p.id === block.projectId);
             if (!project || !project.active) return null;
-            
+
             const workedMinutes = getProjectHoursToday(sessions, block.projectId) / 60;
             const progress = block.targetMinutes > 0 ? (workedMinutes / block.targetMinutes) * 100 : 0;
-            
+
             return (
               <div key={block.projectId} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <ProjectBadge name={project.name} color={project.color} />
-                  <div className="text-right">
-                    <p className="text-white font-medium">
-                      {formatDuration(block.targetMinutes * 60)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {formatDuration(Math.round(workedMinutes * 60))} trabalhados
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className="text-white font-medium">
+                        {formatDuration(block.targetMinutes * 60)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatDuration(Math.round(workedMinutes * 60))} trabalhados
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveBlock(block.projectId)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
                 
