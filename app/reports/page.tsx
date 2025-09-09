@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
-import { formatDuration, exportToCsv } from '@/lib/utils';
+import { formatDuration, exportToCsv, exportToPdf } from '@/lib/utils';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Download, Filter, BarChart } from 'lucide-react';
+import { Download, Filter, BarChart, FileDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function ReportsPage() {
@@ -101,6 +101,24 @@ export default function ReportsPage() {
     exportToCsv(exportData, `focusforge-sessoes-${startDate}-${endDate}.csv`);
   };
 
+  const handleExportPdf = () => {
+    const exportData = filteredSessions.map(session => {
+      const project = projects.find(p => p.id === session.projectId);
+      const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
+
+      return {
+        'Data': format(new Date(session.start), 'dd/MM/yyyy'),
+        'Início': format(new Date(session.start), 'HH:mm'),
+        'Fim': session.end ? format(new Date(session.end), 'HH:mm') : 'Em andamento',
+        'Projeto': project?.name || 'N/A',
+        'Tarefa': task?.title || 'Sem tarefa',
+        'Duração': formatDuration(session.durationSec),
+      };
+    });
+
+    exportToPdf(exportData, `focusforge-sessoes-${startDate}-${endDate}.pdf`);
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -111,10 +129,16 @@ export default function ReportsPage() {
           </p>
         </div>
 
-        <Button onClick={handleExportSessions} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExportSessions} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar CSV
+          </Button>
+          <Button onClick={handleExportPdf} variant="outline">
+            <FileDown className="h-4 w-4 mr-2" />
+            Exportar PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -300,6 +324,48 @@ export default function ReportsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            Nenhuma sessão encontrada no período selecionado
+          </div>
+        )}
+      </Card>
+
+      {/* Session Details */}
+      <Card className="p-6 bg-gray-900/50 border-gray-800 mt-6">
+        <h2 className="text-lg font-semibold text-white mb-4">Sessões</h2>
+        {filteredSessions.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-400">
+                  <th className="p-2">Data</th>
+                  <th className="p-2">Início</th>
+                  <th className="p-2">Fim</th>
+                  <th className="p-2">Projeto</th>
+                  <th className="p-2">Tarefa</th>
+                  <th className="p-2">Duração</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSessions.map(session => {
+                  const project = projects.find(p => p.id === session.projectId);
+                  const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
+
+                  return (
+                    <tr key={session.id} className="border-t border-gray-800">
+                      <td className="p-2">{format(new Date(session.start), 'dd/MM/yyyy')}</td>
+                      <td className="p-2">{format(new Date(session.start), 'HH:mm')}</td>
+                      <td className="p-2">{session.end ? format(new Date(session.end), 'HH:mm') : '-'}</td>
+                      <td className="p-2">{project?.name || 'N/A'}</td>
+                      <td className="p-2">{task?.title || 'Sem tarefa'}</td>
+                      <td className="p-2">{formatDuration(session.durationSec)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500">
