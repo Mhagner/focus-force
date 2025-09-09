@@ -25,11 +25,14 @@ export function RecentSessions() {
           {recentSessions.map((session) => {
             const project = projects.find(p => p.id === session.projectId);
             const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
-            
+
             if (!project) return null;
-            
+
+            const startTime = format(new Date(session.start), "dd/MM 'às' HH:mm", { locale: ptBR });
+            const endTime = session.end ? format(new Date(session.end), 'HH:mm', { locale: ptBR }) : '...';
+
             return (
-              <div 
+              <div
                 key={session.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30 border border-gray-700/50 hover:bg-gray-800/50 transition-colors"
               >
@@ -40,11 +43,11 @@ export function RecentSessions() {
                       <p className="text-sm font-medium text-white">{task.title}</p>
                     )}
                     <p className="text-xs text-gray-400">
-                      {format(new Date(session.start), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                      {startTime} - {endTime}
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="text-right">
                   <p className="text-sm font-medium text-white">
                     {formatDuration(session.durationSec)}

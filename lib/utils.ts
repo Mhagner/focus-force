@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, startOfDay, endOfDay, isToday, isThisWeek } from 'date-fns';
 import { FocusSession, Task, Project } from '@/types';
+import jsPDF from 'jspdf';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -123,6 +124,35 @@ export function exportToCsv(data: any[], filename: string) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+export function exportToPdf(data: any[], filename: string) {
+  if (data.length === 0) return;
+
+  const doc = new jsPDF();
+  const headers = Object.keys(data[0]);
+  const columnWidth = 190 / headers.length;
+  let y = 10;
+
+  headers.forEach((header, i) => {
+    doc.text(header, 10 + i * columnWidth, y);
+  });
+
+  y += 6;
+
+  data.forEach(row => {
+    headers.forEach((header, i) => {
+      const text = String(row[header] ?? '');
+      doc.text(text, 10 + i * columnWidth, y);
+    });
+    y += 6;
+    if (y > 280) {
+      doc.addPage();
+      y = 10;
+    }
+  });
+
+  doc.save(filename);
 }
 
 export function getPriorityColor(priority: 'alta' | 'media' | 'baixa'): string {
