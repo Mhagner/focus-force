@@ -59,4 +59,5 @@ export interface TimerState {
   selectedProjectId?: string;
   selectedTaskId?: string;
   sessionStart?: string;
+  elapsedInCycle: number;
 }
