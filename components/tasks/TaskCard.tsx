@@ -19,7 +19,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onEdit }: TaskCardProps) {
   const { projects, updateTask, deleteTask } = useAppStore();
-  const { startTimer } = useTimerStore();
+  const { startTimer, switchTask, isRunning } = useTimerStore();
   const router = useRouter();
 
   const project = projects.find(p => p.id === task.projectId);
@@ -110,7 +110,11 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
           className="text-blue-400 hover:text-blue-300"
           onClick={() => {
             if (!project) return;
-            startTimer('pomodoro', project.id, task.id);
+            if (isRunning) {
+              switchTask(project.id, task.id);
+            } else {
+              startTimer('pomodoro', project.id, task.id);
+            }
             router.push('/focus');
           }}
         >

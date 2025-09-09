@@ -18,7 +18,7 @@ interface FocusDialogProps {
 
 export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
   const { projects, tasks } = useAppStore();
-  const { startTimer } = useTimerStore();
+  const { startTimer, switchTask, isRunning } = useTimerStore();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -33,7 +33,11 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
   const handleStart = () => {
     if (!selectedProjectId) return;
     const taskId = selectedTaskId && selectedTaskId !== 'none' ? selectedTaskId : undefined;
-    startTimer(timerType, selectedProjectId, taskId);
+    if (isRunning) {
+      switchTask(selectedProjectId, taskId);
+    } else {
+      startTimer(timerType, selectedProjectId, taskId);
+    }
     onOpenChange(false);
 
     // Reset selections
