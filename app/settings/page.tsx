@@ -17,8 +17,8 @@ export default function SettingsPage() {
   
   const [settings, setSettings] = useState(pomodoroSettings);
 
-  const handleSaveSettings = () => {
-    updatePomodoroSettings(settings);
+  const handleSaveSettings = async () => {
+    await updatePomodoroSettings(settings);
     toast({
       title: "Configurações salvas",
       description: "As configurações do Pomodoro foram atualizadas.",

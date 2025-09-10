@@ -4,15 +4,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  LayoutDashboard, 
-  FolderKanban, 
-  CheckSquare, 
-  Calendar, 
-  Timer, 
-  BarChart3, 
+  LayoutDashboard,
+  FolderKanban,
+  CheckSquare,
+  Calendar,
+  CalendarDays,
+  Timer,
+  BarChart3,
   Settings,
   ChevronLeft,
-  ChevronRight 
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Projetos', href: '/projects', icon: FolderKanban },
   { name: 'Tarefas', href: '/tasks', icon: CheckSquare },
   { name: 'Planejamento', href: '/plan', icon: Calendar },
+  { name: 'Calendário', href: '/calendar', icon: CalendarDays },
   { name: 'Foco', href: '/focus', icon: Timer },
   { name: 'Relatórios', href: '/reports', icon: BarChart3 },
   { name: 'Configurações', href: '/settings', icon: Settings },

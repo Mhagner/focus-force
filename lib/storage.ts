@@ -273,15 +273,18 @@ export const storage = {
 
   /**
    * ---------------------------
-   * Pomodoro (local)
+   * Pomodoro (database)
    * ---------------------------
    */
-  getPomodoroSettings(): PomodoroSettings {
-    return readLS<PomodoroSettings>(LS_KEYS.pomo, getDefaultPomodoroSettings());
+  async getPomodoroSettings(): Promise<PomodoroSettings> {
+    return request<PomodoroSettings>('/api/settings');
   },
 
-  setPomodoroSettings(settings: PomodoroSettings): void {
-    writeLS(LS_KEYS.pomo, settings);
+  async setPomodoroSettings(settings: PomodoroSettings): Promise<void> {
+    await request<PomodoroSettings>('/api/settings', {
+      method: 'PATCH',
+      body: settings,
+    });
   },
 
   /**
