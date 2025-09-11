@@ -8,9 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+enum ViewType {
+  Month = 'month',
+  Week = 'week',
+  Day = 'day'
+}
+
 export default function CalendarPage() {
   const { sessions } = useAppStore();
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const [view, setView] = useState<ViewType>(ViewType.Month);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const sessionsForDate = sessions.filter(s => isSameDay(new Date(s.start), selectedDate));
@@ -34,13 +40,17 @@ export default function CalendarPage() {
         </Select>
       </div>
 
-      {view === 'month' && (
+      {view === ViewType.Month && (
         <Card className="p-4 bg-gray-900/50 border-gray-800">
           <DayPicker
             mode="single"
             locale={ptBR}
             selected={selectedDate}
-            onSelect={setSelectedDate}
+            onSelect={(day) => {
+              if (day !== undefined) {
+                setSelectedDate(day);
+              }
+            }}
             modifiers={{
               hasSessions: sessions.map(s => new Date(s.start)),
             }}
@@ -51,7 +61,7 @@ export default function CalendarPage() {
         </Card>
       )}
 
-      {view === 'week' && (
+      {view === ViewType.Week && (
         <Card className="p-4 bg-gray-900/50 border-gray-800">
           <div className="grid grid-cols-7 gap-2 text-center text-white">
             {weekDays.map(day => {
@@ -68,7 +78,7 @@ export default function CalendarPage() {
         </Card>
       )}
 
-      {view === 'day' && (
+      {view === ViewType.Day && (
         <Card className="p-4 bg-gray-900/50 border-gray-800">
           <h2 className="text-white mb-4">{format(selectedDate, 'PPPP', { locale: ptBR })}</h2>
           {sessionsForDate.length > 0 ? (
