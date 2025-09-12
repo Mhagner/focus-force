@@ -80,3 +80,13 @@ model DailyPlanBlock {
   projectId     String
   targetMinutes Int
 }
+
+model PomodoroSettings {
+  id               String  @id @default(cuid())
+  workMin          Int
+  shortBreakMin    Int
+  longBreakMin     Int
+  cyclesToLongBreak Int
+  autoStartNext    Boolean
+  soundOn          Boolean
+}

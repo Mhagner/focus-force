@@ -26,7 +26,7 @@ interface AppStore {
   updateSession: (id: string, updates: Partial<FocusSession>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
 
-  updatePomodoroSettings: (settings: Partial<PomodoroSettings>) => void;
+  updatePomodoroSettings: (settings: Partial<PomodoroSettings>) => Promise<void>;
 
   updateDailyPlan: (plan: DailyPlan) => void;
   getDailyPlan: (dateISO: string) => DailyPlan | undefined;
@@ -54,12 +54,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   theme: 'dark',
 
   initializeData: async () => {
-    const [projects, tasks, sessions] = await Promise.all([
+    const [projects, tasks, sessions, pomodoroSettings] = await Promise.all([
       storage.getProjects(),
       storage.getTasks(),
       storage.getSessions(),
+      storage.getPomodoroSettings(),
     ]);
-    const pomodoroSettings = storage.getPomodoroSettings();
     const dailyPlans = storage.getDailyPlans();
     set({ projects, tasks, sessions, pomodoroSettings, dailyPlans });
   },
@@ -119,12 +119,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // Settings
-  updatePomodoroSettings: (settings) => {
-    set((state) => {
-      const newSettings = { ...state.pomodoroSettings, ...settings };
-      storage.setPomodoroSettings(newSettings);
-      return { pomodoroSettings: newSettings };
-    });
+  updatePomodoroSettings: async (settings) => {
+    const newSettings = { ...get().pomodoroSettings, ...settings };
+    await storage.setPomodoroSettings(newSettings);
+    set({ pomodoroSettings: newSettings });
   },
 
   // Daily Plans

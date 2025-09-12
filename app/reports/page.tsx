@@ -12,12 +12,14 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Download, Filter, BarChart, FileDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ManualSessionDialog } from '@/components/sessions/ManualSessionDialog';
 
 export default function ReportsPage() {
   const { sessions, projects, tasks } = useAppStore();
   const [startDate, setStartDate] = useState(format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
+  const [manualOpen, setManualOpen] = useState(false);
 
   // Filter sessions by date range and project
   const filteredSessions = sessions.filter(session => {
@@ -104,14 +106,12 @@ export default function ReportsPage() {
   const handleExportPdf = () => {
     const exportData = filteredSessions.map(session => {
       const project = projects.find(p => p.id === session.projectId);
-      const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
 
       return {
         'Data': format(new Date(session.start), 'dd/MM/yyyy'),
         'Início': format(new Date(session.start), 'HH:mm'),
         'Fim': session.end ? format(new Date(session.end), 'HH:mm') : 'Em andamento',
         'Projeto': project?.name || 'N/A',
-        'Tarefa': task?.title || 'Sem tarefa',
         'Duração': formatDuration(session.durationSec),
       };
     });
@@ -120,6 +120,7 @@ export default function ReportsPage() {
   };
 
   return (
+    <>
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -130,6 +131,9 @@ export default function ReportsPage() {
         </div>
 
         <div className="flex gap-2">
+          <Button onClick={() => setManualOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+            Adicionar Sessão
+          </Button>
           <Button onClick={handleExportSessions} variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
@@ -374,5 +378,7 @@ export default function ReportsPage() {
         )}
       </Card>
     </div>
+    <ManualSessionDialog open={manualOpen} onOpenChange={setManualOpen} />
+    </>
   );
 }

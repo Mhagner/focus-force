@@ -129,26 +129,34 @@ export function exportToCsv(data: any[], filename: string) {
 export function exportToPdf(data: any[], filename: string) {
   if (data.length === 0) return;
 
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: 'landscape' });
   const headers = Object.keys(data[0]);
-  const columnWidth = 190 / headers.length;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const columnWidth = (pageWidth - 20) / headers.length;
   let y = 10;
 
+  doc.setFontSize(10);
   headers.forEach((header, i) => {
-    doc.text(header, 10 + i * columnWidth, y);
+    doc.text(header, 10 + i * columnWidth, y, { maxWidth: columnWidth - 2 });
   });
 
-  y += 6;
+  y += 8;
 
   data.forEach(row => {
     headers.forEach((header, i) => {
       const text = String(row[header] ?? '');
-      doc.text(text, 10 + i * columnWidth, y);
+      const lines = doc.splitTextToSize(text, columnWidth - 2);
+      doc.text(lines, 10 + i * columnWidth, y);
     });
-    y += 6;
-    if (y > 280) {
+    y += 8;
+    if (y > pageHeight - 10) {
       doc.addPage();
       y = 10;
+      headers.forEach((header, i) => {
+        doc.text(header, 10 + i * columnWidth, y, { maxWidth: columnWidth - 2 });
+      });
+      y += 8;
     }
   });
 
