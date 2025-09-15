@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { Task } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface TaskDialogProps {
     open: boolean;
@@ -19,6 +20,7 @@ interface TaskDialogProps {
 
 export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskDialogProps) {
     const { projects, addTask, updateTask } = useAppStore();
+    const { toast } = useToast();
 
     const activeProjects = useMemo(() => projects.filter(p => p.active), [projects]);
 
@@ -59,8 +61,10 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
 
         if (task) {
             await updateTask(task.id, payload as Partial<Task>);
+            toast({ title: 'Tarefa atualizada' });
         } else {
             await addTask(payload);
+            toast({ title: 'Tarefa criada' });
         }
 
         onOpenChange(false);

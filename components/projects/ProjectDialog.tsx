@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProjectDialogProps {
   open: boolean;
@@ -21,6 +22,7 @@ const defaultColors = [
 
 export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProps) {
   const { addProject, updateProject } = useAppStore();
+  const { toast } = useToast();
   
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
@@ -41,7 +43,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
     }
   }, [project, open]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) return;
 
     const projectData = {
@@ -53,9 +55,11 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
     };
 
     if (project) {
-      updateProject(project.id, projectData);
+      await updateProject(project.id, projectData);
+      toast({ title: 'Projeto atualizado' });
     } else {
-      addProject(projectData);
+      await addProject(projectData);
+      toast({ title: 'Projeto criado' });
     }
 
     onOpenChange(false);

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
+import { useToast } from '@/hooks/use-toast';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { formatDuration, getProjectHoursToday } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -22,6 +23,7 @@ import { ptBR } from 'date-fns/locale';
 
 export default function PlanPage() {
   const { projects, dailyPlans, sessions, updateDailyPlan, getDailyPlan } = useAppStore();
+  const { toast } = useToast();
   
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayPlan = getDailyPlan(today);
@@ -78,8 +80,9 @@ export default function PlanPage() {
       blocks: blocks.filter(block => block.targetMinutes > 0),
       notes: notes.trim() || undefined,
     };
-    
+
     updateDailyPlan(planData);
+    toast({ title: 'Plano salvo' });
   };
 
   return (

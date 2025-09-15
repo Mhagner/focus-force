@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,16 +13,17 @@ export function TopNav() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   
-  const { 
-    isRunning, 
-    isPaused, 
-    timeRemaining, 
+  const {
+    isRunning,
+    isPaused,
+    timeRemaining,
     currentPhase,
     selectedProjectId,
-    pauseTimer, 
-    resumeTimer, 
-    stopTimer,
-    resetTimer 
+    pauseTimer,
+    resumeTimer,
+    resetTimer,
+    tick,
+    restoreState,
   } = useTimerStore();
   
   const { projects } = useAppStore();
@@ -33,6 +34,20 @@ export function TopNav() {
       setIsSearchOpen(false);
     }
   };
+
+  useEffect(() => {
+    restoreState();
+  }, [restoreState]);
+
+  useEffect(() => {
+    if (isRunning && !isPaused) {
+      const interval = setInterval(() => {
+        tick();
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isRunning, isPaused, tick]);
 
   return (
     <>

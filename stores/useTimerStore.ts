@@ -32,10 +32,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   elapsedInCycle: 0,
 
   startTimer: (type, projectId, taskId) => {
-    const pomodoroSettings = JSON.parse(
-      localStorage.getItem('focusforge/pomodoro-settings') ||
-        '{"workMin":50,"shortBreakMin":10,"longBreakMin":20,"cyclesToLongBreak":3,"autoStartNext":true,"soundOn":true}'
-    );
+    const pomodoroSettings = useAppStore.getState().pomodoroSettings;
 
     const totalTime = type === 'pomodoro' ? pomodoroSettings.workMin * 60 : 25 * 60;
 
@@ -152,10 +149,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
   nextPhase: () => {
     const state = get();
-    const pomodoroSettings = JSON.parse(
-      localStorage.getItem('focusforge/pomodoro-settings') ||
-        '{"workMin":50,"shortBreakMin":10,"longBreakMin":20,"cyclesToLongBreak":3,"autoStartNext":true,"soundOn":true}'
-    );
+    const pomodoroSettings = useAppStore.getState().pomodoroSettings;
 
     if (state.currentPhase === 'work') {
       const isLongBreak = state.currentCycle >= state.cycles;
@@ -193,10 +187,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       get().saveState();
     } else {
       if (state.currentPhase !== 'manual') {
-        const pomodoroSettings = JSON.parse(
-          localStorage.getItem('focusforge/pomodoro-settings') ||
-            '{"workMin":50,"shortBreakMin":10,"longBreakMin":20,"cyclesToLongBreak":3,"autoStartNext":true,"soundOn":true}'
-        );
+        const pomodoroSettings = useAppStore.getState().pomodoroSettings;
 
         // Persist finished phase as a session (typically a work phase)
         if (state.selectedProjectId && state.sessionStart && state.currentPhase === 'work') {
