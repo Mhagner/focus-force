@@ -26,27 +26,9 @@ export function PomodoroTimer() {
     stopTimer,
     resetTimer,
     nextPhase,
-    tick,
-    restoreState,
   } = useTimerStore();
 
   const { projects, tasks } = useAppStore();
-
-  // Restore timer state on mount
-  useEffect(() => {
-    restoreState();
-  }, [restoreState]);
-
-  // Timer tick effect
-  useEffect(() => {
-    if (isRunning && !isPaused) {
-      const interval = setInterval(() => {
-        tick();
-      }, 1000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [isRunning, isPaused, tick]);
 
   // Keyboard shortcuts
   useEffect(() => {

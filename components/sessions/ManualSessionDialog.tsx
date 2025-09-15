@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
+import { useToast } from '@/hooks/use-toast';
 
 interface ManualSessionDialogProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface ManualSessionDialogProps {
 
 export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogProps) {
   const { projects, tasks, addSession } = useAppStore();
+  const { toast } = useToast();
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [date, setDate] = useState('');
@@ -35,6 +37,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
       durationSec,
       type: 'manual',
     });
+    toast({ title: 'Sessão adicionada' });
     onOpenChange(false);
     setProjectId('');
     setTaskId('');
@@ -66,12 +69,15 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
           {projectTasks.length > 0 && (
             <div>
               <label className="block text-sm text-gray-300 mb-2">Tarefa</label>
-              <Select value={taskId} onValueChange={setTaskId}>
+              <Select
+                value={taskId}
+                onValueChange={value => setTaskId(value === 'none' ? '' : value)}
+              >
                 <SelectTrigger className="bg-gray-800 border-gray-700">
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-800 border-gray-700">
-                  <SelectItem value="">Sem tarefa</SelectItem>
+                  <SelectItem value="none">Sem tarefa</SelectItem>
                   {projectTasks.map(t => (
                     <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                   ))}
