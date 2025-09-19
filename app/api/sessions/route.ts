@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     const session = await prisma.focusSession.create({
       data,
-      include: { project: true },
+      include: { project: true, task: true },
     });
 
     const settings = await prisma.clockfySettings.findFirst();
@@ -49,14 +49,45 @@ export async function POST(req: Request) {
     type SessionPayload = typeof session | Awaited<ReturnType<typeof prisma.focusSession.update>>;
     let payload: SessionPayload = session;
 
+    const buildClockfyDescription = () => {
+      const segments: string[] = [];
+
+      if (session.task?.title) {
+        segments.push(`Tarefa: ${session.task.title}`);
+      }
+
+      if (session.project?.name) {
+        segments.push(`Projeto: ${session.project.name}`);
+      }
+
+      if (session.project?.client) {
+        segments.push(`Cliente: ${session.project.client}`);
+      }
+
+      let description = segments.join(' | ');
+
+      if (session.notes?.trim()) {
+        description = description
+          ? `${description} | Notas: ${session.notes.trim()}`
+          : session.notes.trim();
+      }
+
+      if (!description) {
+        const sessionLabel = session.type === 'pomodoro' ? 'Pomodoro' : 'Manual';
+        description = session.project?.name
+          ? `${session.project.name} - Sessão ${sessionLabel}`
+          : `Sessão ${sessionLabel}`;
+      }
+
+      return description;
+    };
+
     if (session.project?.clockfyProjectId && session.end) {
       const timeEntryId = await createClockfyTimeEntry({
         projectId: session.project.clockfyProjectId,
         start: session.start,
         end: session.end,
-        description:
-          session.notes ??
-          `${session.project.name} - ${session.type === 'pomodoro' ? 'Pomodoro' : 'Manual'} focus`,
+        description: buildClockfyDescription(),
         credentials,
       });
 
@@ -69,8 +100,8 @@ export async function POST(req: Request) {
     }
 
     if ('project' in payload) {
-      const { project: _project, ...sessionWithoutProject } = payload;
-      return NextResponse.json(sessionWithoutProject);
+      const { project: _project, task: _task, ...sessionWithoutRelations } = payload;
+      return NextResponse.json(sessionWithoutRelations);
     }
 
     return NextResponse.json(payload);
