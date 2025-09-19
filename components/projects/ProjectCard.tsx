@@ -27,6 +27,11 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   ).length;
 
   const isClockfyLinked = Boolean(project.clockfyProjectId);
+  const clockfyStatus = project.syncWithClockfy
+    ? isClockfyLinked
+      ? 'linked'
+      : 'pending'
+    : 'disabled';
 
   const handleArchive = () => {
     updateProject(project.id, { active: false });
@@ -47,14 +52,20 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
                 <p className="text-sm text-gray-400">{project.client}</p>
               )}
               <Badge
-                variant={isClockfyLinked ? 'secondary' : 'outline'}
+                variant={clockfyStatus === 'linked' ? 'secondary' : 'outline'}
                 className={
-                  isClockfyLinked
+                  clockfyStatus === 'linked'
                     ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                    : 'border-gray-600 text-gray-300'
+                    : clockfyStatus === 'pending'
+                      ? 'border-yellow-500/60 text-yellow-300'
+                      : 'border-gray-600 text-gray-300'
                 }
               >
-                {isClockfyLinked ? 'Clockfy conectado' : 'Clockfy pendente'}
+                {clockfyStatus === 'linked'
+                  ? 'Clockfy conectado'
+                  : clockfyStatus === 'pending'
+                    ? 'Clockfy pendente'
+                    : 'Clockfy desativado'}
               </Badge>
             </div>
           </div>

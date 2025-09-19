@@ -25,18 +25,19 @@ enum SessionType {
 }
 
 model Project {
-  id         String           @id @default(cuid())
-  name       String
-  client     String?
-  color      String
-  hourlyRate Decimal?         @db.Decimal(10, 2)
-  active     Boolean          @default(true)
-  createdAt  DateTime         @default(now())
-  tasks      Task[]
-  sessions   FocusSession[]
-  blocks     DailyPlanBlock[]
-  clockfyClientId  String?
-  clockfyProjectId String?
+  id                String           @id @default(cuid())
+  name              String
+  client            String?
+  color             String
+  hourlyRate        Decimal?         @db.Decimal(10, 2)
+  active            Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  tasks             Task[]
+  sessions          FocusSession[]
+  blocks            DailyPlanBlock[]
+  clockfyClientId   String?
+  clockfyProjectId  String?
+  syncWithClockfy   Boolean          @default(false)
 }
 
 model Task {

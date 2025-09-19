@@ -182,8 +182,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   importData: (jsonData) => {
     try {
       const data = JSON.parse(jsonData);
+      const importedProjects = Array.isArray(data.projects)
+        ? data.projects.map((project: any) => ({
+            ...project,
+            syncWithClockfy: project?.syncWithClockfy ?? false,
+          }))
+        : [];
       set({
-        projects: data.projects || [],
+        projects: importedProjects,
         tasks: data.tasks || [],
         sessions: data.sessions || [],
         pomodoroSettings: data.pomodoroSettings || get().pomodoroSettings,

@@ -22,6 +22,7 @@ export async function POST(req: Request) {
         .transform((v) => (v === undefined ? undefined : Number(v)))
         .refine((v) => v === undefined || Number.isFinite(v), 'hourlyRate inválido'),
       active: z.boolean().optional(),
+      syncWithClockfy: z.boolean().optional(),
     });
 
     const parsed = schema.parse(body);
@@ -32,9 +33,14 @@ export async function POST(req: Request) {
       color: parsed.color,
       hourlyRate: parsed.hourlyRate !== undefined ? parsed.hourlyRate : undefined,
       active: parsed.active ?? true,
+      syncWithClockfy: parsed.syncWithClockfy ?? false,
     };
 
     const project = await prisma.project.create({ data });
+
+    if (!project.syncWithClockfy) {
+      return NextResponse.json(project);
+    }
 
     const settings = await prisma.clockfySettings.findFirst();
     const credentials = {

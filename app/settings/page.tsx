@@ -301,7 +301,14 @@ export default function SettingsPage() {
                   Nenhum projeto cadastrado ainda.
                 </p>
               ) : (
-                projects.map((project) => (
+                projects.map((project) => {
+                  const clockfyStatus = project.syncWithClockfy
+                    ? project.clockfyProjectId
+                      ? 'synced'
+                      : 'pending'
+                    : 'disabled';
+
+                  return (
                   <div
                     key={project.id}
                     className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3"
@@ -312,17 +319,24 @@ export default function SettingsPage() {
                         <p className="text-xs text-gray-400">{project.client}</p>
                       )}
                     </div>
-                    {project.clockfyProjectId ? (
+                    {clockfyStatus === 'synced' && (
                       <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
                         Sincronizado
                       </Badge>
-                    ) : (
+                    )}
+                    {clockfyStatus === 'pending' && (
                       <Badge variant="outline" className="border-yellow-500/60 text-yellow-300">
                         Pendente
                       </Badge>
                     )}
+                    {clockfyStatus === 'disabled' && (
+                      <Badge variant="outline" className="border-gray-600 text-gray-300">
+                        Desativado
+                      </Badge>
+                    )}
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

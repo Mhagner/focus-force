@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       return description;
     };
 
-    if (session.project?.clockfyProjectId && session.end) {
+    if (session.project?.syncWithClockfy && session.project?.clockfyProjectId && session.end) {
       const timeEntryId = await createClockfyTimeEntry({
         projectId: session.project.clockfyProjectId,
         start: session.start,

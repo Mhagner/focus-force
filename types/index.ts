@@ -6,8 +6,9 @@ export interface Project {
   hourlyRate?: number;
   active: boolean;
   createdAt: string;
-  clockfyClientId?: string;
-  clockfyProjectId?: string;
+  clockfyClientId?: string | null;
+  clockfyProjectId?: string | null;
+  syncWithClockfy: boolean;
 }
 
 export interface Task {

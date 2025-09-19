@@ -23,6 +23,7 @@ export async function PATCH(
         .transform((v) => (v === undefined ? undefined : Number(v)))
         .refine((v) => v === undefined || Number.isFinite(v), 'hourlyRate inválido'),
       active: z.boolean().optional(),
+      syncWithClockfy: z.boolean().optional(),
     });
 
     const parsed = schema.parse(body);
@@ -33,10 +34,26 @@ export async function PATCH(
     if (parsed.color !== undefined) data.color = parsed.color;
     if (parsed.hourlyRate !== undefined) data.hourlyRate = parsed.hourlyRate;
     if (parsed.active !== undefined) data.active = parsed.active;
+    if (parsed.syncWithClockfy !== undefined) {
+      data.syncWithClockfy = parsed.syncWithClockfy;
+      if (parsed.syncWithClockfy === false) {
+        data.clockfyProjectId = null;
+        data.clockfyClientId = null;
+      }
+    }
 
     const project = await prisma.project.update({ where: { id }, data });
 
-    if (parsed.name !== undefined || parsed.client !== undefined) {
+    const shouldAttemptSync =
+      project.syncWithClockfy &&
+      (
+        parsed.name !== undefined ||
+        parsed.client !== undefined ||
+        parsed.syncWithClockfy === true ||
+        !project.clockfyProjectId
+      );
+
+    if (shouldAttemptSync) {
       const settings = await prisma.clockfySettings.findFirst();
       const credentials = {
         apiKey: settings?.apiKey ?? undefined,
@@ -59,6 +76,11 @@ export async function PATCH(
         });
         return NextResponse.json(updated);
       }
+    }
+
+    if (parsed.syncWithClockfy === false) {
+      const { clockfyProjectId, clockfyClientId, ...rest } = project;
+      return NextResponse.json({ ...rest, clockfyProjectId: null, clockfyClientId: null });
     }
 
     return NextResponse.json(project);

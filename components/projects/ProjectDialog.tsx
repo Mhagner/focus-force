@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +29,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const [client, setClient] = useState('');
   const [color, setColor] = useState(defaultColors[0]);
   const [hourlyRate, setHourlyRate] = useState('');
+  const [syncWithClockfy, setSyncWithClockfy] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -35,11 +37,13 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setClient(project.client || '');
       setColor(project.color);
       setHourlyRate(project.hourlyRate?.toString() || '');
+      setSyncWithClockfy(project.syncWithClockfy);
     } else {
       setName('');
       setClient('');
       setColor(defaultColors[0]);
       setHourlyRate('');
+      setSyncWithClockfy(false);
     }
   }, [project, open]);
 
@@ -52,6 +56,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       color,
       hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
       active: true,
+      syncWithClockfy,
     };
 
     if (project) {
@@ -122,6 +127,20 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
               onChange={(e) => setHourlyRate(e.target.value)}
               placeholder="150.00"
               className="bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3">
+            <div>
+              <Label htmlFor="sync-clockfy" className="text-gray-200">Sincronizar com Clockfy</Label>
+              <p className="text-xs text-gray-400 mt-1">
+                Ative para criar o projeto também no Clockfy e registrar sessões automaticamente.
+              </p>
+            </div>
+            <Switch
+              id="sync-clockfy"
+              checked={syncWithClockfy}
+              onCheckedChange={setSyncWithClockfy}
             />
           </div>
 
