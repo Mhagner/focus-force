@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { ensureClockfySyncForProject } from '@/lib/integrations/clockfy';
 export const dynamic = 'force-dynamic';
 
 interface Params { params: { id: string } }
@@ -34,6 +35,32 @@ export async function PATCH(
     if (parsed.active !== undefined) data.active = parsed.active;
 
     const project = await prisma.project.update({ where: { id }, data });
+
+    if (parsed.name !== undefined || parsed.client !== undefined) {
+      const settings = await prisma.clockfySettings.findFirst();
+      const credentials = {
+        apiKey: settings?.apiKey ?? undefined,
+        workspaceId: settings?.workspaceId ?? undefined,
+      };
+
+      const syncResult = await ensureClockfySyncForProject({
+        projectName: project.name,
+        clientName: project.client,
+        credentials,
+      });
+
+      if (syncResult?.projectId || syncResult?.clientId) {
+        const updated = await prisma.project.update({
+          where: { id },
+          data: {
+            clockfyProjectId: syncResult.projectId ?? project.clockfyProjectId ?? undefined,
+            clockfyClientId: syncResult.clientId ?? project.clockfyClientId ?? undefined,
+          },
+        });
+        return NextResponse.json(updated);
+      }
+    }
+
     return NextResponse.json(project);
   } catch (err: any) {
     return NextResponse.json({ message: err.message ?? 'Erro ao atualizar projeto' }, { status: 400 });

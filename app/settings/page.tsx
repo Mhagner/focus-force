@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,14 +8,35 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useAppStore } from '@/stores/useAppStore';
 import { Slider } from '@/components/ui/slider';
-import { Settings, Download, Upload, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Settings, Download, Upload, Trash2, PlugZap, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
-  const { pomodoroSettings, updatePomodoroSettings, exportData, importData, clearAllData } = useAppStore();
+  const {
+    pomodoroSettings,
+    updatePomodoroSettings,
+    exportData,
+    importData,
+    clearAllData,
+    clockfySettings,
+    updateClockfySettings,
+    projects,
+  } = useAppStore();
   const { toast } = useToast();
-  
+
   const [settings, setSettings] = useState(pomodoroSettings);
+  const [clockfyForm, setClockfyForm] = useState({
+    apiKey: clockfySettings.apiKey,
+    workspaceId: clockfySettings.workspaceId,
+  });
+
+  useEffect(() => {
+    setClockfyForm({
+      apiKey: clockfySettings.apiKey,
+      workspaceId: clockfySettings.workspaceId,
+    });
+  }, [clockfySettings]);
 
   const handleSaveSettings = async () => {
     await updatePomodoroSettings(settings);
@@ -23,6 +44,22 @@ export default function SettingsPage() {
       title: "Configurações salvas",
       description: "As configurações do Pomodoro foram atualizadas.",
     });
+  };
+
+  const handleSaveClockfy = async () => {
+    try {
+      await updateClockfySettings(clockfyForm);
+      toast({
+        title: 'Integração Clockfy atualizada',
+        description: 'As credenciais foram salvas.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Não foi possível salvar',
+        description: 'Verifique as credenciais informadas.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleExport = () => {
@@ -78,6 +115,11 @@ export default function SettingsPage() {
       });
     }
   };
+
+  const clockfyConfigured = Boolean(clockfySettings.apiKey && clockfySettings.workspaceId);
+  const lastClockfyUpdate = clockfySettings.updatedAt
+    ? new Date(clockfySettings.updatedAt).toLocaleString()
+    : null;
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -184,6 +226,106 @@ export default function SettingsPage() {
           >
             Salvar Configurações
           </Button>
+        </Card>
+
+        <Card className="p-6 bg-gray-900/50 border-gray-800">
+          <div className="flex items-center gap-2 mb-6">
+            <PlugZap className="h-5 w-5 text-gray-400" />
+            <div>
+              <h2 className="text-lg font-semibold text-white">Integração com Clockfy</h2>
+              <p className="text-xs text-gray-400 mt-1">
+                Conecte-se ao Clockfy para sincronizar projetos e sessões automaticamente.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="clockfy-api" className="text-gray-300">API Key</Label>
+              <Input
+                id="clockfy-api"
+                type="password"
+                value={clockfyForm.apiKey}
+                onChange={(e) => setClockfyForm({ ...clockfyForm, apiKey: e.target.value })}
+                placeholder="ckey_xxxxx"
+                className="bg-gray-800 border-gray-700 text-white"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="clockfy-workspace" className="text-gray-300">Workspace ID</Label>
+              <Input
+                id="clockfy-workspace"
+                value={clockfyForm.workspaceId}
+                onChange={(e) => setClockfyForm({ ...clockfyForm, workspaceId: e.target.value })}
+                placeholder="workspace_id"
+                className="bg-gray-800 border-gray-700 text-white"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          {lastClockfyUpdate && (
+            <p className="text-xs text-gray-500 mt-2">
+              Última atualização: {lastClockfyUpdate}
+            </p>
+          )}
+
+          <Button
+            onClick={handleSaveClockfy}
+            className="mt-6 bg-blue-600 hover:bg-blue-700"
+          >
+            Salvar credenciais
+          </Button>
+
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-3">
+              {clockfyConfigured ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-yellow-400" />
+              )}
+              <h3 className="text-sm font-semibold text-white">Status de sincronização</h3>
+            </div>
+
+            {!clockfyConfigured && (
+              <p className="text-sm text-yellow-300/80 mb-4">
+                Informe a API Key e o Workspace ID para ativar a sincronização com o Clockfy.
+              </p>
+            )}
+
+            <div className="space-y-2">
+              {projects.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  Nenhum projeto cadastrado ainda.
+                </p>
+              ) : (
+                projects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-white">{project.name}</p>
+                      {project.client && (
+                        <p className="text-xs text-gray-400">{project.client}</p>
+                      )}
+                    </div>
+                    {project.clockfyProjectId ? (
+                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                        Sincronizado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-yellow-500/60 text-yellow-300">
+                        Pendente
+                      </Badge>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </Card>
 
         {/* Data Management */}

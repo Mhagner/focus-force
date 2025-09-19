@@ -6,6 +6,8 @@ export interface Project {
   hourlyRate?: number;
   active: boolean;
   createdAt: string;
+  clockfyClientId?: string;
+  clockfyProjectId?: string;
 }
 
 export interface Task {
@@ -30,6 +32,7 @@ export interface FocusSession {
   type: 'manual' | 'pomodoro';
   pomodoroCycles?: number;
   notes?: string;
+  clockfyTimeEntryId?: string;
 }
 
 export interface PomodoroSettings {
@@ -60,4 +63,10 @@ export interface TimerState {
   selectedTaskId?: string;
   sessionStart?: string;
   elapsedInCycle: number;
+}
+
+export interface ClockfySettings {
+  apiKey: string;
+  workspaceId: string;
+  updatedAt?: string | null;
 }

@@ -2,6 +2,7 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { formatDuration, getProjectHoursToday, getWeekHours } from '@/lib/utils';
@@ -15,15 +16,17 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   const { sessions, tasks, updateProject } = useAppStore();
-  
+
   const todayHours = getProjectHoursToday(sessions, project.id);
   const weekHours = sessions
     .filter(s => s.projectId === project.id)
     .reduce((total, session) => total + session.durationSec, 0);
-  
-  const pendingTasks = tasks.filter(t => 
+
+  const pendingTasks = tasks.filter(t =>
     t.projectId === project.id && t.status !== 'done'
   ).length;
+
+  const isClockfyLinked = Boolean(project.clockfyProjectId);
 
   const handleArchive = () => {
     updateProject(project.id, { active: false });
@@ -39,9 +42,21 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
           />
           <div>
             <h3 className="font-semibold text-white">{project.name}</h3>
-            {project.client && (
-              <p className="text-sm text-gray-400">{project.client}</p>
-            )}
+            <div className="flex items-center gap-2 mt-1">
+              {project.client && (
+                <p className="text-sm text-gray-400">{project.client}</p>
+              )}
+              <Badge
+                variant={isClockfyLinked ? 'secondary' : 'outline'}
+                className={
+                  isClockfyLinked
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                    : 'border-gray-600 text-gray-300'
+                }
+              >
+                {isClockfyLinked ? 'Clockfy conectado' : 'Clockfy pendente'}
+              </Badge>
+            </div>
           </div>
         </div>
         

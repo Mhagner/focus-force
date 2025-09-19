@@ -35,6 +35,8 @@ model Project {
   tasks      Task[]
   sessions   FocusSession[]
   blocks     DailyPlanBlock[]
+  clockfyClientId  String?
+  clockfyProjectId String?
 }
 
 model Task {
@@ -63,6 +65,7 @@ model FocusSession {
   type           SessionType
   pomodoroCycles Int?
   notes          String?
+  clockfyTimeEntryId String?
 }
 
 model DailyPlan {
@@ -89,4 +92,12 @@ model PomodoroSettings {
   cyclesToLongBreak Int
   autoStartNext    Boolean
   soundOn          Boolean
+}
+
+model ClockfySettings {
+  id           String   @id @default(cuid())
+  apiKey       String?
+  workspaceId  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
