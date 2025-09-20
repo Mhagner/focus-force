@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { TimerState } from '@/types';
+import { PomodoroSettings, TimerState } from '@/types';
 import { storage } from '@/lib/storage';
 import { useAppStore } from '@/stores/useAppStore';
 
@@ -18,7 +18,15 @@ interface TimerStore extends TimerState {
   saveState: () => void;
 }
 
-export const useTimerStore = create<TimerStore>((set, get) => ({
+type SessionPayload = Parameters<(typeof storage)['addSession']>[0];
+
+interface AdvanceTimerResult {
+  updatedFields: Partial<TimerState>;
+  sessions: SessionPayload[];
+  manualStop: boolean;
+}
+
+const initialTimerState: TimerState = {
   isRunning: false,
   isPaused: false,
   currentPhase: 'work',
@@ -29,12 +37,143 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   selectedProjectId: undefined,
   selectedTaskId: undefined,
   sessionStart: undefined,
+  lastTickAt: undefined,
   elapsedInCycle: 0,
+};
+
+function advanceTimerState(
+  state: TimerState,
+  now: Date,
+  pomodoroSettings: PomodoroSettings
+): AdvanceTimerResult {
+  const referenceIso = state.lastTickAt ?? state.sessionStart;
+  if (!referenceIso) {
+    const updatedFields: Partial<TimerState> = {};
+    if (state.isRunning) {
+      updatedFields.lastTickAt = now.toISOString();
+    }
+    return { updatedFields, sessions: [], manualStop: false };
+  }
+
+  const referenceMs = Date.parse(referenceIso);
+  if (Number.isNaN(referenceMs)) {
+    const updatedFields: Partial<TimerState> = {};
+    if (state.isRunning) {
+      updatedFields.lastTickAt = now.toISOString();
+    }
+    return { updatedFields, sessions: [], manualStop: false };
+  }
+
+  const elapsedSeconds = Math.floor((now.getTime() - referenceMs) / 1000);
+  if (elapsedSeconds <= 0) {
+    const updatedFields: Partial<TimerState> = {};
+    if (state.isRunning) {
+      updatedFields.lastTickAt = now.toISOString();
+    }
+    return { updatedFields, sessions: [], manualStop: false };
+  }
+
+  const sessions: SessionPayload[] = [];
+  let currentPhase = state.currentPhase;
+  let timeRemaining = state.timeRemaining;
+  let totalTime = state.totalTime;
+  const cycles = state.cycles;
+  let currentCycle = state.currentCycle;
+  let sessionStart = state.sessionStart;
+  let elapsedInCycle = state.elapsedInCycle;
+  let isRunning = state.isRunning;
+  const selectedProjectId = state.selectedProjectId;
+  const selectedTaskId = state.selectedTaskId;
+  let cursorMs = referenceMs;
+  let remaining = elapsedSeconds;
+  let manualStop = false;
+
+  while (remaining > 0 && isRunning) {
+    const available = timeRemaining > 0 ? timeRemaining : 0;
+
+    if (available > remaining) {
+      timeRemaining = available - remaining;
+      cursorMs += remaining * 1000;
+      remaining = 0;
+      break;
+    }
+
+    cursorMs += available * 1000;
+    remaining -= available;
+
+    if (currentPhase === 'manual') {
+      manualStop = true;
+      isRunning = false;
+      timeRemaining = 0;
+      break;
+    }
+
+    if (currentPhase === 'work' && sessionStart && selectedProjectId) {
+      const durationSec = totalTime - elapsedInCycle;
+      if (durationSec > 0) {
+        sessions.push({
+          projectId: selectedProjectId,
+          taskId: selectedTaskId,
+          start: sessionStart,
+          end: new Date(cursorMs).toISOString(),
+          durationSec,
+          type: 'pomodoro',
+          pomodoroCycles: currentCycle,
+        });
+      }
+    }
+
+    if (!pomodoroSettings.autoStartNext) {
+      isRunning = false;
+      sessionStart = undefined;
+      elapsedInCycle = 0;
+      timeRemaining = 0;
+      break;
+    }
+
+    if (currentPhase === 'work') {
+      const isLongBreak = currentCycle >= cycles;
+      const nextTime = isLongBreak
+        ? pomodoroSettings.longBreakMin * 60
+        : pomodoroSettings.shortBreakMin * 60;
+      currentPhase = isLongBreak ? 'long-break' : 'short-break';
+      totalTime = nextTime;
+      timeRemaining = nextTime;
+      currentCycle = isLongBreak ? 1 : currentCycle + 1;
+      sessionStart = new Date(cursorMs).toISOString();
+      elapsedInCycle = 0;
+    } else {
+      const workTime = pomodoroSettings.workMin * 60;
+      currentPhase = 'work';
+      totalTime = workTime;
+      timeRemaining = workTime;
+      sessionStart = new Date(cursorMs).toISOString();
+      elapsedInCycle = 0;
+    }
+  }
+
+  const updatedFields: Partial<TimerState> = {
+    currentPhase,
+    timeRemaining: Math.max(timeRemaining, 0),
+    totalTime,
+    currentCycle,
+    sessionStart,
+    elapsedInCycle,
+    isRunning,
+    lastTickAt: isRunning ? new Date(cursorMs).toISOString() : undefined,
+  };
+
+  return { updatedFields, sessions, manualStop };
+}
+
+export const useTimerStore = create<TimerStore>((set, get) => ({
+  ...initialTimerState,
 
   startTimer: (type, projectId, taskId) => {
     const pomodoroSettings = useAppStore.getState().pomodoroSettings;
 
     const totalTime = type === 'pomodoro' ? pomodoroSettings.workMin * 60 : 25 * 60;
+    const nowIso = new Date().toISOString();
 
     set({
       isRunning: true,
@@ -46,7 +185,8 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       currentCycle: type === 'pomodoro' ? 1 : 0,
       selectedProjectId: projectId,
       selectedTaskId: taskId,
-      sessionStart: new Date().toISOString(),
+      sessionStart: nowIso,
+      lastTickAt: nowIso,
       elapsedInCycle: 0,
     });
 
@@ -76,10 +216,13 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       });
     }
 
+    const nowIso = new Date().toISOString();
+
     set({
       selectedProjectId: projectId,
       selectedTaskId: taskId,
-      sessionStart: new Date().toISOString(),
+      sessionStart: nowIso,
+      lastTickAt: nowIso,
       elapsedInCycle: elapsed,
     });
 
@@ -87,12 +230,13 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   },
 
   pauseTimer: () => {
-    set({ isPaused: true });
+    set({ isPaused: true, lastTickAt: undefined });
     get().saveState();
   },
 
   resumeTimer: () => {
-    set({ isPaused: false });
+    const nowIso = new Date().toISOString();
+    set({ isPaused: false, lastTickAt: nowIso });
     get().saveState();
   },
 
@@ -109,7 +253,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
           start: state.sessionStart,
           end: new Date().toISOString(),
           durationSec,
-          type: state.currentPhase === 'manual' ? 'manual' as const : 'pomodoro' as const,
+          type: state.currentPhase === 'manual' ? ('manual' as const) : ('pomodoro' as const),
           pomodoroCycles: state.currentPhase === 'manual' ? undefined : state.currentCycle,
         };
         storage.addSession(newSession).then((created) => {
@@ -120,28 +264,18 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       }
     }
 
-    set({
-      isRunning: false,
-      isPaused: false,
-      currentPhase: 'work',
-      timeRemaining: 0,
-      totalTime: 0,
-      cycles: 0,
-      currentCycle: 0,
-      selectedProjectId: undefined,
-      selectedTaskId: undefined,
-      sessionStart: undefined,
-      elapsedInCycle: 0,
-    });
+    set({ ...initialTimerState });
 
     storage.clearTimerState();
   },
 
   resetTimer: () => {
     const state = get();
+    const nowIso = new Date().toISOString();
     set({
       timeRemaining: state.totalTime,
       isPaused: false,
+      lastTickAt: nowIso,
       elapsedInCycle: 0,
     });
     get().saveState();
@@ -150,6 +284,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   nextPhase: () => {
     const state = get();
     const pomodoroSettings = useAppStore.getState().pomodoroSettings;
+    const nowIso = new Date().toISOString();
 
     if (state.currentPhase === 'work') {
       const isLongBreak = state.currentCycle >= state.cycles;
@@ -161,7 +296,8 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         timeRemaining: nextTime,
         totalTime: nextTime,
         currentCycle: isLongBreak ? 1 : state.currentCycle + 1,
-        sessionStart: new Date().toISOString(),
+        sessionStart: nowIso,
+        lastTickAt: nowIso,
         elapsedInCycle: 0,
       });
     } else {
@@ -170,7 +306,8 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         currentPhase: 'work',
         timeRemaining: workTime,
         totalTime: workTime,
-        sessionStart: new Date().toISOString(),
+        sessionStart: nowIso,
+        lastTickAt: nowIso,
         elapsedInCycle: 0,
       });
     }
@@ -182,57 +319,68 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     const state = get();
     if (!state.isRunning || state.isPaused) return;
 
-    if (state.timeRemaining > 0) {
-      set({ timeRemaining: state.timeRemaining - 1 });
-      get().saveState();
-    } else {
-      if (state.currentPhase !== 'manual') {
-        const pomodoroSettings = useAppStore.getState().pomodoroSettings;
+    const now = new Date();
+    const pomodoroSettings = useAppStore.getState().pomodoroSettings;
+    const { updatedFields, sessions, manualStop } = advanceTimerState(state, now, pomodoroSettings);
 
-        // Persist finished phase as a session (typically a work phase)
-        if (state.selectedProjectId && state.sessionStart && state.currentPhase === 'work') {
-          const endIso = new Date().toISOString();
-          const durationSec = state.totalTime - state.elapsedInCycle;
-          const newSession = {
-            projectId: state.selectedProjectId,
-            taskId: state.selectedTaskId,
-            start: state.sessionStart,
-            end: endIso,
-            durationSec,
-            type: 'pomodoro' as const,
-            pomodoroCycles: state.currentCycle,
-          };
-          storage.addSession(newSession).then((created) => {
-            try {
-              useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
-            } catch {}
-          });
-        }
-
-        if (pomodoroSettings.autoStartNext) {
-          get().nextPhase();
-        } else {
-          set({ isRunning: false, sessionStart: undefined, elapsedInCycle: 0 });
-          get().saveState();
-        }
-      } else {
-        get().stopTimer();
+    if (manualStop) {
+      if (Object.keys(updatedFields).length > 0) {
+        set(updatedFields);
       }
+      get().stopTimer();
+      return;
     }
+
+    if (Object.keys(updatedFields).length > 0) {
+      set(updatedFields);
+    }
+
+    sessions.forEach((session) => {
+      storage.addSession(session).then((created) => {
+        try {
+          useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
+        } catch {}
+      });
+    });
+
+    get().saveState();
   },
 
   restoreState: () => {
-    const savedState = storage.getTimerState();
-    if (savedState) {
-      set({
-        ...savedState,
-        elapsedInCycle: savedState.elapsedInCycle || 0,
-        // Reset session start to now so elapsed time while away isn't counted
-        sessionStart:
-          savedState.isRunning && !savedState.isPaused
-            ? new Date().toISOString()
-            : savedState.sessionStart,
+    const savedState = storage.getTimerState<Partial<TimerState>>();
+    if (!savedState) return;
+
+    const normalized: TimerState = {
+      ...initialTimerState,
+      ...savedState,
+      elapsedInCycle: savedState.elapsedInCycle ?? 0,
+      lastTickAt: savedState.lastTickAt ?? savedState.sessionStart,
+    };
+
+    if (normalized.isRunning && !normalized.isPaused) {
+      const now = new Date();
+      const pomodoroSettings = useAppStore.getState().pomodoroSettings;
+      const { updatedFields, sessions, manualStop } = advanceTimerState(normalized, now, pomodoroSettings);
+
+      const finalState = { ...normalized, ...updatedFields };
+      set(finalState);
+
+      if (manualStop) {
+        get().stopTimer();
+        return;
+      }
+
+      sessions.forEach((session) => {
+        storage.addSession(session).then((created) => {
+          try {
+            useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
+          } catch {}
+        });
       });
+
+      get().saveState();
+    } else {
+      set(normalized);
     }
   },
 
@@ -250,6 +398,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         selectedProjectId: state.selectedProjectId,
         selectedTaskId: state.selectedTaskId,
         sessionStart: state.sessionStart,
+        lastTickAt: state.lastTickAt,
         elapsedInCycle: state.elapsedInCycle,
       });
     }
