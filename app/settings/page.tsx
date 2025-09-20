@@ -71,7 +71,7 @@ export default function SettingsPage() {
     link.download = `focusforge-backup-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Backup realizado",
       description: "Seus dados foram exportados com sucesso.",
@@ -86,7 +86,7 @@ export default function SettingsPage() {
     reader.onload = (e) => {
       const content = e.target?.result as string;
       const success = importData(content);
-      
+
       if (success) {
         toast({
           title: "Dados importados",
@@ -101,7 +101,7 @@ export default function SettingsPage() {
       }
     };
     reader.readAsText(file);
-    
+
     // Reset input
     event.target.value = '';
   };
@@ -137,7 +137,7 @@ export default function SettingsPage() {
             <Settings className="h-5 w-5 text-gray-400" />
             <h2 className="text-lg font-semibold text-white">Configurações do Pomodoro</h2>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label className="text-gray-300 mb-3 block">
@@ -152,7 +152,7 @@ export default function SettingsPage() {
                 className="mb-4"
               />
             </div>
-            
+
             <div>
               <Label className="text-gray-300 mb-3 block">
                 Pausa Curta: {settings.shortBreakMin} minutos
@@ -166,7 +166,7 @@ export default function SettingsPage() {
                 className="mb-4"
               />
             </div>
-            
+
             <div>
               <Label className="text-gray-300 mb-3 block">
                 Pausa Longa: {settings.longBreakMin} minutos
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                 className="mb-4"
               />
             </div>
-            
+
             <div>
               <Label className="text-gray-300 mb-3 block">
                 Ciclos até pausa longa: {settings.cyclesToLongBreak}
@@ -207,7 +207,7 @@ export default function SettingsPage() {
                 onCheckedChange={(checked) => setSettings({ ...settings, autoStartNext: checked })}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
               <Label htmlFor="sound-on" className="text-gray-300">
                 Notificações sonoras
@@ -220,7 +220,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Button 
+          <Button
             onClick={handleSaveSettings}
             className="mt-6 bg-blue-600 hover:bg-blue-700"
           >
@@ -286,7 +286,7 @@ export default function SettingsPage() {
               ) : (
                 <AlertCircle className="h-4 w-4 text-yellow-400" />
               )}
-              <h3 className="text-sm font-semibold text-white">Status de sincronização</h3>
+              <h3 className="text-sm font-semibold text-white">Status de sincronização de projetos</h3>
             </div>
 
             {!clockfyConfigured && (
@@ -309,32 +309,24 @@ export default function SettingsPage() {
                     : 'disabled';
 
                   return (
-                  <div
-                    key={project.id}
-                    className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-white">{project.name}</p>
-                      {project.client && (
-                        <p className="text-xs text-gray-400">{project.client}</p>
+                    <>
+                      {clockfyStatus === 'synced' && (
+                        <div
+                          key={project.id}
+                          className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-white">{project.name}</p>
+                            {project.client && (
+                              <p className="text-xs text-gray-400">{project.client}</p>
+                            )}
+                          </div>
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                            Sincronizado
+                          </Badge>
+                        </div>
                       )}
-                    </div>
-                    {clockfyStatus === 'synced' && (
-                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
-                        Sincronizado
-                      </Badge>
-                    )}
-                    {clockfyStatus === 'pending' && (
-                      <Badge variant="outline" className="border-yellow-500/60 text-yellow-300">
-                        Pendente
-                      </Badge>
-                    )}
-                    {clockfyStatus === 'disabled' && (
-                      <Badge variant="outline" className="border-gray-600 text-gray-300">
-                        Desativado
-                      </Badge>
-                    )}
-                  </div>
+                    </>
                   );
                 })
               )}
@@ -345,20 +337,20 @@ export default function SettingsPage() {
         {/* Data Management */}
         <Card className="p-6 bg-gray-900/50 border-gray-800">
           <h2 className="text-lg font-semibold text-white mb-6">Gestão de Dados</h2>
-          
+
           <div className="space-y-4">
             <div>
               <h3 className="font-medium text-white mb-2">Backup & Restore</h3>
               <p className="text-sm text-gray-400 mb-4">
                 Exporte seus dados para fazer backup ou importe um arquivo anterior.
               </p>
-              
+
               <div className="flex gap-3">
                 <Button onClick={handleExport} variant="outline">
                   <Download className="h-4 w-4 mr-2" />
                   Exportar Dados
                 </Button>
-                
+
                 <div>
                   <input
                     type="file"
@@ -382,8 +374,8 @@ export default function SettingsPage() {
               <p className="text-sm text-gray-400 mb-4">
                 Esta ação irá apagar permanentemente todos os seus dados.
               </p>
-              
-              <Button 
+
+              <Button
                 onClick={handleClearData}
                 variant="destructive"
               >

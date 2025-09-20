@@ -1,34 +1,8 @@
 import { Project, Task, FocusSession, DailyPlan } from '@/types';
 import { format, subDays } from 'date-fns';
 
-export const seedProjects: Project[] = [
-  {
-    id: 'proj-1',
-    name: 'Plataforma E-commerce',
-    client: 'TechCorp Solutions',
-    color: '#3B82F6',
-    hourlyRate: 150,
-    active: true,
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'proj-2',
-    name: 'App de Benefícios',
-    client: 'StartupRH Inc',
-    color: '#10B981',
-    hourlyRate: 120,
-    active: true,
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'proj-3',
-    name: 'RiffaDigital',
-    client: 'InnovateLabs',
-    color: '#F59E0B',
-    hourlyRate: 100,
-    active: true,
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
+export const seedProjects: any[] = [
+  { },
 ];
 
 export const seedTasks: Task[] = [

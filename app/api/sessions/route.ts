@@ -56,14 +56,6 @@ export async function POST(req: Request) {
         segments.push(`Tarefa: ${session.task.title}`);
       }
 
-      if (session.project?.name) {
-        segments.push(`Projeto: ${session.project.name}`);
-      }
-
-      if (session.project?.client) {
-        segments.push(`Cliente: ${session.project.client}`);
-      }
-
       let description = segments.join(' | ');
 
       if (session.notes?.trim()) {
