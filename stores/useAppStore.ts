@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { Project, Task, FocusSession, PomodoroSettings, DailyPlan } from '@/types';
+import { Project, Task, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
 import { storage } from '@/lib/storage';
 
 interface AppStore {
@@ -9,6 +9,7 @@ interface AppStore {
   tasks: Task[];
   sessions: FocusSession[];
   pomodoroSettings: PomodoroSettings;
+  clockfySettings: ClockfySettings;
   dailyPlans: DailyPlan[];
   theme: 'dark' | 'light' | 'system';
 
@@ -27,6 +28,7 @@ interface AppStore {
   deleteSession: (id: string) => Promise<void>;
 
   updatePomodoroSettings: (settings: Partial<PomodoroSettings>) => Promise<void>;
+  updateClockfySettings: (settings: Partial<ClockfySettings>) => Promise<void>;
 
   updateDailyPlan: (plan: DailyPlan) => void;
   getDailyPlan: (dateISO: string) => DailyPlan | undefined;
@@ -50,18 +52,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
     autoStartNext: true,
     soundOn: true,
   },
+  clockfySettings: {
+    apiKey: '',
+    workspaceId: '',
+    updatedAt: null,
+  },
   dailyPlans: [],
   theme: 'dark',
 
   initializeData: async () => {
-    const [projects, tasks, sessions, pomodoroSettings] = await Promise.all([
+    const [projects, tasks, sessions, pomodoroSettings, clockfySettings] = await Promise.all([
       storage.getProjects(),
       storage.getTasks(),
       storage.getSessions(),
       storage.getPomodoroSettings(),
+      storage.getClockfySettings(),
     ]);
     const dailyPlans = storage.getDailyPlans();
-    set({ projects, tasks, sessions, pomodoroSettings, dailyPlans });
+    set({ projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans });
   },
 
   // Projects
@@ -125,6 +133,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ pomodoroSettings: newSettings });
   },
 
+  updateClockfySettings: async (settings) => {
+    const current = get().clockfySettings;
+    const payload = {
+      apiKey: settings.apiKey ?? current.apiKey,
+      workspaceId: settings.workspaceId ?? current.workspaceId,
+    };
+    const updated = await storage.updateClockfySettings(payload);
+    set({ clockfySettings: updated });
+  },
+
   // Daily Plans
   updateDailyPlan: (plan) => {
     set((state) => {
@@ -164,8 +182,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   importData: (jsonData) => {
     try {
       const data = JSON.parse(jsonData);
+      const importedProjects = Array.isArray(data.projects)
+        ? data.projects.map((project: any) => ({
+            ...project,
+            syncWithClockfy: project?.syncWithClockfy ?? false,
+          }))
+        : [];
       set({
-        projects: data.projects || [],
+        projects: importedProjects,
         tasks: data.tasks || [],
         sessions: data.sessions || [],
         pomodoroSettings: data.pomodoroSettings || get().pomodoroSettings,

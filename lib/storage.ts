@@ -1,5 +1,5 @@
 // src/lib/storage.ts
-import { Project, Task, FocusSession, PomodoroSettings, DailyPlan } from '@/types';
+import { Project, Task, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
 
 /**
  * ------------------------------------------------------------
@@ -282,6 +282,22 @@ export const storage = {
 
   async setPomodoroSettings(settings: PomodoroSettings): Promise<void> {
     await request<PomodoroSettings>('/api/settings', {
+      method: 'PATCH',
+      body: settings,
+    });
+  },
+
+  /**
+   * ---------------------------
+   * Clockfy integration
+   * ---------------------------
+   */
+  async getClockfySettings(): Promise<ClockfySettings> {
+    return request<ClockfySettings>('/api/integrations/clockfy');
+  },
+
+  async updateClockfySettings(settings: Partial<ClockfySettings>): Promise<ClockfySettings> {
+    return request<ClockfySettings>('/api/integrations/clockfy', {
       method: 'PATCH',
       body: settings,
     });
