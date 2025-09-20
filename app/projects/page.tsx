@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectDialog } from '@/components/projects/ProjectDialog';
 import { Project } from '@/types';
+import { formatFriendlyDate } from '@/lib/utils';
 import { Plus } from 'lucide-react';
 
 export default function ProjectsPage() {
@@ -51,11 +52,87 @@ export default function ProjectsPage() {
         </Button>
       </div>
 
+      {activeProjects.length > 0 && (
+        <div className="mb-8 overflow-x-auto rounded-lg border border-gray-800 bg-gray-900/40">
+          <table className="min-w-full divide-y divide-gray-800 text-sm">
+            <thead className="bg-gray-900/60">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold text-gray-300">Projeto</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-300">Salesforce</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-300">SharePoint</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-300">Entrega prevista</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {activeProjects.map((project) => {
+                const formattedDate = project.estimatedDeliveryDate
+                  ? formatFriendlyDate(project.estimatedDeliveryDate)
+                  : null;
+
+                return (
+                  <tr key={`project-list-${project.id}`} className="hover:bg-gray-900/60">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="inline-flex h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: project.color }}
+                        />
+                        <div>
+                          <p className="font-medium text-white">{project.name}</p>
+                          {project.client && (
+                            <p className="text-xs text-gray-400">{project.client}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {project.salesforceOppUrl ? (
+                        <a
+                          href={project.salesforceOppUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 underline"
+                        >
+                          Ver oportunidade
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {project.sharepointRepoUrl ? (
+                        <a
+                          href={project.sharepointRepoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 underline"
+                        >
+                          Ver repositório
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {formattedDate ? (
+                        <span className="text-white">{formattedDate}</span>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {activeProjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {activeProjects.map((project) => (
-            <ProjectCard 
-              key={project.id} 
+            <ProjectCard
+              key={project.id}
               project={project} 
               onEdit={handleEdit}
             />

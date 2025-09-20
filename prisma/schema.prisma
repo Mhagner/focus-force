@@ -38,6 +38,9 @@ model Project {
   clockfyClientId   String?
   clockfyProjectId  String?
   syncWithClockfy   Boolean          @default(false)
+  salesforceOppUrl      String?
+  sharepointRepoUrl     String?
+  estimatedDeliveryDate DateTime?
 }
 
 model Task {
