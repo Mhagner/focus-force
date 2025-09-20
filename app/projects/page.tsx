@@ -68,7 +68,7 @@ export default function ProjectsPage() {
   };
 
   const getProjectPlannedDateLabel = (project: Project): string => {
-    const meta = project as Record<string, unknown>;
+    const meta = project as unknown as Record<string, unknown>;
     const candidateKeys = [
       'expectedDate',
       'expectedAt',
@@ -95,7 +95,7 @@ export default function ProjectsPage() {
   };
 
   const getProjectNewUrlsLabel = (project: Project): string => {
-    const meta = project as Record<string, unknown>;
+    const meta = project as unknown as Record<string, unknown>;
     const candidateKeys = ['newUrls', 'new_urls', 'newUrlsCount', 'urlsNovas', 'novasUrls'];
 
     for (const key of candidateKeys) {
@@ -222,8 +222,8 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      <ProjectDialog 
-        open={isDialogOpen} 
+      <ProjectDialog
+        open={isDialogOpen}
         onOpenChange={handleCloseDialog}
         project={editingProject}
       />
