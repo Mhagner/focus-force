@@ -29,13 +29,13 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
     updateTask(task.id, { status: newStatus });
   };
 
+  const todayISO = new Date().toISOString().split('T')[0];
+  const isPlannedForToday = task.plannedFor === 'today' || task.plannedFor === todayISO;
+
   const handlePlanForToday = () => {
-    const newPlannedFor = task.plannedFor === 'today' ? undefined : 'today';
+    const newPlannedFor = isPlannedForToday ? null : 'today';
     updateTask(task.id, { plannedFor: newPlannedFor });
   };
-
-  const isPlannedForToday = task.plannedFor === 'today' ||
-    task.plannedFor === new Date().toISOString().split('T')[0];
 
   return (
     <Card className="p-4 bg-gray-900/50 border-gray-800 hover:bg-gray-900/70 transition-colors">
