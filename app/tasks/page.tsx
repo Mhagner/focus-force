@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
@@ -18,7 +18,17 @@ export default function TasksPage() {
   const [showOnlyToday, setShowOnlyToday] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setSearchQuery(params.get('search') ?? '');
+    setFocusId(params.get('focusId') ?? null);
+  }, []);
+
+  const searchTerm = searchQuery.trim().toLowerCase();
   const filteredTasks = tasks.filter(task => {
     if (selectedProjectId !== 'all' && task.projectId !== selectedProjectId) {
       return false;
@@ -26,8 +36,19 @@ export default function TasksPage() {
     if (showOnlyToday) {
       return getTodayTasks([task]).length > 0;
     }
-    return true;
+    if (!searchTerm) return true;
+    const projectName = (projects.find(p => p.id === task.projectId)?.name ?? '').toLowerCase();
+    return (
+      task.title.toLowerCase().includes(searchTerm) ||
+      (task.description ?? '').toLowerCase().includes(searchTerm) ||
+      projectName.includes(searchTerm)
+    );
   });
+
+  let visibleTasks = filteredTasks;
+  if (focusId) {
+    visibleTasks = filteredTasks.filter(t => t.id === focusId);
+  }
 
   const todoTasks = filteredTasks.filter(t => t.status === 'todo');
   const doingTasks = filteredTasks.filter(t => t.status === 'doing');
@@ -100,7 +121,7 @@ export default function TasksPage() {
               Todo ({todoTasks.length})
             </h2>
             <div className="space-y-4">
-              {todoTasks.map((task) => (
+              {todoTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map((task) => (
                 <TaskCard key={task.id} task={task} onEdit={handleEdit} />
               ))}
             </div>
@@ -112,7 +133,7 @@ export default function TasksPage() {
               Fazendo ({doingTasks.length})
             </h2>
             <div className="space-y-4">
-              {doingTasks.map((task) => (
+              {doingTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map((task) => (
                 <TaskCard key={task.id} task={task} onEdit={handleEdit} />
               ))}
             </div>
@@ -124,7 +145,7 @@ export default function TasksPage() {
               Feito ({doneTasks.length})
             </h2>
             <div className="space-y-4">
-              {doneTasks.map((task) => (
+              {doneTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map((task) => (
                 <TaskCard key={task.id} task={task} onEdit={handleEdit} />
               ))}
             </div>

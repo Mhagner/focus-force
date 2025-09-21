@@ -12,6 +12,56 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    const optionalUrlSchema = z
+      .string()
+      .trim()
+      .optional()
+      .nullable()
+      .transform((value) => {
+        if (value === undefined) return undefined;
+        if (value === null) return null;
+        return value.length > 0 ? value : undefined;
+      });
+
+    const estimatedDateSchema = z
+      .union([z.string(), z.date()])
+      .optional()
+      .nullable()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        if (value === null) return null;
+
+        if (value instanceof Date) {
+          if (Number.isNaN(value.getTime())) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Data inválida' });
+            return z.NEVER;
+          }
+          return value;
+        }
+
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
+
+        // If the client sent a date-only string like 'YYYY-MM-DD',
+        // construct a Date at noon UTC to avoid timezone shifts when
+        // converting to local time on the client.
+        const dateOnlyMatch = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+        if (dateOnlyMatch) {
+          const [y, m, d] = trimmed.split('-').map((s) => Number(s));
+          const utcNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+          return utcNoon;
+        }
+
+        const parsedDate = new Date(trimmed);
+        if (Number.isNaN(parsedDate.getTime())) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Data inválida' });
+          return z.NEVER;
+        }
+
+        return parsedDate;
+      });
+
     const schema = z.object({
       name: z.string().min(1),
       client: z.string().optional().nullable(),
@@ -23,6 +73,9 @@ export async function POST(req: Request) {
         .refine((v) => v === undefined || Number.isFinite(v), 'hourlyRate inválido'),
       active: z.boolean().optional(),
       syncWithClockfy: z.boolean().optional(),
+      salesforceOppUrl: optionalUrlSchema,
+      sharepointRepoUrl: optionalUrlSchema,
+      estimatedDeliveryDate: estimatedDateSchema,
     });
 
     const parsed = schema.parse(body);
@@ -34,6 +87,9 @@ export async function POST(req: Request) {
       hourlyRate: parsed.hourlyRate !== undefined ? parsed.hourlyRate : undefined,
       active: parsed.active ?? true,
       syncWithClockfy: parsed.syncWithClockfy ?? false,
+      salesforceOppUrl: parsed.salesforceOppUrl ?? undefined,
+      sharepointRepoUrl: parsed.sharepointRepoUrl ?? undefined,
+      estimatedDeliveryDate: parsed.estimatedDeliveryDate ?? undefined,
     };
 
     const project = await prisma.project.create({ data });

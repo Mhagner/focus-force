@@ -1,6 +1,7 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Task } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
@@ -19,6 +20,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onEdit }: TaskCardProps) {
   const { projects, updateTask, deleteTask } = useAppStore();
+  const [isDeleting, setIsDeleting] = useState(false);
   const { startTimer, switchTask, isRunning } = useTimerStore();
   const router = useRouter();
 
@@ -29,13 +31,13 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
     updateTask(task.id, { status: newStatus });
   };
 
+  const todayISO = new Date().toISOString().split('T')[0];
+  const isPlannedForToday = task.plannedFor === 'today' || task.plannedFor === todayISO;
+
   const handlePlanForToday = () => {
-    const newPlannedFor = task.plannedFor === 'today' ? undefined : 'today';
+    const newPlannedFor = isPlannedForToday ? null : 'today';
     updateTask(task.id, { plannedFor: newPlannedFor });
   };
-
-  const isPlannedForToday = task.plannedFor === 'today' ||
-    task.plannedFor === new Date().toISOString().split('T')[0];
 
   return (
     <Card className="p-4 bg-gray-900/50 border-gray-800 hover:bg-gray-900/70 transition-colors">
@@ -64,10 +66,18 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
               {isPlannedForToday ? 'Remover de hoje' : 'Planejar para hoje'}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => deleteTask(task.id)}
+              onClick={async () => {
+                if (isDeleting) return;
+                setIsDeleting(true);
+                try {
+                  await deleteTask(task.id);
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
               className="cursor-pointer text-red-400"
             >
-              Excluir
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

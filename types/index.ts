@@ -9,15 +9,18 @@ export interface Project {
   clockfyClientId?: string | null;
   clockfyProjectId?: string | null;
   syncWithClockfy: boolean;
+  salesforceOppUrl?: string | null;
+  sharepointRepoUrl?: string | null;
+  estimatedDeliveryDate?: string | Date | null;
 }
 
 export interface Task {
   id: string;
   projectId: string;
   title: string;
-  description?: string;
+  description?: string | null;
   priority?: 'alta' | 'media' | 'baixa';
-  plannedFor?: 'today' | string; // dateISO
+  plannedFor?: 'today' | string | null; // dateISO
   status?: 'todo' | 'doing' | 'done';
   estimateMin?: number;
   createdAt: string;

@@ -36,7 +36,7 @@ export function TopNav() {
     tick,
     restoreState,
   } = useTimerStore();
-  
+
   const { projects, tasks } = useAppStore();
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
@@ -71,10 +71,14 @@ export function TopNav() {
     );
   });
 
-  const handleSelect = (path: string) => {
+  const handleSelect = (path: string, term?: string, focusId?: string) => {
     setIsSearchOpen(false);
     setSearchQuery('');
-    router.push(path);
+    const params: string[] = [];
+    if (term && term.trim()) params.push(`search=${encodeURIComponent(term.trim())}`);
+    if (focusId) params.push(`focusId=${encodeURIComponent(focusId)}`);
+    const suffix = params.length ? `?${params.join('&')}` : '';
+    router.push(`${path}${suffix}`);
   };
 
   useEffect(() => {
@@ -137,12 +141,12 @@ export function TopNav() {
                     {formatTime(timeRemaining)}
                   </span>
                 </div>
-                
+
                 {selectedProject && (
                   <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: selectedProject.color }} 
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: selectedProject.color }}
                     />
                     <span>{selectedProject.name}</span>
                   </div>
@@ -169,7 +173,7 @@ export function TopNav() {
               </div>
             )}
 
-            <Button 
+            <Button
               onClick={() => setIsFocusDialogOpen(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
             >
@@ -207,7 +211,7 @@ export function TopNav() {
                 <CommandItem
                   key={project.id}
                   value={`${project.name} ${project.client ?? ''}`}
-                  onSelect={() => handleSelect('/projects')}
+                  onSelect={() => handleSelect('/projects', searchQuery, project.id)}
                 >
                   <div
                     className="mr-2 h-2 w-2 rounded-full"
@@ -231,7 +235,7 @@ export function TopNav() {
                   <CommandItem
                     key={task.id}
                     value={`${task.title} ${task.description ?? ''} ${project?.name ?? ''}`}
-                    onSelect={() => handleSelect('/tasks')}
+                    onSelect={() => handleSelect('/tasks', searchQuery, task.id)}
                   >
                     <div className="flex flex-col">
                       <span className="text-sm text-white">{task.title}</span>
