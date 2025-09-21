@@ -8,26 +8,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppStore } from '@/stores/useAppStore';
 import { formatDuration, exportToCsv, exportToPdf } from '@/lib/utils';
 import { ProjectBadge } from '@/components/ui/project-badge';
-import { format, startOfDay, endOfDay } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format, startOfDay, endOfDay, addDays, differenceInCalendarDays } from 'date-fns';
 import { Download, Filter, BarChart, FileDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ManualSessionDialog } from '@/components/sessions/ManualSessionDialog';
 
 export default function ReportsPage() {
   const { sessions, projects, tasks } = useAppStore();
-  const [startDate, setStartDate] = useState(format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [manualOpen, setManualOpen] = useState(false);
 
+  const normalizedStartDate = startOfDay(new Date(`${startDate}T00:00:00`));
+  const normalizedEndDate = endOfDay(new Date(`${endDate}T00:00:00`));
+
   // Filter sessions by date range and project
   const filteredSessions = sessions.filter(session => {
     const sessionDate = new Date(session.start);
-    const start = startOfDay(new Date(startDate));
-    const end = endOfDay(new Date(endDate));
-
-    const inDateRange = sessionDate >= start && sessionDate <= end;
+    const inDateRange = sessionDate >= normalizedStartDate && sessionDate <= normalizedEndDate;
     const matchesProject = selectedProjectId === 'all' || session.projectId === selectedProjectId;
 
     return inDateRange && matchesProject;
@@ -36,7 +35,7 @@ export default function ReportsPage() {
   // Calculate metrics
   const totalSeconds = filteredSessions.reduce((sum, session) => sum + session.durationSec, 0);
   const totalHours = totalSeconds / 3600;
-  const totalDays = Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000)));
+  const totalDays = Math.max(1, differenceInCalendarDays(normalizedEndDate, normalizedStartDate) + 1);
   const avgHoursPerDay = totalSeconds / totalDays;
 
   // Top projects
@@ -54,9 +53,10 @@ export default function ReportsPage() {
 
   // Prepare chart data
   const dailyData = [];
-  for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
-    const dayStart = startOfDay(d);
-    const dayEnd = endOfDay(d);
+  for (let current = new Date(normalizedStartDate); current <= normalizedEndDate; current = addDays(current, 1)) {
+    const currentDay = new Date(current);
+    const dayStart = startOfDay(currentDay);
+    const dayEnd = endOfDay(currentDay);
 
     const dayHours = filteredSessions
       .filter(session => {
@@ -66,7 +66,7 @@ export default function ReportsPage() {
       .reduce((sum, session) => sum + session.durationSec, 0) / 3600;
 
     dailyData.push({
-      date: format(d, 'dd/MM'),
+      date: format(currentDay, 'dd/MM'),
       hours: Number(dayHours.toFixed(1)),
     });
   }

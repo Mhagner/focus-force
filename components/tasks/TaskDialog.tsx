@@ -54,15 +54,23 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
         if (!canSubmit || isSubmitting) return;
 
         setIsSubmitting(true);
-
         try {
-            const payload = {
+            const trimmedTitle = title.trim();
+            const trimmedDescription = description.trim();
+
+            const payload: Omit<Task, 'id' | 'createdAt'> = {
                 projectId,
-                title: title.trim(),
-                description: description.trim() || undefined,
+                title: trimmedTitle,
                 priority,
-                estimateMin: estimateMin ? parseInt(estimateMin, 10) : undefined,
-            } as Omit<Task, 'id' | 'createdAt'>;
+            };
+
+            payload.description = trimmedDescription === '' ? null : trimmedDescription;
+
+            if (estimateMin) {
+                payload.estimateMin = parseInt(estimateMin, 10);
+            }
+
+
 
             if (task) {
                 await updateTask(task.id, payload as Partial<Task>);
