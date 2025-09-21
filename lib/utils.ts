@@ -11,11 +11,19 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   }
   return `${minutes}m`;
+}
+
+export function formatFriendlyDate(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return format(date, 'dd/MM/yyyy');
 }
 
 export function formatTime(seconds: number): string {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,9 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const [color, setColor] = useState(defaultColors[0]);
   const [hourlyRate, setHourlyRate] = useState('');
   const [syncWithClockfy, setSyncWithClockfy] = useState(false);
+  const [salesforceOppUrl, setSalesforceOppUrl] = useState('');
+  const [sharepointRepoUrl, setSharepointRepoUrl] = useState('');
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
 
   useEffect(() => {
     if (project) {
@@ -38,18 +42,39 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setColor(project.color);
       setHourlyRate(project.hourlyRate?.toString() || '');
       setSyncWithClockfy(project.syncWithClockfy);
+      setSalesforceOppUrl(project.salesforceOppUrl || '');
+      setSharepointRepoUrl(project.sharepointRepoUrl || '');
+
+      if (project.estimatedDeliveryDate) {
+        const dateValue =
+          project.estimatedDeliveryDate instanceof Date
+            ? project.estimatedDeliveryDate
+            : new Date(project.estimatedDeliveryDate);
+        if (!Number.isNaN(dateValue.getTime())) {
+          setEstimatedDeliveryDate(format(dateValue, 'yyyy-MM-dd'));
+        } else {
+          setEstimatedDeliveryDate('');
+        }
+      } else {
+        setEstimatedDeliveryDate('');
+      }
     } else {
       setName('');
       setClient('');
       setColor(defaultColors[0]);
       setHourlyRate('');
       setSyncWithClockfy(false);
+      setSalesforceOppUrl('');
+      setSharepointRepoUrl('');
+      setEstimatedDeliveryDate('');
     }
   }, [project, open]);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
 
+    const trimmedSalesforceUrl = salesforceOppUrl.trim();
+    const trimmedSharepointUrl = sharepointRepoUrl.trim();
     const projectData = {
       name: name.trim(),
       client: client.trim() || undefined,
@@ -57,6 +82,9 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
       active: true,
       syncWithClockfy,
+      salesforceOppUrl: trimmedSalesforceUrl ? trimmedSalesforceUrl : null,
+      sharepointRepoUrl: trimmedSharepointUrl ? trimmedSharepointUrl : null,
+      estimatedDeliveryDate: estimatedDeliveryDate ? estimatedDeliveryDate : null,
     };
 
     if (project) {
@@ -126,6 +154,41 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
               value={hourlyRate}
               onChange={(e) => setHourlyRate(e.target.value)}
               placeholder="150.00"
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="salesforceOppUrl" className="text-gray-300">URL da oportunidade no Salesforce</Label>
+            <Input
+              id="salesforceOppUrl"
+              type="url"
+              value={salesforceOppUrl}
+              onChange={(e) => setSalesforceOppUrl(e.target.value)}
+              placeholder="https://..."
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="sharepointRepoUrl" className="text-gray-300">URL do repositório no SharePoint</Label>
+            <Input
+              id="sharepointRepoUrl"
+              type="url"
+              value={sharepointRepoUrl}
+              onChange={(e) => setSharepointRepoUrl(e.target.value)}
+              placeholder="https://..."
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="estimatedDeliveryDate" className="text-gray-300">Data prevista de entrega</Label>
+            <Input
+              id="estimatedDeliveryDate"
+              type="date"
+              value={estimatedDeliveryDate}
+              onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
               className="bg-gray-800 border-gray-700 text-white"
             />
           </div>
