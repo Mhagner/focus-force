@@ -10,6 +10,8 @@ interface ProjectListItemProps {
   onEdit: (project: Project) => void;
   newUrlsLabel: string;
   plannedDateLabel: string;
+  salesforceUrl?: string | null;
+  sharepointUrl?: string | null;
 }
 
 export function ProjectListItem({
@@ -17,6 +19,8 @@ export function ProjectListItem({
   onEdit,
   newUrlsLabel,
   plannedDateLabel,
+  salesforceUrl,
+  sharepointUrl,
 }: ProjectListItemProps) {
   const isClockfyLinked = Boolean(project.clockfyProjectId);
   const clockfyStatus = project.syncWithClockfy
@@ -74,9 +78,35 @@ export function ProjectListItem({
           Novas URLs
         </span>
         <Link2 className="h-4 w-4 text-gray-500" />
-        <span className={newUrlsIsEmpty ? 'text-gray-400' : 'text-white font-medium'}>
-          {newUrlsLabel}
-        </span>
+        <div className="flex flex-col">
+          {salesforceUrl ? (
+            <a
+              href={salesforceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white font-medium hover:underline"
+            >
+              Acessar oportunidade
+            </a>
+          ) : null}
+
+          {sharepointUrl ? (
+            <a
+              href={sharepointUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white font-medium hover:underline"
+            >
+              Acessar repositório
+            </a>
+          ) : null}
+
+          {!salesforceUrl && !sharepointUrl && (
+            <span className={newUrlsIsEmpty ? 'text-gray-400' : 'text-white font-medium'}>
+              {newUrlsLabel}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 text-sm text-gray-300">

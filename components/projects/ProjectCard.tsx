@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
-import { formatDuration, getProjectHoursToday, getWeekHours } from '@/lib/utils';
+import { formatDuration, formatFriendlyDate, getProjectHoursToday, getWeekHours } from '@/lib/utils';
 import { MoreVertical, Edit, Archive, Play } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -25,6 +25,10 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   const pendingTasks = tasks.filter(t =>
     t.projectId === project.id && t.status !== 'done'
   ).length;
+
+  const estimatedDelivery = project.estimatedDeliveryDate
+    ? formatFriendlyDate(project.estimatedDeliveryDate)
+    : null;
 
   const isClockfyLinked = Boolean(project.clockfyProjectId);
   const clockfyStatus = project.syncWithClockfy
@@ -117,6 +121,44 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
           </div>
         )}
       </div>
+
+      {(project.salesforceOppUrl || project.sharepointRepoUrl || estimatedDelivery) && (
+        <div className="mt-4 space-y-2 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-400">Metadados</p>
+          {project.salesforceOppUrl && (
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-gray-400">Salesforce</span>
+              <a
+                href={project.salesforceOppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 underline"
+              >
+                Abrir oportunidade
+              </a>
+            </div>
+          )}
+          {project.sharepointRepoUrl && (
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-gray-400">SharePoint</span>
+              <a
+                href={project.sharepointRepoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 underline"
+              >
+                Abrir repositório
+              </a>
+            </div>
+          )}
+          {estimatedDelivery && (
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-gray-400">Entrega prevista</span>
+              <span className="text-white font-medium">{estimatedDelivery}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
         <Play className="h-4 w-4 mr-2" />

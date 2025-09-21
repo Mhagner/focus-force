@@ -10,6 +10,7 @@ import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectDialog } from '@/components/projects/ProjectDialog';
 import { ProjectListItem } from '@/components/projects/ProjectListItem';
 import { Project } from '@/types';
+import { formatFriendlyDate } from '@/lib/utils';
 import { LayoutGrid, List, Plus } from 'lucide-react';
 
 export default function ProjectsPage() {
@@ -68,8 +69,16 @@ export default function ProjectsPage() {
   };
 
   const getProjectPlannedDateLabel = (project: Project): string => {
+    // Prefer the typed field when available
+    if ((project as any).estimatedDeliveryDate) {
+      const parsed = parseToDate((project as any).estimatedDeliveryDate);
+      if (parsed) return formatDateLabel(parsed);
+    }
+
+    // Fallback to common metadata keys that might exist on imported projects
     const meta = project as unknown as Record<string, unknown>;
     const candidateKeys = [
+      'estimatedDeliveryDate',
       'expectedDate',
       'expectedAt',
       'expectedDelivery',
@@ -95,8 +104,15 @@ export default function ProjectsPage() {
   };
 
   const getProjectNewUrlsLabel = (project: Project): string => {
+    // Prefer explicit project fields for Salesforce and SharePoint
+    const urls: string[] = [];
+    if (project.salesforceOppUrl) urls.push(String(project.salesforceOppUrl));
+    if (project.sharepointRepoUrl) urls.push(String(project.sharepointRepoUrl));
+    if (urls.length) return urls.join(' • ');
+
+    // Try typed/known metadata properties next
     const meta = project as unknown as Record<string, unknown>;
-    const candidateKeys = ['newUrls', 'new_urls', 'newUrlsCount', 'urlsNovas', 'novasUrls'];
+    const candidateKeys = ['newUrls', 'new_urls', 'newUrlsCount', 'urlsNovas', 'novasUrls', 'new_urls_count'];
 
     for (const key of candidateKeys) {
       const value = meta[key];
@@ -199,6 +215,8 @@ export default function ProjectsPage() {
                 onEdit={handleEdit}
                 newUrlsLabel={getProjectNewUrlsLabel(project)}
                 plannedDateLabel={getProjectPlannedDateLabel(project)}
+                salesforceUrl={project.salesforceOppUrl ?? null}
+                sharepointUrl={project.sharepointRepoUrl ?? null}
               />
             ))}
           </div>
