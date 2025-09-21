@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const [color, setColor] = useState(defaultColors[0]);
   const [hourlyRate, setHourlyRate] = useState('');
   const [syncWithClockfy, setSyncWithClockfy] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -50,24 +52,30 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const handleSubmit = async () => {
     if (!name.trim()) return;
 
-    const projectData = {
-      name: name.trim(),
-      client: client.trim() || undefined,
-      color,
-      hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
-      active: true,
-      syncWithClockfy,
-    };
+    setIsSubmitting(true);
 
-    if (project) {
-      await updateProject(project.id, projectData);
-      toast({ title: 'Projeto atualizado' });
-    } else {
-      await addProject(projectData);
-      toast({ title: 'Projeto criado' });
+    try {
+      const projectData = {
+        name: name.trim(),
+        client: client.trim() || undefined,
+        color,
+        hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
+        active: true,
+        syncWithClockfy,
+      };
+
+      if (project) {
+        await updateProject(project.id, projectData);
+        toast({ title: 'Projeto atualizado' });
+      } else {
+        await addProject(projectData);
+        toast({ title: 'Projeto criado' });
+      }
+
+      onOpenChange(false);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    onOpenChange(false);
   };
 
   return (
@@ -152,12 +160,19 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleSubmit}
-              disabled={!name.trim()}
+              disabled={!name.trim() || isSubmitting}
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
-              {project ? 'Atualizar' : 'Criar'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {project ? 'Atualizando...' : 'Criando...'}
+                </>
+              ) : (
+                project ? 'Atualizar' : 'Criar'
+              )}
             </Button>
           </div>
         </div>
