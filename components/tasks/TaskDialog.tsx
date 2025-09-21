@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
     const [description, setDescription] = useState('');
     const [priority, setPriority] = useState<'alta' | 'media' | 'baixa'>('media');
     const [estimateMin, setEstimateMin] = useState<string>('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (task) {
@@ -49,25 +51,39 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
     const canSubmit = Boolean(projectId && title.trim());
 
     const handleSubmit = async () => {
-        if (!canSubmit) return;
+        if (!canSubmit || isSubmitting) return;
 
-        const payload = {
-            projectId,
-            title: title.trim(),
-            description: description.trim() || undefined,
-            priority,
-            estimateMin: estimateMin ? parseInt(estimateMin, 10) : undefined,
-        } as Omit<Task, 'id' | 'createdAt'>;
+        setIsSubmitting(true);
+        try {
+            const trimmedTitle = title.trim();
+            const trimmedDescription = description.trim();
 
-        if (task) {
-            await updateTask(task.id, payload as Partial<Task>);
-            toast({ title: 'Tarefa atualizada' });
-        } else {
-            await addTask(payload);
-            toast({ title: 'Tarefa criada' });
+            const payload: Omit<Task, 'id' | 'createdAt'> = {
+                projectId,
+                title: trimmedTitle,
+                priority,
+            };
+
+            payload.description = trimmedDescription === '' ? null : trimmedDescription;
+
+            if (estimateMin) {
+                payload.estimateMin = parseInt(estimateMin, 10);
+            }
+
+
+
+            if (task) {
+                await updateTask(task.id, payload as Partial<Task>);
+                toast({ title: 'Tarefa atualizada' });
+            } else {
+                await addTask(payload);
+                toast({ title: 'Tarefa criada' });
+            }
+
+            onOpenChange(false);
+        } finally {
+            setIsSubmitting(false);
         }
-
-        onOpenChange(false);
     };
 
     return (
@@ -160,10 +176,17 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
                         </Button>
                         <Button
                             onClick={handleSubmit}
-                            disabled={!canSubmit}
+                            disabled={!canSubmit || isSubmitting}
                             className="flex-1 bg-blue-600 hover:bg-blue-700"
                         >
-                            {task ? 'Atualizar' : 'Criar'}
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    {task ? 'Atualizando...' : 'Criando...'}
+                                </>
+                            ) : (
+                                task ? 'Atualizar' : 'Criar'
+                            )}
                         </Button>
                     </div>
                 </div>

@@ -35,7 +35,8 @@ export async function POST(request: Request) {
     );
   }
 
-  cookies().set({
+  const res = NextResponse.json({ success: true });
+  res.cookies.set({
     name: ACCESS_COOKIE_NAME,
     value: 'granted',
     httpOnly: true,
@@ -45,5 +46,5 @@ export async function POST(request: Request) {
     maxAge: ACCESS_COOKIE_MAX_AGE,
   });
 
-  return NextResponse.json({ success: true });
+  return res;
 }

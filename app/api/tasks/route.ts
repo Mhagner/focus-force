@@ -27,15 +27,37 @@ export async function POST(req: Request) {
 
     const parsed = schema.parse(body);
 
-    const data = {
+    const bodyHasDescription =
+      typeof body === 'object' && body !== null && Object.prototype.hasOwnProperty.call(body, 'description');
+    const bodyHasPlannedFor =
+      typeof body === 'object' && body !== null && Object.prototype.hasOwnProperty.call(body, 'plannedFor');
+
+    const data: {
+      projectId: string;
+      title: string;
+      priority: 'alta' | 'media' | 'baixa';
+      status: 'todo' | 'doing' | 'done';
+      description?: string | null;
+      plannedFor?: string | null;
+      estimateMin?: number;
+    } = {
       projectId: parsed.projectId,
       title: parsed.title,
-      description: parsed.description || undefined,
       priority: parsed.priority ?? 'media',
-      plannedFor: parsed.plannedFor || undefined,
       status: parsed.status ?? 'todo',
-      estimateMin: parsed.estimateMin !== undefined ? parsed.estimateMin : undefined,
     };
+
+    if (bodyHasDescription) {
+      data.description = parsed.description ?? null;
+    }
+
+    if (bodyHasPlannedFor) {
+      data.plannedFor = parsed.plannedFor ?? null;
+    }
+
+    if (parsed.estimateMin !== undefined) {
+      data.estimateMin = parsed.estimateMin;
+    }
 
     const task = await prisma.task.create({ data });
     return NextResponse.json(task);
