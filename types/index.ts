@@ -9,6 +9,9 @@ export interface Project {
   clockfyClientId?: string | null;
   clockfyProjectId?: string | null;
   syncWithClockfy: boolean;
+  salesforceOppUrl?: string | null;
+  sharepointRepoUrl?: string | null;
+  estimatedDeliveryDate?: string | Date | null;
 }
 
 export interface Task {
