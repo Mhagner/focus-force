@@ -43,6 +43,16 @@ export async function PATCH(
         const trimmed = value.trim();
         if (!trimmed) return undefined;
 
+        // If the client sent a date-only string like 'YYYY-MM-DD',
+        // construct a Date at noon UTC to avoid timezone shifts when
+        // converting to local time on the client.
+        const dateOnlyMatch = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+        if (dateOnlyMatch) {
+          const [y, m, d] = trimmed.split('-').map((s) => Number(s));
+          const utcNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+          return utcNoon;
+        }
+
         const parsedDate = new Date(trimmed);
         if (Number.isNaN(parsedDate.getTime())) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Data inválida' });
