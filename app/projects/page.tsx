@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -15,11 +15,27 @@ import { LayoutGrid, List, Plus } from 'lucide-react';
 
 export default function ProjectsPage() {
   const { projects, tasks } = useAppStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setSearchQuery(params.get('search') ?? '');
+    setFocusId(params.get('focusId') ?? null);
+  }, []);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
-  const activeProjects = projects.filter(p => p.active);
+  const searchTerm = searchQuery.trim().toLowerCase();
+  let activeProjects = projects.filter(p => p.active && (!searchTerm || (
+    p.name.toLowerCase().includes(searchTerm) || (p.client ?? '').toLowerCase().includes(searchTerm)
+  )));
+
+  if (focusId) {
+    activeProjects = activeProjects.filter(p => p.id === focusId);
+  }
 
   const parseToDate = (value: unknown): Date | null => {
     if (!value) return null;
