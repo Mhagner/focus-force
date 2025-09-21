@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Play, Pause, RotateCcw } from 'lucide-react';
+import { Search, Play, Pause, RotateCcw, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   CommandDialog,
@@ -18,11 +19,11 @@ import { cn, formatTime } from '@/lib/utils';
 import { FocusDialog } from '@/components/focus/FocusDialog';
 
 export function TopNav() {
+  const router = useRouter();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
-
-  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const {
     isRunning,
@@ -39,6 +40,24 @@ export function TopNav() {
 
   const { projects, tasks } = useAppStore();
   const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+
+      if (!response.ok) {
+        throw new Error('Falha ao encerrar sessão');
+      }
+
+      router.replace('/login');
+      router.refresh();
+    } catch (err) {
+      toast.error('Não foi possível sair. Tente novamente.');
+      setIsLoggingOut(false);
+    }
+  };
 
   const projectMap = useMemo(() => {
     return projects.reduce<Record<string, typeof projects[number]>>((acc, project) => {
@@ -179,6 +198,15 @@ export function TopNav() {
             >
               <Play className="h-4 w-4 mr-2" />
               Iniciar Foco
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-gray-300 hover:text-white"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {isLoggingOut ? 'Saindo...' : 'Sair'}
             </Button>
           </div>
         </div>
