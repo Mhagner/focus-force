@@ -1,6 +1,7 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Task } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
@@ -19,6 +20,7 @@ interface TaskCardProps {
 
 export function TaskCard({ task, onEdit }: TaskCardProps) {
   const { projects, updateTask, deleteTask } = useAppStore();
+  const [isDeleting, setIsDeleting] = useState(false);
   const { startTimer, switchTask, isRunning } = useTimerStore();
   const router = useRouter();
 
@@ -64,10 +66,18 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
               {isPlannedForToday ? 'Remover de hoje' : 'Planejar para hoje'}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => deleteTask(task.id)}
+              onClick={async () => {
+                if (isDeleting) return;
+                setIsDeleting(true);
+                try {
+                  await deleteTask(task.id);
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
               className="cursor-pointer text-red-400"
             >
-              Excluir
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,29 +22,37 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const projectTasks = projectId ? tasks.filter(t => t.projectId === projectId) : [];
 
   const handleSave = async () => {
-    if (!projectId || !date || !startTime || !endTime) return;
+    if (!projectId || !date || !startTime || !endTime || isSubmitting) return;
     const start = new Date(`${date}T${startTime}:00`);
     const end = new Date(`${date}T${endTime}:00`);
     const durationSec = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
-    await addSession({
-      projectId,
-      taskId: taskId || undefined,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      durationSec,
-      type: 'manual',
-    });
-    toast({ title: 'Sessão adicionada' });
-    onOpenChange(false);
-    setProjectId('');
-    setTaskId('');
-    setDate('');
-    setStartTime('');
-    setEndTime('');
+
+    setIsSubmitting(true);
+
+    try {
+      await addSession({
+        projectId,
+        taskId: taskId || undefined,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        durationSec,
+        type: 'manual',
+      });
+      toast({ title: 'Sessão adicionada' });
+      onOpenChange(false);
+      setProjectId('');
+      setTaskId('');
+      setDate('');
+      setStartTime('');
+      setEndTime('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -101,7 +110,20 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
           </div>
           <div className="pt-4 flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={!projectId || !date || !startTime || !endTime}>Salvar</Button>
+            <Button
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              onClick={handleSave}
+              disabled={!projectId || !date || !startTime || !endTime || isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar'
+              )}
+            </Button>
           </div>
         </div>
       </DialogContent>
