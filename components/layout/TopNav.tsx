@@ -1,9 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { cn, formatTime } from '@/lib/utils';
@@ -11,8 +19,11 @@ import { FocusDialog } from '@/components/focus/FocusDialog';
 
 export function TopNav() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
-  
+
+  const router = useRouter();
+
   const {
     isRunning,
     isPaused,
@@ -26,13 +37,44 @@ export function TopNav() {
     restoreState,
   } = useTimerStore();
   
-  const { projects } = useAppStore();
+  const { projects, tasks } = useAppStore();
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setIsSearchOpen(false);
+  const projectMap = useMemo(() => {
+    return projects.reduce<Record<string, typeof projects[number]>>((acc, project) => {
+      acc[project.id] = project;
+      return acc;
+    }, {});
+  }, [projects]);
+
+  const searchTerm = searchQuery.trim().toLowerCase();
+  const filteredProjects = projects.filter((project) => {
+    if (!searchTerm) {
+      return true;
     }
+    return (
+      project.name.toLowerCase().includes(searchTerm) ||
+      (project.client ?? '').toLowerCase().includes(searchTerm)
+    );
+  });
+
+  const filteredTasks = tasks.filter((task) => {
+    if (!searchTerm) {
+      return true;
+    }
+    const projectName = (projectMap[task.projectId]?.name ?? '').toLowerCase();
+    const description = (task.description ?? '').toLowerCase();
+    return (
+      task.title.toLowerCase().includes(searchTerm) ||
+      description.includes(searchTerm) ||
+      projectName.includes(searchTerm)
+    );
+  });
+
+  const handleSelect = (path: string) => {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    router.push(path);
   };
 
   useEffect(() => {
@@ -49,20 +91,37 @@ export function TopNav() {
     }
   }, [isRunning, isPaused, tick]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
   return (
     <>
       <header className="bg-gray-950/80 backdrop-blur border-b border-gray-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar projetos, tarefas... (⌘K)"
-                className="w-80 pl-10 bg-gray-900/50 border-gray-700 focus:border-blue-500"
-                onFocus={() => setIsSearchOpen(true)}
-                onKeyDown={handleKeyDown}
-              />
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsSearchOpen(true)}
+              className="w-80 justify-start bg-gray-900/50 border-gray-700 text-gray-400 hover:text-white"
+            >
+              <Search className="mr-2 h-4 w-4" />
+              <span className="flex-1 text-left">Buscar projetos, tarefas...</span>
+              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-gray-700 px-1.5 font-sans text-[10px] font-medium text-gray-400">
+                ⌘K
+              </kbd>
+            </Button>
           </div>
 
           <div className="flex items-center gap-4">
@@ -121,10 +180,72 @@ export function TopNav() {
         </div>
       </header>
 
-      <FocusDialog 
-        open={isFocusDialogOpen} 
+      <FocusDialog
+        open={isFocusDialogOpen}
         onOpenChange={setIsFocusDialogOpen}
       />
+
+      <CommandDialog
+        open={isSearchOpen}
+        onOpenChange={(open) => {
+          setIsSearchOpen(open);
+          if (!open) {
+            setSearchQuery('');
+          }
+        }}
+      >
+        <CommandInput
+          placeholder="Buscar por projetos ou tarefas"
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+        />
+        <CommandList>
+          <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+          {filteredProjects.length > 0 && (
+            <CommandGroup heading="Projetos">
+              {filteredProjects.map((project) => (
+                <CommandItem
+                  key={project.id}
+                  value={`${project.name} ${project.client ?? ''}`}
+                  onSelect={() => handleSelect('/projects')}
+                >
+                  <div
+                    className="mr-2 h-2 w-2 rounded-full"
+                    style={{ backgroundColor: project.color }}
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-sm text-white">{project.name}</span>
+                    {project.client && (
+                      <span className="text-xs text-gray-400">{project.client}</span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          {filteredTasks.length > 0 && (
+            <CommandGroup heading="Tarefas">
+              {filteredTasks.map((task) => {
+                const project = projectMap[task.projectId];
+                return (
+                  <CommandItem
+                    key={task.id}
+                    value={`${task.title} ${task.description ?? ''} ${project?.name ?? ''}`}
+                    onSelect={() => handleSelect('/tasks')}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-sm text-white">{task.title}</span>
+                      <span className="text-xs text-gray-400">
+                        {project ? project.name : 'Projeto sem nome'}
+                      </span>
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          )}
+        </CommandList>
+      </CommandDialog>
     </>
   );
 }
