@@ -26,12 +26,20 @@ export async function PATCH(
 
     const parsed = schema.parse(body);
 
-    const data: any = {};
+    const data: {
+      projectId?: string;
+      title?: string;
+      description?: string | null;
+      priority?: 'alta' | 'media' | 'baixa';
+      plannedFor?: string | null;
+      status?: 'todo' | 'doing' | 'done';
+      estimateMin?: number;
+    } = {};
     if (parsed.projectId !== undefined) data.projectId = parsed.projectId;
     if (parsed.title !== undefined) data.title = parsed.title;
-    if (parsed.description !== undefined) data.description = parsed.description || undefined;
+    if (parsed.description !== undefined) data.description = parsed.description ?? null;
     if (parsed.priority !== undefined) data.priority = parsed.priority;
-    if (parsed.plannedFor !== undefined) data.plannedFor = parsed.plannedFor || undefined;
+    if (parsed.plannedFor !== undefined) data.plannedFor = parsed.plannedFor ?? null;
     if (parsed.status !== undefined) data.status = parsed.status;
     if (parsed.estimateMin !== undefined) data.estimateMin = parsed.estimateMin;
 
