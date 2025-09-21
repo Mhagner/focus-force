@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Play, Pause, RotateCcw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Play, Pause, RotateCcw, LogOut } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTimerStore } from '@/stores/useTimerStore';
@@ -10,8 +12,10 @@ import { cn, formatTime } from '@/lib/utils';
 import { FocusDialog } from '@/components/focus/FocusDialog';
 
 export function TopNav() {
+  const router = useRouter();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const {
     isRunning,
@@ -28,6 +32,24 @@ export function TopNav() {
   
   const { projects } = useAppStore();
   const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+
+      if (!response.ok) {
+        throw new Error('Falha ao encerrar sessão');
+      }
+
+      router.replace('/login');
+      router.refresh();
+    } catch (err) {
+      toast.error('Não foi possível sair. Tente novamente.');
+      setIsLoggingOut(false);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -110,12 +132,21 @@ export function TopNav() {
               </div>
             )}
 
-            <Button 
+            <Button
               onClick={() => setIsFocusDialogOpen(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
             >
               <Play className="h-4 w-4 mr-2" />
               Iniciar Foco
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-gray-300 hover:text-white"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {isLoggingOut ? 'Saindo...' : 'Sair'}
             </Button>
           </div>
         </div>
