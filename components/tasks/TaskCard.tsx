@@ -7,8 +7,8 @@ import { Task } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
-import { formatDuration } from '@/lib/utils';
-import { Play, Calendar, Clock, MoreVertical } from 'lucide-react';
+import { formatDuration, formatFriendlyDate } from '@/lib/utils';
+import { Play, Calendar, Clock, MoreVertical, ExternalLink } from 'lucide-react';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -38,6 +38,17 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
     const newPlannedFor = isPlannedForToday ? null : 'today';
     updateTask(task.id, { plannedFor: newPlannedFor });
   };
+
+  const estimatedDeliveryDate = project.estimatedDeliveryDate
+    ? formatFriendlyDate(project.estimatedDeliveryDate)
+    : '';
+
+  const salesforceLink = project.salesforceOppUrl ?? '';
+  const repoLink = project.sharepointRepoUrl ?? '';
+
+  const hasEstimatedDelivery = Boolean(estimatedDeliveryDate);
+  const hasSalesforceLink = Boolean(salesforceLink);
+  const hasRepoLink = Boolean(repoLink);
 
   return (
     <Card className="p-4 bg-gray-900/50 border-gray-800 hover:bg-gray-900/70 transition-colors">
@@ -90,13 +101,74 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
       )}
 
       <div className="flex items-center justify-between mb-3">
-        <ProjectBadge name={project.name} color={project.color} size="sm" />
+        <ProjectBadge
+          name={project.name}
+          color={project.color}
+          size="sm"
+          href={`/projects?focusId=${project.id}&editProjectId=${project.id}`}
+        />
         {task.estimateMin && (
           <div className="flex items-center gap-1 text-xs text-gray-500">
             <Clock className="h-3 w-3" />
             {formatDuration(task.estimateMin * 60)}
           </div>
         )}
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3 text-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800/70">
+            <Calendar className="h-4 w-4 text-gray-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-wide text-gray-500">Entrega prevista</span>
+            <span className={hasEstimatedDelivery ? 'text-white font-medium' : 'text-gray-500'}>
+              {hasEstimatedDelivery ? estimatedDeliveryDate : 'Não informada'}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800/70">
+            <ExternalLink className="h-4 w-4 text-gray-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-wide text-gray-500">Oportunidade Salesforce</span>
+            {hasSalesforceLink ? (
+              <a
+                href={salesforceLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300"
+              >
+                Abrir oportunidade
+              </a>
+            ) : (
+              <span className="text-gray-500">Não informado</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800/70">
+            <ExternalLink className="h-4 w-4 text-gray-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs uppercase tracking-wide text-gray-500">Repositório do projeto</span>
+            {hasRepoLink ? (
+              <a
+                href={repoLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300"
+              >
+                Abrir repositório
+              </a>
+            ) : (
+              <span className="text-gray-500">Não informado</span>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">

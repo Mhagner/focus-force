@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -10,23 +11,41 @@ import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectDialog } from '@/components/projects/ProjectDialog';
 import { ProjectListItem } from '@/components/projects/ProjectListItem';
 import { Project } from '@/types';
-import { formatFriendlyDate } from '@/lib/utils';
 import { LayoutGrid, List, Plus } from 'lucide-react';
 
 export default function ProjectsPage() {
   const { projects, tasks } = useAppStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    setSearchQuery(params.get('search') ?? '');
-    setFocusId(params.get('focusId') ?? null);
-  }, []);
+    if (!searchParams) return;
+    setSearchQuery(searchParams.get('search') ?? '');
+    setFocusId(searchParams.get('focusId'));
+    setPendingEditId(searchParams.get('editProjectId'));
+  }, [searchParams]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  useEffect(() => {
+    if (!pendingEditId) return;
+    const projectToEdit = projects.find(project => project.id === pendingEditId);
+    if (!projectToEdit) return;
+
+    setEditingProject(projectToEdit);
+    setIsDialogOpen(true);
+
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
+    params.delete('editProjectId');
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+    setPendingEditId(null);
+  }, [pendingEditId, projects, pathname, router, searchParams]);
 
   const searchTerm = searchQuery.trim().toLowerCase();
   let activeProjects = projects.filter(p => p.active && (!searchTerm || (
