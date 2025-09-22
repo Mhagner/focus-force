@@ -49,7 +49,7 @@ export default function ProjectsPage() {
     setEditingProject(projectToEdit);
     setIsDialogOpen(true);
 
-  const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     params.delete('editProjectId');
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
