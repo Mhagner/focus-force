@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -18,16 +18,25 @@ export default function ProjectsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [pendingEditId, setPendingEditId] = useState<string | null>(null);
-  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!searchParams) return;
-    setSearchQuery(searchParams.get('search') ?? '');
-    setFocusId(searchParams.get('focusId'));
-    setPendingEditId(searchParams.get('editProjectId'));
-  }, [searchParams]);
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    setSearchQuery(params.get('search') ?? '');
+    setFocusId(params.get('focusId'));
+    setPendingEditId(params.get('editProjectId'));
+
+    const onPop = () => {
+      const p = new URLSearchParams(window.location.search);
+      setSearchQuery(p.get('search') ?? '');
+      setFocusId(p.get('focusId'));
+      setPendingEditId(p.get('editProjectId'));
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -40,12 +49,12 @@ export default function ProjectsPage() {
     setEditingProject(projectToEdit);
     setIsDialogOpen(true);
 
-    const params = new URLSearchParams(searchParams?.toString() ?? '');
+  const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     params.delete('editProjectId');
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
     setPendingEditId(null);
-  }, [pendingEditId, projects, pathname, router, searchParams]);
+  }, [pendingEditId, projects, pathname, router]);
 
   const searchTerm = searchQuery.trim().toLowerCase();
   let activeProjects = projects.filter(p => p.active && (!searchTerm || (

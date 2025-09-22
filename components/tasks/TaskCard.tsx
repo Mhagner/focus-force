@@ -115,7 +115,7 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
         )}
       </div>
 
-      <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3 text-sm">
+      <div className="space-y-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3 text-sm mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800/70">
             <Calendar className="h-4 w-4 text-gray-400" />
