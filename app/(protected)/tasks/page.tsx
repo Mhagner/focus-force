@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
@@ -11,7 +11,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { getTodayTasks } from '@/lib/utils';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
-import { useSearchParams } from 'next/navigation';
 
 export default function TasksPage() {
   const { tasks, projects } = useAppStore();
@@ -19,9 +18,26 @@ export default function TasksPage() {
   const [showOnlyToday, setShowOnlyToday] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const searchParams = useSearchParams();
-  const searchTerm = (searchParams.get('search') ?? '').trim().toLowerCase();
-  const focusId = searchParams.get('focusId');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setSearchQuery(params.get('search') ?? '');
+    setFocusId(params.get('focusId') ?? null);
+
+    const onPop = () => {
+      const p = new URLSearchParams(window.location.search);
+      setSearchQuery(p.get('search') ?? '');
+      setFocusId(p.get('focusId') ?? null);
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const searchTerm = searchQuery.trim().toLowerCase();
   const filteredTasks = tasks.filter(task => {
     if (selectedProjectId !== 'all' && task.projectId !== selectedProjectId) {
       return false;

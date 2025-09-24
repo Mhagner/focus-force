@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -17,16 +17,34 @@ export default function ProjectsPage() {
   const { projects, tasks } = useAppStore();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
-  const searchParamsString = useMemo(() => searchParams.toString(), [searchParams]);
-  const searchTerm = (searchParams.get('search') ?? '').trim().toLowerCase();
-  const focusId = searchParams.get('focusId');
-  const pendingEditId = searchParams.get('editProjectId');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setSearchQuery(params.get('search') ?? '');
+    setFocusId(params.get('focusId') ?? null);
+    setPendingEditId(params.get('editProjectId') ?? null);
+
+    const onPop = () => {
+      const p = new URLSearchParams(window.location.search);
+      setSearchQuery(p.get('search') ?? '');
+      setFocusId(p.get('focusId') ?? null);
+      setPendingEditId(p.get('editProjectId') ?? null);
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const searchTerm = searchQuery.trim().toLowerCase();
 
   useEffect(() => {
     if (!pendingEditId) return;
@@ -36,11 +54,11 @@ export default function ProjectsPage() {
     setEditingProject(projectToEdit);
     setIsDialogOpen(true);
 
-    const params = new URLSearchParams(searchParamsString);
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     params.delete('editProjectId');
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
-  }, [pendingEditId, projects, pathname, router, searchParamsString]);
+  }, [pendingEditId, projects, pathname, router]);
   let activeProjects = projects.filter(p => p.active && (!searchTerm || (
     p.name.toLowerCase().includes(searchTerm) || (p.client ?? '').toLowerCase().includes(searchTerm)
   )));
