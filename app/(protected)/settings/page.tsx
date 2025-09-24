@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAppStore } from '@/stores/useAppStore';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Download, Upload, Trash2, PlugZap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings, Download, Upload, Trash2, PlugZap, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
@@ -30,6 +30,8 @@ export default function SettingsPage() {
     apiKey: clockfySettings.apiKey,
     workspaceId: clockfySettings.workspaceId,
   });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isSavingClockfy, setIsSavingClockfy] = useState(false);
 
   useEffect(() => {
     setClockfyForm({
@@ -39,14 +41,26 @@ export default function SettingsPage() {
   }, [clockfySettings]);
 
   const handleSaveSettings = async () => {
-    await updatePomodoroSettings(settings);
-    toast({
-      title: "Configurações salvas",
-      description: "As configurações do Pomodoro foram atualizadas.",
-    });
+    setIsSavingSettings(true);
+    try {
+      await updatePomodoroSettings(settings);
+      toast({
+        title: 'Configurações salvas',
+        description: 'As configurações do Pomodoro foram atualizadas.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Não foi possível salvar',
+        description: 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const handleSaveClockfy = async () => {
+    setIsSavingClockfy(true);
     try {
       await updateClockfySettings(clockfyForm);
       toast({
@@ -59,6 +73,8 @@ export default function SettingsPage() {
         description: 'Verifique as credenciais informadas.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSavingClockfy(false);
     }
   };
 
@@ -223,8 +239,16 @@ export default function SettingsPage() {
           <Button
             onClick={handleSaveSettings}
             className="mt-6 bg-blue-600 hover:bg-blue-700"
+            disabled={isSavingSettings}
           >
-            Salvar Configurações
+            {isSavingSettings ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              'Salvar Configurações'
+            )}
           </Button>
         </Card>
 
@@ -275,8 +299,16 @@ export default function SettingsPage() {
           <Button
             onClick={handleSaveClockfy}
             className="mt-6 bg-blue-600 hover:bg-blue-700"
+            disabled={isSavingClockfy}
           >
-            Salvar credenciais
+            {isSavingClockfy ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              'Salvar credenciais'
+            )}
           </Button>
 
           <div className="mt-8">

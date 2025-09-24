@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -15,31 +15,36 @@ import { LayoutGrid, List, Plus } from 'lucide-react';
 
 export default function ProjectsPage() {
   const { projects, tasks } = useAppStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [focusId, setFocusId] = useState<string | null>(null);
-  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | undefined>();
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [pendingEditId, setPendingEditId] = useState<string | null>(null);
+
   useEffect(() => {
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
     setSearchQuery(params.get('search') ?? '');
-    setFocusId(params.get('focusId'));
-    setPendingEditId(params.get('editProjectId'));
+    setFocusId(params.get('focusId') ?? null);
+    setPendingEditId(params.get('editProjectId') ?? null);
 
     const onPop = () => {
       const p = new URLSearchParams(window.location.search);
       setSearchQuery(p.get('search') ?? '');
-      setFocusId(p.get('focusId'));
-      setPendingEditId(p.get('editProjectId'));
+      setFocusId(p.get('focusId') ?? null);
+      setPendingEditId(p.get('editProjectId') ?? null);
     };
 
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | undefined>();
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  const searchTerm = searchQuery.trim().toLowerCase();
 
   useEffect(() => {
     if (!pendingEditId) return;
@@ -53,10 +58,7 @@ export default function ProjectsPage() {
     params.delete('editProjectId');
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
-    setPendingEditId(null);
   }, [pendingEditId, projects, pathname, router]);
-
-  const searchTerm = searchQuery.trim().toLowerCase();
   let activeProjects = projects.filter(p => p.active && (!searchTerm || (
     p.name.toLowerCase().includes(searchTerm) || (p.client ?? '').toLowerCase().includes(searchTerm)
   )));

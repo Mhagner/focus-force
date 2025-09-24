@@ -17,7 +17,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { Save, Calendar, Plus, Trash } from 'lucide-react';
+import { Save, Calendar, Plus, Trash, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -27,22 +27,21 @@ export default function PlanPage() {
   
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayPlan = getDailyPlan(today);
-  
+
   const [blocks, setBlocks] = useState<{ projectId: string; targetMinutes: number }[]>([]);
   const [notes, setNotes] = useState('');
   const [newProjectId, setNewProjectId] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (todayPlan) {
       setBlocks(todayPlan.blocks);
       setNotes(todayPlan.notes || '');
     } else {
-      // Initialize with active projects
-      const activeProjects = projects.filter(p => p.active);
-      setBlocks(activeProjects.map(p => ({ projectId: p.id, targetMinutes: 120 })));
+      setBlocks([]);
       setNotes('');
     }
-  }, [todayPlan, projects]);
+  }, [todayPlan]);
 
   const totalPlanned = blocks.reduce((sum, block) => sum + block.targetMinutes, 0);
   const totalWorked = blocks.reduce((sum, block) => {
@@ -73,16 +72,21 @@ export default function PlanPage() {
     setBlocks(blocks.filter(b => b.projectId !== projectId));
   };
 
-  const handleSave = () => {
-    const planData = {
-      id: todayPlan?.id || `plan-${Date.now()}`,
-      dateISO: today,
-      blocks: blocks.filter(block => block.targetMinutes > 0),
-      notes: notes.trim() || undefined,
-    };
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const planData = {
+        id: todayPlan?.id || `plan-${Date.now()}`,
+        dateISO: today,
+        blocks: blocks.filter(block => block.targetMinutes > 0),
+        notes: notes.trim() || undefined,
+      };
 
-    updateDailyPlan(planData);
-    toast({ title: 'Plano salvo' });
+      await Promise.resolve(updateDailyPlan(planData));
+      toast({ title: 'Plano salvo' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -95,9 +99,22 @@ export default function PlanPage() {
           </p>
         </div>
         
-        <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-          <Save className="h-4 w-4 mr-2" />
-          Salvar Plano
+        <Button
+          onClick={handleSave}
+          className="bg-blue-600 hover:bg-blue-700"
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Salvando...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Salvar Plano
+            </>
+          )}
         </Button>
       </div>
 

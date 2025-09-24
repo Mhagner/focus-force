@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Play, Pause, RotateCcw, LogOut } from 'lucide-react';
+import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +40,11 @@ export function TopNav() {
 
   const { projects, tasks } = useAppStore();
   const selectedProject = projects.find(p => p.id === selectedProjectId);
+
+  const handleOpenMiniTimer = () => {
+    const features = 'width=360,height=260,menubar=no,toolbar=no,location=no,status=no';
+    window.open('/mini-timer', 'focusforge-mini-timer', features);
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -172,6 +177,15 @@ export function TopNav() {
                 )}
 
                 <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleOpenMiniTimer}
+                    className="h-8 w-8 p-0 hover:bg-gray-700"
+                    title="Abrir mini cronômetro"
+                  >
+                    <SquareArrowOutUpRight className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

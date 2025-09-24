@@ -26,6 +26,15 @@ export default function TasksPage() {
     const params = new URLSearchParams(window.location.search);
     setSearchQuery(params.get('search') ?? '');
     setFocusId(params.get('focusId') ?? null);
+
+    const onPop = () => {
+      const p = new URLSearchParams(window.location.search);
+      setSearchQuery(p.get('search') ?? '');
+      setFocusId(p.get('focusId') ?? null);
+    };
+
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
   const searchTerm = searchQuery.trim().toLowerCase();
