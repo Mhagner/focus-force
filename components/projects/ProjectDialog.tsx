@@ -109,7 +109,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800">
+      <DialogContent className="bg-gray-900 border-gray-800 max-h-[85vh] overflow-y-auto sm:max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="text-white">
             {project ? 'Editar Projeto' : 'Novo Projeto'}
