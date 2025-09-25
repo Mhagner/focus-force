@@ -112,8 +112,8 @@ export function TopNav() {
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === TIMER_STORAGE_KEY) {
-        restoreState();
+      if (event.storageArea === localStorage && event.key === TIMER_STORAGE_KEY) {
+        restoreState({ persist: false });
       }
     };
 

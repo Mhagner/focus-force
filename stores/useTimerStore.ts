@@ -14,7 +14,7 @@ interface TimerStore extends TimerState {
   resetTimer: () => void;
   nextPhase: () => void;
   tick: () => void;
-  restoreState: () => void;
+  restoreState: (options?: { persist?: boolean }) => void;
   saveState: () => void;
 }
 
@@ -346,9 +346,13 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     get().saveState();
   },
 
-  restoreState: () => {
+  restoreState: (options) => {
+    const { persist = true } = options ?? {};
     const savedState = storage.getTimerState<Partial<TimerState>>();
-    if (!savedState) return;
+    if (!savedState) {
+      set({ ...initialTimerState });
+      return;
+    }
 
     const normalized: TimerState = {
       ...initialTimerState,
@@ -363,22 +367,32 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       const { updatedFields, sessions, manualStop } = advanceTimerState(normalized, now, pomodoroSettings);
 
       const finalState = { ...normalized, ...updatedFields };
-      set(finalState);
+
+      if (persist) {
+        sessions.forEach((session) => {
+          storage.addSession(session).then((created) => {
+            try {
+              useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
+            } catch {}
+          });
+        });
+      }
 
       if (manualStop) {
-        get().stopTimer();
+        if (persist) {
+          set(finalState);
+          get().stopTimer();
+        } else {
+          set({ ...initialTimerState });
+        }
         return;
       }
 
-      sessions.forEach((session) => {
-        storage.addSession(session).then((created) => {
-          try {
-            useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
-          } catch {}
-        });
-      });
+      set(finalState);
 
-      get().saveState();
+      if (persist) {
+        get().saveState();
+      }
     } else {
       set(normalized);
     }
