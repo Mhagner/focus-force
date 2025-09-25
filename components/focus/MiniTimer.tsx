@@ -6,6 +6,7 @@ import { useTimerStore } from '@/stores/useTimerStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { formatTime } from '@/lib/utils';
 import { Pause, Play, RotateCcw, Square } from 'lucide-react';
+import { TIMER_STORAGE_KEY } from '@/lib/constants';
 
 const phaseLabels: Record<string, string> = {
   work: 'Trabalho',
@@ -13,8 +14,6 @@ const phaseLabels: Record<string, string> = {
   'long-break': 'Pausa Longa',
   manual: 'Cronômetro',
 };
-
-const TIMER_STORAGE_KEY = 'focusforge/timer-state';
 
 export function MiniTimer() {
   const {

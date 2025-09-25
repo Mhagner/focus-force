@@ -17,6 +17,7 @@ import { useTimerStore } from '@/stores/useTimerStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { cn, formatTime } from '@/lib/utils';
 import { FocusDialog } from '@/components/focus/FocusDialog';
+import { TIMER_STORAGE_KEY } from '@/lib/constants';
 
 export function TopNav() {
   const router = useRouter();
@@ -107,6 +108,17 @@ export function TopNav() {
 
   useEffect(() => {
     restoreState();
+  }, [restoreState]);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === TIMER_STORAGE_KEY) {
+        restoreState();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [restoreState]);
 
   useEffect(() => {
