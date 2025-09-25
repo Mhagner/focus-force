@@ -24,6 +24,7 @@ interface AdvanceTimerResult {
   updatedFields: Partial<TimerState>;
   sessions: SessionPayload[];
   manualStop: boolean;
+  consumedSeconds: number;
 }
 
 const initialTimerState: TimerState = {
@@ -52,7 +53,7 @@ function advanceTimerState(
     if (state.isRunning) {
       updatedFields.lastTickAt = now.toISOString();
     }
-    return { updatedFields, sessions: [], manualStop: false };
+    return { updatedFields, sessions: [], manualStop: false, consumedSeconds: 0 };
   }
 
   const referenceMs = Date.parse(referenceIso);
@@ -61,16 +62,12 @@ function advanceTimerState(
     if (state.isRunning) {
       updatedFields.lastTickAt = now.toISOString();
     }
-    return { updatedFields, sessions: [], manualStop: false };
+    return { updatedFields, sessions: [], manualStop: false, consumedSeconds: 0 };
   }
 
   const elapsedSeconds = Math.floor((now.getTime() - referenceMs) / 1000);
   if (elapsedSeconds <= 0) {
-    const updatedFields: Partial<TimerState> = {};
-    if (state.isRunning) {
-      updatedFields.lastTickAt = now.toISOString();
-    }
-    return { updatedFields, sessions: [], manualStop: false };
+    return { updatedFields: {}, sessions: [], manualStop: false, consumedSeconds: 0 };
   }
 
   const sessions: SessionPayload[] = [];
@@ -163,7 +160,9 @@ function advanceTimerState(
     lastTickAt: isRunning ? new Date(cursorMs).toISOString() : undefined,
   };
 
-  return { updatedFields, sessions, manualStop };
+  const consumedSeconds = elapsedSeconds - remaining;
+
+  return { updatedFields, sessions, manualStop, consumedSeconds };
 }
 
 export const useTimerStore = create<TimerStore>((set, get) => ({
@@ -321,7 +320,13 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
     const now = new Date();
     const pomodoroSettings = useAppStore.getState().pomodoroSettings;
-    const { updatedFields, sessions, manualStop } = advanceTimerState(state, now, pomodoroSettings);
+    const { updatedFields, sessions, manualStop, consumedSeconds } = advanceTimerState(
+      state,
+      now,
+      pomodoroSettings
+    );
+
+    const shouldPersist = consumedSeconds > 0 || sessions.length > 0 || manualStop;
 
     if (manualStop) {
       if (Object.keys(updatedFields).length > 0) {
@@ -343,7 +348,9 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       });
     });
 
-    get().saveState();
+    if (shouldPersist) {
+      get().saveState();
+    }
   },
 
   restoreState: () => {
@@ -360,7 +367,11 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     if (normalized.isRunning && !normalized.isPaused) {
       const now = new Date();
       const pomodoroSettings = useAppStore.getState().pomodoroSettings;
-      const { updatedFields, sessions, manualStop } = advanceTimerState(normalized, now, pomodoroSettings);
+      const { updatedFields, sessions, manualStop, consumedSeconds } = advanceTimerState(
+        normalized,
+        now,
+        pomodoroSettings
+      );
 
       const finalState = { ...normalized, ...updatedFields };
       set(finalState);
@@ -378,7 +389,9 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         });
       });
 
-      get().saveState();
+      if (consumedSeconds > 0 || sessions.length > 0) {
+        get().saveState();
+      }
     } else {
       set(normalized);
     }
