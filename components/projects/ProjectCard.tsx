@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
-import { formatDuration, formatFriendlyDate, getProjectHoursToday, getWeekHours } from '@/lib/utils';
+import { formatDateTime, formatDuration, formatFriendlyDate, getProjectHoursToday, getWeekHours } from '@/lib/utils';
 import { MoreVertical, Edit, Archive, Play } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -22,9 +22,32 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
     .filter(s => s.projectId === project.id)
     .reduce((total, session) => total + session.durationSec, 0);
 
-  const pendingTasks = tasks.filter(t =>
-    t.projectId === project.id && t.status !== 'done'
-  ).length;
+  const projectTasks = tasks.filter(t => t.projectId === project.id);
+  const pendingTasks = projectTasks.filter(t => t.status !== 'done').length;
+
+  const latestUpdate = projectTasks.reduce<
+    { id: string; message: string; createdAt: string; taskTitle: string } | null
+  >((currentLatest, task) => {
+    const [mostRecent] = [...(task.comments ?? [])].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    if (!mostRecent) return currentLatest;
+
+    if (
+      !currentLatest ||
+      new Date(mostRecent.createdAt).getTime() > new Date(currentLatest.createdAt).getTime()
+    ) {
+      return {
+        id: mostRecent.id,
+        message: mostRecent.message,
+        createdAt: mostRecent.createdAt,
+        taskTitle: task.title,
+      };
+    }
+
+    return currentLatest;
+  }, null);
 
   const estimatedDelivery = project.estimatedDeliveryDate
     ? formatFriendlyDate(project.estimatedDeliveryDate)
@@ -119,6 +142,19 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
             <span className="text-sm text-gray-400">Taxa/hora</span>
             <span className="text-green-400 font-medium">R$ {project.hourlyRate}</span>
           </div>
+        )}
+      </div>
+
+      <div className="mt-4 space-y-2 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
+        <p className="text-xs uppercase tracking-wide text-gray-400">Última atualização</p>
+        {latestUpdate ? (
+          <div className="space-y-1">
+            <p className="text-xs text-gray-500">{formatDateTime(latestUpdate.createdAt)}</p>
+            <p className="text-sm text-gray-300">{latestUpdate.taskTitle}</p>
+            <p className="text-sm text-white whitespace-pre-wrap">{latestUpdate.message}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">Nenhum comentário registrado ainda.</p>
         )}
       </div>
 

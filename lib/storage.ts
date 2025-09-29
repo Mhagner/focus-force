@@ -1,5 +1,5 @@
 // src/lib/storage.ts
-import { Project, Task, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
+import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
 
 /**
  * ------------------------------------------------------------
@@ -223,8 +223,8 @@ export const storage = {
     return request<Task[]>('/api/tasks');
   },
 
-  async addTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
-    const payload: Omit<Task, 'id' | 'createdAt'> & { priority?: Task['priority']; status?: Task['status'] } =
+  async addTask(task: TaskInput): Promise<Task> {
+    const payload: TaskInput & { priority?: Task['priority']; status?: Task['status'] } =
       { priority: 'media', status: 'todo', ...task };
     return request<Task>('/api/tasks', {
       method: 'POST',
@@ -232,7 +232,7 @@ export const storage = {
     });
   },
 
-  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
+  async updateTask(id: string, updates: Partial<TaskInput>): Promise<Task> {
     return request<Task>(`/api/tasks/${id}`, {
       method: 'PATCH',
       body: updates,
@@ -241,6 +241,13 @@ export const storage = {
 
   async deleteTask(id: string): Promise<void> {
     await request<unknown>(`/api/tasks/${id}`, { method: 'DELETE' });
+  },
+
+  async addTaskComment(taskId: string, message: string): Promise<TaskComment> {
+    return request<TaskComment>(`/api/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: { message },
+    });
   },
 
   /**

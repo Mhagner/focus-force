@@ -43,7 +43,15 @@ export async function PATCH(
     if (parsed.status !== undefined) data.status = parsed.status;
     if (parsed.estimateMin !== undefined) data.estimateMin = parsed.estimateMin;
 
-    const task = await prisma.task.update({ where: { id }, data });
+    const task = await prisma.task.update({
+      where: { id },
+      data,
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
     return NextResponse.json(task);
   } catch (err: any) {
     return NextResponse.json({ message: err.message ?? 'Erro ao atualizar tarefa' }, { status: 400 });

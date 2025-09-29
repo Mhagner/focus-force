@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, startOfDay, endOfDay, isToday, isThisWeek } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { FocusSession, Task, Project } from '@/types';
 import jsPDF from 'jspdf';
 
@@ -24,6 +25,14 @@ export function formatFriendlyDate(value: string | Date): string {
     return '';
   }
   return format(date, 'dd/MM/yyyy');
+}
+
+export function formatDateTime(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
 }
 
 export function formatTime(seconds: number): string {

@@ -24,7 +24,25 @@ export interface Task {
   status?: 'todo' | 'doing' | 'done';
   estimateMin?: number;
   createdAt: string;
+  comments?: TaskComment[];
 }
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  message: string;
+  createdAt: string;
+}
+
+export type TaskInput = {
+  projectId: string;
+  title: string;
+  description?: string | null;
+  priority?: 'alta' | 'media' | 'baixa';
+  plannedFor?: 'today' | string | null;
+  status?: 'todo' | 'doing' | 'done';
+  estimateMin?: number;
+};
 
 export interface FocusSession {
   id: string;

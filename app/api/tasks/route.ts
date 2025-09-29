@@ -4,7 +4,14 @@ export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
 export async function GET() {
-  const tasks = await prisma.task.findMany();
+  const tasks = await prisma.task.findMany({
+    include: {
+      comments: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
   return NextResponse.json(tasks);
 }
 
@@ -59,7 +66,14 @@ export async function POST(req: Request) {
       data.estimateMin = parsed.estimateMin;
     }
 
-    const task = await prisma.task.create({ data });
+    const task = await prisma.task.create({
+      data,
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
     return NextResponse.json(task);
   } catch (err: any) {
     return NextResponse.json({ message: err.message ?? 'Erro ao criar tarefa' }, { status: 400 });

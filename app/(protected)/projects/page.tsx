@@ -176,6 +176,34 @@ export default function ProjectsPage() {
     return '—';
   };
 
+  const latestUpdatesByProject = useMemo(() => {
+    return tasks.reduce(
+      (acc, task) => {
+        const [mostRecent] = [...(task.comments ?? [])].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        if (!mostRecent) {
+          return acc;
+        }
+
+        const current = acc[task.projectId];
+        if (
+          !current ||
+          new Date(mostRecent.createdAt).getTime() > new Date(current.createdAt).getTime()
+        ) {
+          acc[task.projectId] = {
+            message: mostRecent.message,
+            createdAt: mostRecent.createdAt,
+            taskTitle: task.title,
+          };
+        }
+
+        return acc;
+      },
+      {} as Record<string, { message: string; createdAt: string; taskTitle: string }>
+    );
+  }, [tasks]);
+
   const handleEdit = (project: Project) => {
     setEditingProject(project);
     setIsDialogOpen(true);
@@ -263,6 +291,7 @@ export default function ProjectsPage() {
                 plannedDateLabel={getProjectPlannedDateLabel(project)}
                 salesforceUrl={project.salesforceOppUrl ?? null}
                 sharepointUrl={project.sharepointRepoUrl ?? null}
+                latestComment={latestUpdatesByProject[project.id]}
               />
             ))}
           </div>
