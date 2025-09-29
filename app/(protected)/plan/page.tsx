@@ -82,8 +82,15 @@ export default function PlanPage() {
         notes: notes.trim() || undefined,
       };
 
-      await Promise.resolve(updateDailyPlan(planData));
+      await updateDailyPlan(planData);
       toast({ title: 'Plano salvo' });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Erro ao salvar plano',
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
