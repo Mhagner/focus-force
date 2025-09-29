@@ -5,7 +5,9 @@ import { ensureClockfySyncForProject } from '@/lib/integrations/clockfy';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const projects = await prisma.project.findMany();
+  const projects = await prisma.project.findMany({
+    orderBy: { createdAt: 'asc' },
+  });
   return NextResponse.json(projects);
 }
 

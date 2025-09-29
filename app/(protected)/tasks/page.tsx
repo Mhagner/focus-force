@@ -54,14 +54,18 @@ export default function TasksPage() {
     );
   });
 
-  let visibleTasks = filteredTasks;
+  const sortedFilteredTasks = [...filteredTasks].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+
+  let visibleTasks = sortedFilteredTasks;
   if (focusId) {
-    visibleTasks = filteredTasks.filter(t => t.id === focusId);
+    visibleTasks = sortedFilteredTasks.filter(t => t.id === focusId);
   }
 
-  const todoTasks = filteredTasks.filter(t => t.status === 'todo');
-  const doingTasks = filteredTasks.filter(t => t.status === 'doing');
-  const doneTasks = filteredTasks.filter(t => t.status === 'done');
+  const todoTasks = sortedFilteredTasks.filter(t => t.status === 'todo');
+  const doingTasks = sortedFilteredTasks.filter(t => t.status === 'doing');
+  const doneTasks = sortedFilteredTasks.filter(t => t.status === 'done');
 
   const handleEdit = (task: Task) => {
     setEditingTask(task);
@@ -95,17 +99,20 @@ export default function TasksPage() {
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
                 <SelectItem value="all">Todos os projetos</SelectItem>
-                {projects.filter(p => p.active).map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: project.color }}
-                      />
-                      {project.name}
-                    </div>
-                  </SelectItem>
-                ))}
+                {projects
+                  .filter(p => p.active)
+                  .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                  .map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: project.color }}
+                        />
+                        {project.name}
+                      </div>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
