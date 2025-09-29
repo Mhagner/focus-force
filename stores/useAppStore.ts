@@ -30,7 +30,7 @@ interface AppStore {
   updatePomodoroSettings: (settings: Partial<PomodoroSettings>) => Promise<void>;
   updateClockfySettings: (settings: Partial<ClockfySettings>) => Promise<void>;
 
-  updateDailyPlan: (plan: DailyPlan) => void;
+  updateDailyPlan: (plan: DailyPlan) => Promise<void>;
   getDailyPlan: (dateISO: string) => DailyPlan | undefined;
 
   setTheme: (theme: 'dark' | 'light' | 'system') => void;
@@ -61,14 +61,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   theme: 'dark',
 
   initializeData: async () => {
-    const [projects, tasks, sessions, pomodoroSettings, clockfySettings] = await Promise.all([
+    const [projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans] = await Promise.all([
       storage.getProjects(),
       storage.getTasks(),
       storage.getSessions(),
       storage.getPomodoroSettings(),
       storage.getClockfySettings(),
+      storage.getDailyPlans(),
     ]);
-    const dailyPlans = storage.getDailyPlans();
     set({ projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans });
   },
 
@@ -144,18 +144,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // Daily Plans
-  updateDailyPlan: (plan) => {
+  updateDailyPlan: async (plan) => {
+    const savedPlan = await storage.saveDailyPlan(plan);
     set((state) => {
-      const existingIndex = state.dailyPlans.findIndex(p => p.dateISO === plan.dateISO);
-      let newPlans;
+      const existingIndex = state.dailyPlans.findIndex(p => p.id === savedPlan.id || p.dateISO === savedPlan.dateISO);
       if (existingIndex >= 0) {
-        newPlans = [...state.dailyPlans];
-        newPlans[existingIndex] = plan;
-      } else {
-        newPlans = [...state.dailyPlans, plan];
+        const updatedPlans = [...state.dailyPlans];
+        updatedPlans[existingIndex] = savedPlan;
+        return { dailyPlans: updatedPlans };
       }
-      storage.setDailyPlans(newPlans);
-      return { dailyPlans: newPlans };
+      return { dailyPlans: [...state.dailyPlans, savedPlan] };
     });
   },
   getDailyPlan: (dateISO) => {

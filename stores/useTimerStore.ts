@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { PomodoroSettings, TimerState } from '@/types';
 import { storage } from '@/lib/storage';
 import { useAppStore } from '@/stores/useAppStore';
+import { playSessionSound } from '@/lib/sound';
 
 interface TimerStore extends TimerState {
   startTimer: (type: 'pomodoro' | 'manual', projectId: string, taskId?: string) => void;
@@ -191,6 +192,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     });
 
     get().saveState();
+
+    if (pomodoroSettings.soundOn) {
+      playSessionSound('start');
+    }
   },
 
   switchTask: (projectId, taskId) => {
@@ -209,6 +214,9 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         type: state.currentPhase === 'manual' ? ('manual' as const) : ('pomodoro' as const),
         pomodoroCycles: state.currentPhase === 'manual' ? undefined : state.currentCycle,
       };
+      if (useAppStore.getState().pomodoroSettings.soundOn) {
+        playSessionSound('end');
+      }
       storage.addSession(newSession).then((created) => {
         try {
           useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
@@ -227,6 +235,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     });
 
     get().saveState();
+
+    if (useAppStore.getState().pomodoroSettings.soundOn) {
+      playSessionSound('start');
+    }
   },
 
   pauseTimer: () => {
@@ -256,6 +268,9 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
           type: state.currentPhase === 'manual' ? ('manual' as const) : ('pomodoro' as const),
           pomodoroCycles: state.currentPhase === 'manual' ? undefined : state.currentCycle,
         };
+        if (useAppStore.getState().pomodoroSettings.soundOn) {
+          playSessionSound('end');
+        }
         storage.addSession(newSession).then((created) => {
           try {
             useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
@@ -343,6 +358,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       });
     });
 
+    if (sessions.length > 0 && useAppStore.getState().pomodoroSettings.soundOn) {
+      playSessionSound('end');
+    }
+
     get().saveState();
   },
 
@@ -377,6 +396,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
           } catch {}
         });
       });
+
+      if (sessions.length > 0 && useAppStore.getState().pomodoroSettings.soundOn) {
+        playSessionSound('end');
+      }
 
       get().saveState();
     } else {

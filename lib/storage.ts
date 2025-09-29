@@ -183,7 +183,6 @@ function getDefaultPomodoroSettings(): PomodoroSettings {
  */
 const LS_KEYS = {
   pomo: 'focusforge/pomodoro-settings',
-  plans: 'focusforge/daily-plans',
   timer: 'focusforge/timer-state',
 } as const;
 
@@ -305,15 +304,18 @@ export const storage = {
 
   /**
    * ---------------------------
-   * Daily Plans (local)
+   * Daily Plans (database)
    * ---------------------------
    */
-  getDailyPlans(): DailyPlan[] {
-    return readLS<DailyPlan[]>(LS_KEYS.plans, []);
+  async getDailyPlans(): Promise<DailyPlan[]> {
+    return request<DailyPlan[]>('/api/daily-plans');
   },
 
-  setDailyPlans(plans: DailyPlan[]): void {
-    writeLS(LS_KEYS.plans, plans);
+  async saveDailyPlan(plan: DailyPlan): Promise<DailyPlan> {
+    return request<DailyPlan>('/api/daily-plans', {
+      method: 'POST',
+      body: plan,
+    });
   },
 
   /**
