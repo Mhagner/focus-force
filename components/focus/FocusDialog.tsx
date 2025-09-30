@@ -62,7 +62,7 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800 max-w-md">
+      <DialogContent className="bg-gray-900 border-gray-800 max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-white flex items-center gap-2">
             <Timer className="h-5 w-5" />

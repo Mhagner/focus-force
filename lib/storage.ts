@@ -250,6 +250,19 @@ export const storage = {
     });
   },
 
+  async updateTaskComment(taskId: string, commentId: string, message: string): Promise<TaskComment> {
+    return request<TaskComment>(`/api/tasks/${taskId}/comments/${commentId}`, {
+      method: 'PATCH',
+      body: { message },
+    });
+  },
+
+  async deleteTaskComment(taskId: string, commentId: string): Promise<void> {
+    await request<unknown>(`/api/tasks/${taskId}/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  },
+
   /**
    * ---------------------------
    * Focus Sessions
