@@ -24,10 +24,6 @@ export function MiniTimer() {
     timeRemaining,
     selectedProjectId,
     selectedTaskId,
-    pauseTimer,
-    resumeTimer,
-    stopTimer,
-    resetTimer,
     tick,
     restoreState,
   } = useTimerStore();
@@ -92,36 +88,6 @@ export function MiniTimer() {
             {task.title}
           </p>
         )}
-      </div>
-
-      <div className="mt-5 flex items-center justify-center gap-3">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={isPaused ? resumeTimer : pauseTimer}
-          disabled={!isRunning}
-          className="h-8 w-8 p-0 text-gray-200 hover:text-white hover:bg-gray-800"
-        >
-          {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={stopTimer}
-          disabled={!isRunning && !isPaused}
-          className="h-8 w-8 p-0 text-gray-200 hover:text-white hover:bg-gray-800"
-        >
-          <Square className="h-4 w-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={resetTimer}
-          disabled={!isRunning && !isPaused}
-          className="h-8 w-8 p-0 text-gray-200 hover:text-white hover:bg-gray-800"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );

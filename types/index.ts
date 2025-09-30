@@ -21,7 +21,7 @@ export interface Task {
   description?: string | null;
   priority?: 'alta' | 'media' | 'baixa';
   plannedFor?: 'today' | string | null; // dateISO
-  status?: 'todo' | 'doing' | 'done';
+  status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
   estimateMin?: number;
   createdAt: string;
   comments?: TaskComment[];
@@ -40,7 +40,7 @@ export type TaskInput = {
   description?: string | null;
   priority?: 'alta' | 'media' | 'baixa';
   plannedFor?: 'today' | string | null;
-  status?: 'todo' | 'doing' | 'done';
+  status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
   estimateMin?: number;
 };
 

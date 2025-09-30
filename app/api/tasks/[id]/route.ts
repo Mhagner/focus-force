@@ -16,7 +16,7 @@ export async function PATCH(
       description: z.string().optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
-      status: z.enum(['todo', 'doing', 'done']).optional(),
+  status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
       estimateMin: z
         .union([z.string(), z.number()])
         .optional()
@@ -32,7 +32,7 @@ export async function PATCH(
       description?: string | null;
       priority?: 'alta' | 'media' | 'baixa';
       plannedFor?: string | null;
-      status?: 'todo' | 'doing' | 'done';
+      status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
       estimateMin?: number;
     } = {};
     if (parsed.projectId !== undefined) data.projectId = parsed.projectId;
@@ -45,7 +45,7 @@ export async function PATCH(
 
     const task = await prisma.task.update({
       where: { id },
-      data,
+      data: data as any,
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },

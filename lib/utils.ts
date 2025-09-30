@@ -189,9 +189,11 @@ export function getPriorityColor(priority: 'alta' | 'media' | 'baixa'): string {
   }
 }
 
-export function getStatusColor(status: 'todo' | 'doing' | 'done'): string {
+export function getStatusColor(status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done'): string {
   switch (status) {
     case 'todo': return 'text-gray-400 bg-gray-950/50';
+    case 'call_agendada': return 'text-amber-400 bg-amber-950/50';
+    case 'pronta_elaboracao': return 'text-purple-400 bg-purple-950/50';
     case 'doing': return 'text-blue-400 bg-blue-950/50';
     case 'done': return 'text-green-400 bg-green-950/50';
     default: return 'text-gray-400 bg-gray-950/50';

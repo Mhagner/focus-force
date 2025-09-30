@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       description: z.string().optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
-      status: z.enum(['todo', 'doing', 'done']).optional(),
+  status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
       estimateMin: z
         .union([z.string(), z.number()])
         .optional()
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       projectId: string;
       title: string;
       priority: 'alta' | 'media' | 'baixa';
-      status: 'todo' | 'doing' | 'done';
+      status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
       description?: string | null;
       plannedFor?: string | null;
       estimateMin?: number;
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     }
 
     const task = await prisma.task.create({
-      data,
+      data: data as any,
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },

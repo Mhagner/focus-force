@@ -258,6 +258,8 @@ export default function ProjectDetailPage() {
             ) : (
               projectTasks.map((task) => {
                 const commentTotal = task.comments?.length ?? 0;
+                const statusLabel =
+                  STATUS_LABELS[(task.status ?? 'todo') as keyof typeof STATUS_LABELS] ?? 'Desconhecido';
                 return (
                   <div
                     key={task.id}
@@ -266,7 +268,7 @@ export default function ProjectDetailPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium text-white">{task.title}</p>
-                        <p className="text-xs text-gray-500">{STATUS_LABELS[task.status]}</p>
+                        <p className="text-xs text-gray-500">{statusLabel}</p>
                       </div>
                       <Badge variant="outline" className="border-gray-700 text-gray-300">
                         {commentTotal} {commentTotal === 1 ? 'comentário' : 'comentários'}

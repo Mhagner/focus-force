@@ -40,9 +40,9 @@ export default function TaskDetailPage() {
     );
   }, [task]);
 
-  const handleStatusChange = (status: 'todo' | 'doing' | 'done') => {
+  const handleStatusChange = (status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done') => {
     if (!task) return;
-    updateTask(task.id, { status });
+    updateTask(task.id, { status: status as any });
   };
 
   const handlePlanForToday = () => {
@@ -138,17 +138,17 @@ export default function TaskDetailPage() {
           )}
 
           <div className="flex flex-wrap gap-3">
-            {(['todo', 'doing', 'done'] as const).map((status) => (
-              <Button
-                key={status}
-                size="sm"
-                variant={task.status === status ? 'default' : 'outline'}
-                className="capitalize"
-                onClick={() => handleStatusChange(status)}
-              >
-                {status === 'todo' ? 'Todo' : status === 'doing' ? 'Fazendo' : 'Feito'}
-              </Button>
-            ))}
+            {(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done'] as const).map((status) => (
+                <Button
+                  key={status}
+                  size="sm"
+                  variant={task.status === status ? 'default' : 'outline'}
+                  className="capitalize"
+                  onClick={() => handleStatusChange(status)}
+                >
+                  {status === 'todo' ? 'Todo' : status === 'call_agendada' ? 'Call' : status === 'pronta_elaboracao' ? 'Pronta' : status === 'doing' ? 'Fazendo' : 'Feito'}
+                </Button>
+              ))}
           </div>
         </div>
 
