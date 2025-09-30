@@ -180,31 +180,18 @@ export default function ProjectsPage() {
     return '—';
   };
 
-  const latestUpdatesByProject = useMemo(() => {
+  const commentCountsByProject = useMemo(() => {
     return tasks.reduce(
       (acc, task) => {
-        const [mostRecent] = [...(task.comments ?? [])].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        if (!mostRecent) {
+        const taskComments = task.comments?.length ?? 0;
+        if (taskComments === 0) {
           return acc;
         }
 
-        const current = acc[task.projectId];
-        if (
-          !current ||
-          new Date(mostRecent.createdAt).getTime() > new Date(current.createdAt).getTime()
-        ) {
-          acc[task.projectId] = {
-            message: mostRecent.message,
-            createdAt: mostRecent.createdAt,
-            taskTitle: task.title,
-          };
-        }
-
+        acc[task.projectId] = (acc[task.projectId] ?? 0) + taskComments;
         return acc;
       },
-      {} as Record<string, { message: string; createdAt: string; taskTitle: string }>
+      {} as Record<string, number>
     );
   }, [tasks]);
 
@@ -295,7 +282,7 @@ export default function ProjectsPage() {
                 plannedDateLabel={getProjectPlannedDateLabel(project)}
                 salesforceUrl={project.salesforceOppUrl ?? null}
                 sharepointUrl={project.sharepointRepoUrl ?? null}
-                latestComment={latestUpdatesByProject[project.id]}
+                commentCount={commentCountsByProject[project.id] ?? 0}
               />
             ))}
           </div>

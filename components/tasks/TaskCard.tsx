@@ -1,18 +1,17 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Task } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
-import { formatDateTime, formatDuration, formatFriendlyDate } from '@/lib/utils';
-import { Play, Calendar, Clock, MoreVertical, ExternalLink } from 'lucide-react';
+import { formatDuration, formatFriendlyDate } from '@/lib/utils';
+import { Play, Calendar, Clock, MoreVertical, ExternalLink, MessageSquare } from 'lucide-react';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Textarea } from '@/components/ui/textarea';
 
 interface TaskCardProps {
   task: Task;
@@ -20,10 +19,8 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onEdit }: TaskCardProps) {
-  const { projects, updateTask, deleteTask, addTaskComment } = useAppStore();
+  const { projects, updateTask, deleteTask } = useAppStore();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  const [commentText, setCommentText] = useState('');
   const { startTimer, switchTask, isRunning } = useTimerStore();
   const router = useRouter();
 
@@ -53,24 +50,7 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
   const hasSalesforceLink = Boolean(salesforceLink);
   const hasRepoLink = Boolean(repoLink);
 
-  const comments = task.comments ?? [];
-  const sortedComments = [...comments].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-
-  const handleSubmitComment = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmed = commentText.trim();
-    if (!trimmed || isSubmittingComment) return;
-
-    setIsSubmittingComment(true);
-    try {
-      await addTaskComment(task.id, trimmed);
-      setCommentText('');
-    } finally {
-      setIsSubmittingComment(false);
-    }
-  };
+  const commentCount = task.comments?.length ?? 0;
 
   return (
     <Card className="p-4 bg-gray-900/50 border-gray-800 hover:bg-gray-900/70 transition-colors">
@@ -193,47 +173,8 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
         </div>
       </div>
 
-      <div className="mb-4 space-y-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3">
-        <div className="flex items-center justify-between">
-          <h5 className="text-sm font-semibold text-white">Atualizações</h5>
-          <span className="text-xs text-gray-500">{sortedComments.length} comentários</span>
-        </div>
-
-        <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
-          {sortedComments.length === 0 ? (
-            <p className="text-sm text-gray-500">Nenhum comentário ainda.</p>
-          ) : (
-            sortedComments.map(comment => (
-              <div key={comment.id} className="rounded-md border border-gray-800/80 bg-gray-950/40 p-2">
-                <p className="text-xs text-gray-500">{formatDateTime(comment.createdAt)}</p>
-                <p className="text-sm text-gray-200 whitespace-pre-wrap">{comment.message}</p>
-              </div>
-            ))
-          )}
-        </div>
-
-        <form onSubmit={handleSubmitComment} className="space-y-2">
-          <Textarea
-            value={commentText}
-            onChange={(event) => setCommentText(event.target.value)}
-            placeholder="Adicione uma atualização..."
-            className="min-h-[80px] bg-gray-800 border-gray-700 text-white"
-          />
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isSubmittingComment || commentText.trim().length === 0}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {isSubmittingComment ? 'Adicionando...' : 'Adicionar comentário'}
-            </Button>
-          </div>
-        </form>
-      </div>
-
       <div className="flex items-center justify-between">
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           {(['todo', 'doing', 'done'] as const).map((status) => (
             <Button
               key={status}
@@ -244,26 +185,37 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
             >
               {status === 'todo' ? 'Todo' : status === 'doing' ? 'Fazendo' : 'Feito'}
             </Button>
-          ))}
+            ))}
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-blue-400 hover:text-blue-300"
-          onClick={() => {
-            if (!project) return;
-            if (isRunning) {
-              switchTask(project.id, task.id);
-            } else {
-              startTimer('pomodoro', project.id, task.id);
-            }
-            router.push('/focus');
-          }}
-        >
-          <Play className="h-4 w-4 mr-1" />
-          Foco
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-blue-400 hover:text-blue-300"
+            onClick={() => {
+              if (!project) return;
+              if (isRunning) {
+                switchTask(project.id, task.id);
+              } else {
+                startTimer('pomodoro', project.id, task.id);
+              }
+              router.push('/focus');
+            }}
+          >
+            <Play className="h-4 w-4 mr-1" />
+            Foco
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+            onClick={() => router.push(`/tasks/${task.id}`)}
+          >
+            <MessageSquare className="h-4 w-4 mr-1" />
+            {commentCount} {commentCount === 1 ? 'atualização' : 'atualizações'}
+          </Button>
+        </div>
       </div>
     </Card>
   );

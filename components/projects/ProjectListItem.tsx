@@ -3,8 +3,8 @@
 import { Project } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Edit, Link2 } from 'lucide-react';
-import { formatDateTime } from '@/lib/utils';
+import { Calendar, Edit, Link2, MessageSquare } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface ProjectListItemProps {
   project: Project;
@@ -13,11 +13,7 @@ interface ProjectListItemProps {
   plannedDateLabel: string;
   salesforceUrl?: string | null;
   sharepointUrl?: string | null;
-  latestComment?: {
-    message: string;
-    createdAt: string;
-    taskTitle: string;
-  };
+  commentCount: number;
 }
 
 export function ProjectListItem({
@@ -27,8 +23,9 @@ export function ProjectListItem({
   plannedDateLabel,
   salesforceUrl,
   sharepointUrl,
-  latestComment,
+  commentCount,
 }: ProjectListItemProps) {
+  const router = useRouter();
   const isClockfyLinked = Boolean(project.clockfyProjectId);
   const clockfyStatus = project.syncWithClockfy
     ? isClockfyLinked
@@ -68,20 +65,15 @@ export function ProjectListItem({
           >
             {badgeLabel}
           </Badge>
-          <div className="mt-3 rounded-md border border-gray-800 bg-gray-900/40 p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Última atualização</p>
-            {latestComment ? (
-              <div className="mt-1 space-y-1">
-                <p className="text-[11px] text-gray-500">{formatDateTime(latestComment.createdAt)}</p>
-                <p className="text-xs text-gray-300">{latestComment.taskTitle}</p>
-                <p className="text-sm text-white whitespace-pre-wrap leading-snug">
-                  {latestComment.message}
-                </p>
-              </div>
-            ) : (
-              <p className="mt-1 text-xs text-gray-500">Nenhum comentário registrado ainda.</p>
-            )}
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/projects/${project.id}`)}
+            className="mt-3 border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            {commentCount} {commentCount === 1 ? 'atualização' : 'atualizações'}
+          </Button>
         </div>
       </div>
 

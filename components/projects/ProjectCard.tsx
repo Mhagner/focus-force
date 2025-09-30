@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
-import { formatDateTime, formatDuration, formatFriendlyDate, getProjectHoursToday, getWeekHours } from '@/lib/utils';
-import { MoreVertical, Edit, Archive, Play } from 'lucide-react';
+import { formatDuration, formatFriendlyDate, getProjectHoursToday } from '@/lib/utils';
+import { MoreVertical, Edit, Archive, Play, MessageSquare } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useRouter } from 'next/navigation';
 
 interface ProjectCardProps {
   project: Project;
@@ -16,6 +17,7 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   const { sessions, tasks, updateProject } = useAppStore();
+  const router = useRouter();
 
   const todayHours = getProjectHoursToday(sessions, project.id);
   const weekHours = sessions
@@ -24,30 +26,10 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
 
   const projectTasks = tasks.filter(t => t.projectId === project.id);
   const pendingTasks = projectTasks.filter(t => t.status !== 'done').length;
-
-  const latestUpdate = projectTasks.reduce<
-    { id: string; message: string; createdAt: string; taskTitle: string } | null
-  >((currentLatest, task) => {
-    const [mostRecent] = [...(task.comments ?? [])].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-
-    if (!mostRecent) return currentLatest;
-
-    if (
-      !currentLatest ||
-      new Date(mostRecent.createdAt).getTime() > new Date(currentLatest.createdAt).getTime()
-    ) {
-      return {
-        id: mostRecent.id,
-        message: mostRecent.message,
-        createdAt: mostRecent.createdAt,
-        taskTitle: task.title,
-      };
-    }
-
-    return currentLatest;
-  }, null);
+  const commentCount = projectTasks.reduce(
+    (total, task) => total + (task.comments?.length ?? 0),
+    0,
+  );
 
   const estimatedDelivery = project.estimatedDeliveryDate
     ? formatFriendlyDate(project.estimatedDeliveryDate)
@@ -145,19 +127,6 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
         )}
       </div>
 
-      <div className="mt-4 space-y-2 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
-        <p className="text-xs uppercase tracking-wide text-gray-400">Última atualização</p>
-        {latestUpdate ? (
-          <div className="space-y-1">
-            <p className="text-xs text-gray-500">{formatDateTime(latestUpdate.createdAt)}</p>
-            <p className="text-sm text-gray-300">{latestUpdate.taskTitle}</p>
-            <p className="text-sm text-white whitespace-pre-wrap">{latestUpdate.message}</p>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">Nenhum comentário registrado ainda.</p>
-        )}
-      </div>
-
       {(project.salesforceOppUrl || project.sharepointRepoUrl || estimatedDelivery) && (
         <div className="mt-4 space-y-2 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
           <p className="text-xs uppercase tracking-wide text-gray-400">Metadados</p>
@@ -196,10 +165,20 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
         </div>
       )}
 
-      <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
-        <Play className="h-4 w-4 mr-2" />
-        Iniciar Foco
-      </Button>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={() => router.push('/focus')}>
+          <Play className="h-4 w-4 mr-2" />
+          Iniciar Foco
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1 border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+          onClick={() => router.push(`/projects/${project.id}`)}
+        >
+          <MessageSquare className="h-4 w-4 mr-2" />
+          {commentCount} {commentCount === 1 ? 'atualização' : 'atualizações'}
+        </Button>
+      </div>
     </Card>
   );
 }
