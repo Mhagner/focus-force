@@ -10,7 +10,7 @@ import { useTimerStore } from '@/stores/useTimerStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { formatDateTime, formatDuration, formatFriendlyDate } from '@/lib/utils';
-import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2 } from 'lucide-react';
 
 type Params = { taskId?: string | string[] };
 
@@ -24,7 +24,7 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const taskId = resolveParam(params?.taskId);
 
-  const { tasks, projects, updateTask, addTaskComment } = useAppStore();
+  const { tasks, projects, updateTask, addTaskComment, updateTaskComment, deleteTaskComment } = useAppStore();
   const { startTimer, switchTask, isRunning } = useTimerStore();
 
   const task = tasks.find((current) => current.id === taskId);
@@ -32,6 +32,10 @@ export default function TaskDetailPage() {
 
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [savingCommentId, setSavingCommentId] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   const sortedComments = useMemo(() => {
     if (!task) return [];
@@ -65,6 +69,51 @@ export default function TaskDetailPage() {
       setCommentText('');
     } finally {
       setIsSubmittingComment(false);
+    }
+  };
+
+  const handleStartEditComment = (commentId: string, message: string) => {
+    setEditingCommentId(commentId);
+    setEditingCommentText(message);
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+
+  const handleSaveComment = async (commentId: string, originalMessage: string) => {
+    if (!task) return;
+    const trimmed = editingCommentText.trim();
+    if (!trimmed || savingCommentId) return;
+
+    if (trimmed === originalMessage.trim()) {
+      handleCancelEditComment();
+      return;
+    }
+
+    setSavingCommentId(commentId);
+    try {
+      await updateTaskComment(task.id, commentId, trimmed);
+      handleCancelEditComment();
+    } finally {
+      setSavingCommentId(null);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!task || deletingCommentId) return;
+    const confirmed = window.confirm('Tem certeza de que deseja excluir este comentário?');
+    if (!confirmed) return;
+
+    setDeletingCommentId(commentId);
+    try {
+      await deleteTaskComment(task.id, commentId);
+      if (editingCommentId === commentId) {
+        handleCancelEditComment();
+      }
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -230,15 +279,80 @@ export default function TaskDetailPage() {
           {sortedComments.length === 0 ? (
             <p className="text-sm text-gray-500">Nenhum comentário registrado ainda.</p>
           ) : (
-            sortedComments.map((comment) => (
-              <div
-                key={comment.id}
-                className="rounded-lg border border-gray-800 bg-gray-900/40 p-3"
-              >
-                <p className="text-xs text-gray-500">{formatDateTime(comment.createdAt)}</p>
-                <p className="text-sm text-gray-200 whitespace-pre-wrap">{comment.message}</p>
-              </div>
-            ))
+            sortedComments.map((comment) => {
+              const isEditing = editingCommentId === comment.id;
+              const isSaving = savingCommentId === comment.id;
+              const isDeleting = deletingCommentId === comment.id;
+
+              return (
+                <div
+                  key={comment.id}
+                  className="rounded-lg border border-gray-800 bg-gray-900/40 p-3 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs text-gray-500">{formatDateTime(comment.createdAt)}</p>
+                    {isEditing ? (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleSaveComment(comment.id, comment.message)}
+                          disabled={isSaving || editingCommentText.trim().length === 0}
+                        >
+                          {isSaving ? 'Salvando...' : 'Salvar'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-gray-300 hover:text-white"
+                          onClick={handleCancelEditComment}
+                          disabled={isSaving}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800/60"
+                          onClick={() => handleStartEditComment(comment.id, comment.message)}
+                          disabled={Boolean(savingCommentId) || Boolean(deletingCommentId)}
+                          aria-label="Editar comentário"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-400 hover:text-red-200 hover:bg-red-950/40"
+                          onClick={() => handleDeleteComment(comment.id)}
+                          disabled={isDeleting || Boolean(savingCommentId)}
+                          aria-label="Excluir comentário"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <Textarea
+                      value={editingCommentText}
+                      onChange={(event) => setEditingCommentText(event.target.value)}
+                      className="min-h-[100px] bg-gray-900/70 border-gray-800 text-white"
+                      autoFocus
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-200 whitespace-pre-wrap">{comment.message}</p>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
 

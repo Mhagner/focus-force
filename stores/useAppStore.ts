@@ -23,6 +23,8 @@ interface AppStore {
   updateTask: (id: string, updates: Partial<TaskInput>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addTaskComment: (taskId: string, message: string) => Promise<void>;
+  updateTaskComment: (taskId: string, commentId: string, message: string) => Promise<void>;
+  deleteTaskComment: (taskId: string, commentId: string) => Promise<void>;
 
   addSession: (session: Omit<FocusSession, 'id'>) => Promise<void>;
   updateSession: (id: string, updates: Partial<FocusSession>) => Promise<void>;
@@ -123,6 +125,36 @@ export const useAppStore = create<AppStore>((set, get) => ({
           ? {
               ...task,
               comments: [comment, ...(task.comments ?? [])],
+            }
+          : task
+      ),
+    }));
+  },
+
+  updateTaskComment: async (taskId, commentId, message) => {
+    const updatedComment = await storage.updateTaskComment(taskId, commentId, message);
+    set((state) => ({
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              comments: (task.comments ?? []).map(comment =>
+                comment.id === commentId ? updatedComment : comment
+              ),
+            }
+          : task
+      ),
+    }));
+  },
+
+  deleteTaskComment: async (taskId, commentId) => {
+    await storage.deleteTaskComment(taskId, commentId);
+    set((state) => ({
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              comments: (task.comments ?? []).filter(comment => comment.id !== commentId),
             }
           : task
       ),
