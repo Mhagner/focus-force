@@ -21,10 +21,28 @@ export interface Task {
   description?: string | null;
   priority?: 'alta' | 'media' | 'baixa';
   plannedFor?: 'today' | string | null; // dateISO
-  status?: 'todo' | 'doing' | 'done';
+  status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
   estimateMin?: number;
   createdAt: string;
+  comments?: TaskComment[];
 }
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  message: string;
+  createdAt: string;
+}
+
+export type TaskInput = {
+  projectId: string;
+  title: string;
+  description?: string | null;
+  priority?: 'alta' | 'media' | 'baixa';
+  plannedFor?: 'today' | string | null;
+  status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
+  estimateMin?: number;
+};
 
 export interface FocusSession {
   id: string;

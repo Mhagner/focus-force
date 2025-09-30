@@ -4,7 +4,14 @@ export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
 export async function GET() {
-  const tasks = await prisma.task.findMany();
+  const tasks = await prisma.task.findMany({
+    include: {
+      comments: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
   return NextResponse.json(tasks);
 }
 
@@ -17,7 +24,7 @@ export async function POST(req: Request) {
       description: z.string().optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
-      status: z.enum(['todo', 'doing', 'done']).optional(),
+  status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
       estimateMin: z
         .union([z.string(), z.number()])
         .optional()
@@ -36,7 +43,7 @@ export async function POST(req: Request) {
       projectId: string;
       title: string;
       priority: 'alta' | 'media' | 'baixa';
-      status: 'todo' | 'doing' | 'done';
+      status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
       description?: string | null;
       plannedFor?: string | null;
       estimateMin?: number;
@@ -59,7 +66,14 @@ export async function POST(req: Request) {
       data.estimateMin = parsed.estimateMin;
     }
 
-    const task = await prisma.task.create({ data });
+    const task = await prisma.task.create({
+      data: data as any,
+      include: {
+        comments: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
     return NextResponse.json(task);
   } catch (err: any) {
     return NextResponse.json({ message: err.message ?? 'Erro ao criar tarefa' }, { status: 400 });

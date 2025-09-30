@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
-import { formatDuration, formatFriendlyDate, getProjectHoursToday, getWeekHours } from '@/lib/utils';
-import { MoreVertical, Edit, Archive, Play } from 'lucide-react';
+import { formatDuration, formatFriendlyDate, getProjectHoursToday } from '@/lib/utils';
+import { MoreVertical, Edit, Archive, Play, MessageSquare } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useRouter } from 'next/navigation';
 
 interface ProjectCardProps {
   project: Project;
@@ -16,15 +17,19 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   const { sessions, tasks, updateProject } = useAppStore();
+  const router = useRouter();
 
   const todayHours = getProjectHoursToday(sessions, project.id);
   const weekHours = sessions
     .filter(s => s.projectId === project.id)
     .reduce((total, session) => total + session.durationSec, 0);
 
-  const pendingTasks = tasks.filter(t =>
-    t.projectId === project.id && t.status !== 'done'
-  ).length;
+  const projectTasks = tasks.filter(t => t.projectId === project.id);
+  const pendingTasks = projectTasks.filter(t => t.status !== 'done').length;
+  const commentCount = projectTasks.reduce(
+    (total, task) => total + (task.comments?.length ?? 0),
+    0,
+  );
 
   const estimatedDelivery = project.estimatedDeliveryDate
     ? formatFriendlyDate(project.estimatedDeliveryDate)
@@ -160,10 +165,20 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
         </div>
       )}
 
-      <Button className="w-full mt-4 bg-blue-600 hover:bg-blue-700">
-        <Play className="h-4 w-4 mr-2" />
-        Iniciar Foco
-      </Button>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={() => router.push('/focus')}>
+          <Play className="h-4 w-4 mr-2" />
+          Iniciar Foco
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1 border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+          onClick={() => router.push(`/projects/${project.id}`)}
+        >
+          <MessageSquare className="h-4 w-4 mr-2" />
+          {commentCount} {commentCount === 1 ? 'atualização' : 'atualizações'}
+        </Button>
+      </div>
     </Card>
   );
 }

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
-import { Task } from '@/types';
+import { Task, TaskInput } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 interface TaskDialogProps {
@@ -58,7 +58,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
             const trimmedTitle = title.trim();
             const trimmedDescription = description.trim();
 
-            const payload: Omit<Task, 'id' | 'createdAt'> = {
+            const payload: TaskInput = {
                 projectId,
                 title: trimmedTitle,
                 priority,
@@ -73,7 +73,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
 
 
             if (task) {
-                await updateTask(task.id, payload as Partial<Task>);
+                await updateTask(task.id, payload);
                 toast({ title: 'Tarefa atualizada' });
             } else {
                 await addTask(payload);

@@ -67,6 +67,10 @@ export default function ProjectsPage() {
     activeProjects = activeProjects.filter(p => p.id === focusId);
   }
 
+  const sortedActiveProjects = [...activeProjects].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+
   const parseToDate = (value: unknown): Date | null => {
     if (!value) return null;
 
@@ -176,6 +180,21 @@ export default function ProjectsPage() {
     return '—';
   };
 
+  const commentCountsByProject = useMemo(() => {
+    return tasks.reduce(
+      (acc, task) => {
+        const taskComments = task.comments?.length ?? 0;
+        if (taskComments === 0) {
+          return acc;
+        }
+
+        acc[task.projectId] = (acc[task.projectId] ?? 0) + taskComments;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+  }, [tasks]);
+
   const handleEdit = (project: Project) => {
     setEditingProject(project);
     setIsDialogOpen(true);
@@ -243,7 +262,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {activeProjects.length > 0 ? (
+      {sortedActiveProjects.length > 0 ? (
         viewMode === 'list' ? (
           <div className="space-y-3">
             <div className="hidden md:grid md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] px-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -254,7 +273,7 @@ export default function ProjectsPage() {
               <span className="text-right">Ações</span>
             </div>
 
-            {activeProjects.map(project => (
+            {sortedActiveProjects.map(project => (
               <ProjectListItem
                 key={project.id}
                 project={project}
@@ -263,12 +282,13 @@ export default function ProjectsPage() {
                 plannedDateLabel={getProjectPlannedDateLabel(project)}
                 salesforceUrl={project.salesforceOppUrl ?? null}
                 sharepointUrl={project.sharepointRepoUrl ?? null}
+                commentCount={commentCountsByProject[project.id] ?? 0}
               />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {activeProjects.map(project => (
+            {sortedActiveProjects.map(project => (
               <ProjectCard
                 key={project.id}
                 project={project}

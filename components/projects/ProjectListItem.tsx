@@ -3,7 +3,8 @@
 import { Project } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Edit, Link2 } from 'lucide-react';
+import { Calendar, Edit, Link2, MessageSquare } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface ProjectListItemProps {
   project: Project;
@@ -12,6 +13,7 @@ interface ProjectListItemProps {
   plannedDateLabel: string;
   salesforceUrl?: string | null;
   sharepointUrl?: string | null;
+  commentCount: number;
 }
 
 export function ProjectListItem({
@@ -21,7 +23,9 @@ export function ProjectListItem({
   plannedDateLabel,
   salesforceUrl,
   sharepointUrl,
+  commentCount,
 }: ProjectListItemProps) {
+  const router = useRouter();
   const isClockfyLinked = Boolean(project.clockfyProjectId);
   const clockfyStatus = project.syncWithClockfy
     ? isClockfyLinked
@@ -61,6 +65,15 @@ export function ProjectListItem({
           >
             {badgeLabel}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/projects/${project.id}`)}
+            className="mt-3 border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            {commentCount} {commentCount === 1 ? 'atualização' : 'atualizações'}
+          </Button>
         </div>
       </div>
 

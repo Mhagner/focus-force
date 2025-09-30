@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { Project, Task, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
+import { Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
 import { storage } from '@/lib/storage';
 
 interface AppStore {
@@ -19,9 +19,10 @@ interface AppStore {
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 
-  addTask: (task: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
-  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  addTask: (task: TaskInput) => Promise<void>;
+  updateTask: (id: string, updates: Partial<TaskInput>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  addTaskComment: (taskId: string, message: string) => Promise<void>;
 
   addSession: (session: Omit<FocusSession, 'id'>) => Promise<void>;
   updateSession: (id: string, updates: Partial<FocusSession>) => Promise<void>;
@@ -69,7 +70,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       storage.getClockfySettings(),
       storage.getDailyPlans(),
     ]);
-    set({ projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans });
+    set({
+      projects,
+      tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [] })),
+      sessions,
+      pomodoroSettings,
+      clockfySettings,
+      dailyPlans,
+    });
   },
 
   // Projects
@@ -93,18 +101,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // Tasks
   addTask: async (taskData) => {
     const task = await storage.addTask(taskData);
-    set((state) => ({ tasks: [...state.tasks, task] }));
+    set((state) => ({ tasks: [...state.tasks, { ...task, comments: task.comments ?? [] }] }));
   },
   updateTask: async (id, updates) => {
     const task = await storage.updateTask(id, updates);
     set((state) => ({
-      tasks: state.tasks.map(t => (t.id === id ? task : t)),
+      tasks: state.tasks.map(t => (t.id === id ? { ...task, comments: task.comments ?? [] } : t)),
     }));
   },
   deleteTask: async (id) => {
     await storage.deleteTask(id);
     set((state) => ({
       tasks: state.tasks.filter(t => t.id !== id),
+    }));
+  },
+  addTaskComment: async (taskId, message) => {
+    const comment = await storage.addTaskComment(taskId, message);
+    set((state) => ({
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              comments: [comment, ...(task.comments ?? [])],
+            }
+          : task
+      ),
     }));
   },
 
