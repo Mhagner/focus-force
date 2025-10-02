@@ -9,16 +9,49 @@ import { useAppStore } from '@/stores/useAppStore';
 import { formatDuration, exportToCsv, exportToPdf } from '@/lib/utils';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { format, startOfDay, endOfDay, addDays, differenceInCalendarDays } from 'date-fns';
-import { Download, Filter, BarChart, FileDown } from 'lucide-react';
+import { Download, Filter, FileDown, Trash2, Loader2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ManualSessionDialog } from '@/components/sessions/ManualSessionDialog';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function ReportsPage() {
-  const { sessions, projects, tasks } = useAppStore();
+  const { sessions, projects, tasks, deleteSession } = useAppStore();
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [manualOpen, setManualOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+
+  const handleDelete = async (id: string) => {
+    setIsDeleting(true);
+    try {
+      await deleteSession(id);
+      toast({ title: 'Sessão excluída' });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Erro ao excluir sessão',
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setPendingDeleteId(null);
+    }
+  };
 
   const normalizedStartDate = startOfDay(new Date(`${startDate}T00:00:00`));
   const normalizedEndDate = endOfDay(new Date(`${endDate}T00:00:00`));
@@ -350,12 +383,14 @@ export default function ReportsPage() {
                   <th className="p-2">Projeto</th>
                   <th className="p-2">Tarefa</th>
                   <th className="p-2">Duração</th>
+                  <th className="p-2 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSessions.map(session => {
                   const project = projects.find(p => p.id === session.projectId);
                   const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
+                  const isTargetSession = pendingDeleteId === session.id;
 
                   return (
                     <tr key={session.id} className="border-t border-gray-800">
@@ -365,6 +400,51 @@ export default function ReportsPage() {
                       <td className="p-2">{project?.name || 'N/A'}</td>
                       <td className="p-2">{task?.title || 'Sem tarefa'}</td>
                       <td className="p-2">{formatDuration(session.durationSec)}</td>
+                      <td className="p-2 text-right">
+                        <AlertDialog
+                          open={isTargetSession}
+                          onOpenChange={(open) => setPendingDeleteId(open ? session.id : null)}
+                        >
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-400 hover:text-red-400"
+                              aria-label="Excluir sessão"
+                              onClick={() => setPendingDeleteId(session.id)}
+                            >
+                              {isDeleting && isTargetSession ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="bg-gray-900 border border-gray-700 text-white">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir sessão</AlertDialogTitle>
+                              <AlertDialogDescription className="text-gray-300">
+                                Tem certeza que deseja remover esta sessão? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="bg-gray-800 border border-gray-700 text-white">
+                                Cancelar
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-red-600 hover:bg-red-700"
+                                onClick={() => handleDelete(session.id)}
+                                disabled={isDeleting}
+                              >
+                                {isDeleting && isTargetSession ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : null}
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </td>
                     </tr>
                   );
                 })}
