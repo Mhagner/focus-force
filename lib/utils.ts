@@ -80,13 +80,35 @@ export function getTaskCompletionRate(tasks: Task[]): number {
 }
 
 export function getProjectHoursToday(sessions: FocusSession[], projectId: string): number {
-  const today = new Date();
+  return getProjectHoursForDate(sessions, projectId, new Date());
+}
+
+export function getProjectHoursForDate(
+  sessions: FocusSession[],
+  projectId: string,
+  date: Date
+): number {
+  const dayStart = startOfDay(date);
+  const dayEnd = endOfDay(date);
+
   const projectSessions = sessions.filter(session => {
     const sessionDate = new Date(session.start);
-    return isToday(sessionDate) && session.projectId === projectId;
+    return session.projectId === projectId && sessionDate >= dayStart && sessionDate <= dayEnd;
   });
-  
+
   return projectSessions.reduce((total, session) => total + session.durationSec, 0);
+}
+
+export function getTotalWorkSecondsForDate(sessions: FocusSession[], date: Date): number {
+  const dayStart = startOfDay(date);
+  const dayEnd = endOfDay(date);
+
+  const daySessions = sessions.filter(session => {
+    const sessionDate = new Date(session.start);
+    return sessionDate >= dayStart && sessionDate <= dayEnd;
+  });
+
+  return daySessions.reduce((total, session) => total + session.durationSec, 0);
 }
 
 export function getHoursByProject(sessions: FocusSession[], projects: Project[]) {

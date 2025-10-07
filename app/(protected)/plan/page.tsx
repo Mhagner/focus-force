@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { ProjectBadge } from '@/components/ui/project-badge';
-import { formatDuration, getProjectHoursToday } from '@/lib/utils';
+import { formatDuration, getProjectHoursForDate } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -17,16 +17,25 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { Save, Calendar, Plus, Trash, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Save, Calendar as CalendarIcon, Plus, Trash, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { addDays, format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function PlanPage() {
-  const { projects, dailyPlans, sessions, updateDailyPlan, getDailyPlan } = useAppStore();
+  const { projects, dailyPlans, sessions, updateDailyPlan } = useAppStore();
   const { toast } = useToast();
-  
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const todayPlan = getDailyPlan(today);
+
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const selectedDateISO = useMemo(
+    () => format(selectedDate, 'yyyy-MM-dd'),
+    [selectedDate]
+  );
+  const selectedPlan = useMemo(
+    () => dailyPlans.find(plan => plan.dateISO === selectedDateISO),
+    [dailyPlans, selectedDateISO]
+  );
 
   const [blocks, setBlocks] = useState<{ projectId: string; targetMinutes: number }[]>([]);
   const [notes, setNotes] = useState('');
@@ -34,19 +43,19 @@ export default function PlanPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (todayPlan) {
-      setBlocks(todayPlan.blocks);
-      setNotes(todayPlan.notes || '');
+    if (selectedPlan) {
+      setBlocks(selectedPlan.blocks);
+      setNotes(selectedPlan.notes || '');
     } else {
       setBlocks([]);
       setNotes('');
     }
-  }, [todayPlan]);
+  }, [selectedPlan, selectedDateISO]);
 
   const totalPlanned = blocks.reduce((sum, block) => sum + block.targetMinutes, 0);
-  const totalWorked = blocks.reduce((sum, block) => {
-    const hoursWorked = getProjectHoursToday(sessions, block.projectId);
-    return sum + (hoursWorked / 60);
+  const totalWorkedMinutes = blocks.reduce((sum, block) => {
+    const workedSeconds = getProjectHoursForDate(sessions, block.projectId, selectedDate);
+    return sum + workedSeconds / 60;
   }, 0);
 
   const handleBlockChange = (projectId: string, minutes: number) => {
@@ -76,8 +85,8 @@ export default function PlanPage() {
     setIsSaving(true);
     try {
       const planData = {
-        id: todayPlan?.id || `plan-${Date.now()}`,
-        dateISO: today,
+        id: selectedPlan?.id || `plan-${Date.now()}`,
+        dateISO: selectedDateISO,
         blocks: blocks.filter(block => block.targetMinutes > 0),
         notes: notes.trim() || undefined,
       };
@@ -102,10 +111,60 @@ export default function PlanPage() {
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Planejamento Diário</h1>
           <p className="text-gray-400">
-            {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
-        
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-300 hover:text-white"
+            onClick={() => setSelectedDate(prev => addDays(prev, -1))}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="bg-gray-900/60 border-gray-700 text-white flex items-center gap-2"
+              >
+                <CalendarIcon className="h-4 w-4" />
+                {format(selectedDate, "dd/MM/yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-gray-900 border border-gray-800" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                locale={ptBR}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-300 hover:text-white"
+            onClick={() => setSelectedDate(prev => addDays(prev, 1))}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="text-gray-300 hover:text-white"
+            onClick={() => setSelectedDate(new Date())}
+            disabled={isToday(selectedDate)}
+          >
+            Hoje
+          </Button>
+        </div>
+
         <Button
           onClick={handleSave}
           className="bg-blue-600 hover:bg-blue-700"
@@ -128,23 +187,23 @@ export default function PlanPage() {
       {/* Progress Overview */}
       <Card className="p-6 bg-gray-900/50 border-gray-800 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar className="h-5 w-5 text-gray-400" />
+          <CalendarIcon className="h-5 w-5 text-gray-400" />
           <h2 className="text-lg font-semibold text-white">Progresso do Dia</h2>
         </div>
-        
+
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-400">Tempo trabalhado vs planejado</span>
             <span className="text-white">
-              {formatDuration(Math.round(totalWorked * 60))} / {formatDuration(totalPlanned * 60)}
+              {formatDuration(Math.round(totalWorkedMinutes * 60))} / {formatDuration(totalPlanned * 60)}
             </span>
           </div>
-          <Progress 
-            value={totalPlanned > 0 ? (totalWorked / totalPlanned) * 100 : 0} 
+          <Progress
+            value={totalPlanned > 0 ? (totalWorkedMinutes / totalPlanned) * 100 : 0}
             className="h-3"
           />
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-400">Total planejado: </span>
@@ -153,7 +212,7 @@ export default function PlanPage() {
           <div>
             <span className="text-gray-400">Eficiência: </span>
             <span className="text-white font-medium">
-              {totalPlanned > 0 ? Math.round((totalWorked / totalPlanned) * 100) : 0}%
+              {totalPlanned > 0 ? Math.round((totalWorkedMinutes / totalPlanned) * 100) : 0}%
             </span>
           </div>
         </div>
@@ -185,7 +244,7 @@ export default function PlanPage() {
             const project = projects.find(p => p.id === block.projectId);
             if (!project || !project.active) return null;
 
-            const workedMinutes = getProjectHoursToday(sessions, block.projectId) / 60;
+            const workedMinutes = getProjectHoursForDate(sessions, block.projectId, selectedDate) / 60;
             const progress = block.targetMinutes > 0 ? (workedMinutes / block.targetMinutes) * 100 : 0;
 
             return (
