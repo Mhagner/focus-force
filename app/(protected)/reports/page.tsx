@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
-import { formatDuration, exportToCsv, exportToPdf } from '@/lib/utils';
+import { formatDuration, exportToCsv, exportToPdf, getTotalWorkSecondsForDate } from '@/lib/utils';
 import { ProjectBadge } from '@/components/ui/project-badge';
-import { format, startOfDay, endOfDay, addDays, differenceInCalendarDays } from 'date-fns';
+import { format, startOfDay, endOfDay, addDays, differenceInCalendarDays, startOfWeek } from 'date-fns';
 import { Download, Filter, FileDown, Trash2, Loader2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ManualSessionDialog } from '@/components/sessions/ManualSessionDialog';
@@ -24,9 +24,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { ptBR } from 'date-fns/locale';
 
 export default function ReportsPage() {
-  const { sessions, projects, tasks, deleteSession } = useAppStore();
+  const { sessions, projects, tasks, deleteSession, dailyPlans } = useAppStore();
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
@@ -34,6 +35,32 @@ export default function ReportsPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+
+  const weeklyPlanning = useMemo(() => {
+    const startOfCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = addDays(startOfCurrentWeek, index);
+      const dateISO = format(date, 'yyyy-MM-dd');
+      const plan = dailyPlans.find(p => p.dateISO === dateISO);
+      const plannedMinutes = plan?.blocks.reduce((sum, block) => sum + block.targetMinutes, 0) ?? 0;
+      const workedSeconds = getTotalWorkSecondsForDate(sessions, date);
+      const efficiency = plannedMinutes > 0
+        ? Math.round((workedSeconds / 60) / plannedMinutes * 100)
+        : null;
+
+      const dayName = format(date, 'EEEE', { locale: ptBR });
+      const formattedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+
+      return {
+        date,
+        formattedDayName,
+        plannedMinutes,
+        workedSeconds,
+        efficiency,
+      };
+    });
+  }, [dailyPlans, sessions]);
 
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
@@ -331,6 +358,39 @@ export default function ReportsPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="p-6 bg-gray-900/50 border-gray-800 mb-6">
+        <h2 className="text-lg font-semibold text-white mb-4">Resumo do Planejamento da Semana</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-400">
+                <th className="p-2">Dia</th>
+                <th className="p-2">Planejado</th>
+                <th className="p-2">Trabalhado</th>
+                <th className="p-2">Eficiência</th>
+              </tr>
+            </thead>
+            <tbody>
+              {weeklyPlanning.map(day => (
+                <tr key={day.date.toISOString()} className="border-t border-gray-800">
+                  <td className="p-2">
+                    <div className="flex flex-col">
+                      <span className="text-white font-medium">{day.formattedDayName}</span>
+                      <span className="text-xs text-gray-500">{format(day.date, 'dd/MM')}</span>
+                    </div>
+                  </td>
+                  <td className="p-2 text-white">{formatDuration(day.plannedMinutes * 60)}</td>
+                  <td className="p-2 text-white">{formatDuration(day.workedSeconds)}</td>
+                  <td className="p-2 text-white">
+                    {day.efficiency !== null ? `${day.efficiency}%` : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       {/* Top Projects */}
       <Card className="p-6 bg-gray-900/50 border-gray-800">
