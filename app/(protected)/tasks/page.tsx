@@ -71,13 +71,14 @@ function DroppableColumn({ id, title, colorClass, children }: { id: ColumnId; ti
 }
 
 export default function TasksPage() {
-  const { tasks, projects, updateTask } = useAppStore();
+  const { tasks, projects, updateTask, tasksFilters, setTasksFilters } = useAppStore();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
-  const [showOnlyToday, setShowOnlyToday] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
+
+  const showOnlyToday = tasksFilters.showOnlyToday;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -188,7 +189,11 @@ export default function TasksPage() {
           </div>
 
           <div className="flex items-center space-x-2">
-            <Switch id="today-only" checked={showOnlyToday} onCheckedChange={setShowOnlyToday} />
+            <Switch
+              id="today-only"
+              checked={showOnlyToday}
+              onCheckedChange={(value) => setTasksFilters({ showOnlyToday: value })}
+            />
             <Label htmlFor="today-only" className="text-gray-300">Somente de hoje</Label>
           </div>
         </div>
