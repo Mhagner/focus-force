@@ -4,6 +4,10 @@ import { create } from 'zustand';
 import { Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
 import { storage } from '@/lib/storage';
 
+interface TasksFilters {
+  showOnlyToday: boolean;
+}
+
 interface AppStore {
   projects: Project[];
   tasks: Task[];
@@ -12,6 +16,7 @@ interface AppStore {
   clockfySettings: ClockfySettings;
   dailyPlans: DailyPlan[];
   theme: 'dark' | 'light' | 'system';
+  tasksFilters: TasksFilters;
 
   initializeData: () => Promise<void>;
 
@@ -41,6 +46,8 @@ interface AppStore {
   exportData: () => string;
   importData: (jsonData: string) => boolean;
   clearAllData: () => void;
+
+  setTasksFilters: (updates: Partial<TasksFilters>) => void;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -62,6 +69,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   dailyPlans: [],
   theme: 'dark',
+  tasksFilters: {
+    showOnlyToday: false,
+  },
 
   initializeData: async () => {
     const [projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans] = await Promise.all([
@@ -257,6 +267,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
       tasks: [],
       sessions: [],
       dailyPlans: [],
+      tasksFilters: {
+        showOnlyToday: false,
+      },
     });
+  },
+
+  setTasksFilters: (updates) => {
+    set((state) => ({
+      tasksFilters: {
+        ...state.tasksFilters,
+        ...updates,
+      },
+    }));
   },
 }));
