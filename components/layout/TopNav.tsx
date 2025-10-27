@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -50,13 +51,8 @@ export function TopNav() {
     setIsLoggingOut(true);
 
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
-
-      if (!response.ok) {
-        throw new Error('Falha ao encerrar sessão');
-      }
-
-      router.replace('/login');
+      const result = await signOut({ redirect: false, callbackUrl: '/login' });
+      router.replace(result?.url ?? '/login');
       router.refresh();
     } catch (err) {
       toast.error('Não foi possível sair. Tente novamente.');

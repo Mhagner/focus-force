@@ -1,22 +1,22 @@
-import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { ACCESS_COOKIE_NAME } from '@/lib/auth';
+import { auth } from '@/auth';
 
 const PUBLIC_ROUTES = ['/login'];
-const AUTH_API_ROUTES = ['/api/auth/login', '/api/auth/logout'];
 
-export function middleware(request: NextRequest) {
+export default auth((request) => {
   const { pathname } = request.nextUrl;
-  const hasAccessCookie = Boolean(request.cookies.get(ACCESS_COOKIE_NAME));
-  const isLoginRoute = PUBLIC_ROUTES.some((route) =>
-    pathname === route || pathname.startsWith(`${route}/`)
-  );
-  const isAuthApiRoute = AUTH_API_ROUTES.some((route) => pathname.startsWith(route));
-  const isApiRoute = pathname.startsWith('/api');
 
-  if (isLoginRoute) {
-    if (hasAccessCookie) {
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
+  const isPublicRoute = PUBLIC_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+
+  if (isPublicRoute) {
+    if (request.auth) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = '/';
       redirectUrl.searchParams.delete('from');
@@ -26,15 +26,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isAuthApiRoute || request.method === 'OPTIONS') {
+  if (request.auth) {
     return NextResponse.next();
   }
 
-  if (hasAccessCookie) {
-    return NextResponse.next();
-  }
-
-  if (isApiRoute) {
+  if (pathname.startsWith('/api')) {
     return NextResponse.json({ message: 'Não autenticado.' }, { status: 401 });
   }
 
@@ -46,7 +42,7 @@ export function middleware(request: NextRequest) {
   }
 
   return NextResponse.redirect(loginUrl);
-}
+});
 
 export const config = {
   matcher: [
