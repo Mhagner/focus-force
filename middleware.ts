@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
-import { auth } from '@/auth';
-
+// Lightweight middleware that checks for NextAuth session cookie without importing
+// server-only auth modules (avoids bundling Prisma into the edge runtime).
 const PUBLIC_ROUTES = ['/login'];
 
-export default auth((request) => {
-  const { pathname } = request.nextUrl;
+export default function middleware(request: NextRequest) {
+  const req = request;
+  const { pathname } = req.nextUrl;
 
+  // allow the auth API routes through
   if (pathname.startsWith('/api/auth')) {
     return NextResponse.next();
   }
@@ -15,9 +17,13 @@ export default auth((request) => {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
+  // Check common NextAuth cookie names (secure and non-secure).
+  const sessionCookie = req.cookies.get('__Secure-next-auth.session-token') ?? req.cookies.get('next-auth.session-token');
+  const isAuthenticated = Boolean(sessionCookie && sessionCookie.value);
+
   if (isPublicRoute) {
-    if (request.auth) {
-      const redirectUrl = request.nextUrl.clone();
+    if (isAuthenticated) {
+      const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = '/';
       redirectUrl.searchParams.delete('from');
       return NextResponse.redirect(redirectUrl);
@@ -26,7 +32,7 @@ export default auth((request) => {
     return NextResponse.next();
   }
 
-  if (request.auth) {
+  if (isAuthenticated) {
     return NextResponse.next();
   }
 
@@ -34,7 +40,7 @@ export default auth((request) => {
     return NextResponse.json({ message: 'Não autenticado.' }, { status: 401 });
   }
 
-  const loginUrl = request.nextUrl.clone();
+  const loginUrl = req.nextUrl.clone();
   loginUrl.pathname = '/login';
 
   if (pathname && pathname !== '/') {
@@ -42,7 +48,7 @@ export default auth((request) => {
   }
 
   return NextResponse.redirect(loginUrl);
-});
+}
 
 export const config = {
   matcher: [

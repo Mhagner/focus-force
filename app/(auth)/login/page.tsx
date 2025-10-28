@@ -7,7 +7,7 @@ import { ArrowLeft, Loader2, LogIn, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import SimpleOTP from '@/components/ui/simple-otp';
 import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
@@ -73,20 +73,47 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const result = await signIn('magic-link', {
+      // Wrap signIn in a timeout so we don't leave the UI stuck if the request hangs
+      const signInPromise = signIn('magic-link', {
         email: normalizedEmail,
         code: sanitizedCode,
         redirect: false,
         callbackUrl,
       });
 
-      if (result?.error) {
-        throw new Error(result.error);
+      const timeoutMs = 10000; // 10s
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Tempo de resposta do servidor excedido.')), timeoutMs)
+      );
+      const result = await Promise.race<any>([signInPromise as Promise<any>, timeoutPromise]);
+
+      // Log result for debugging if something unexpected happens
+      // eslint-disable-next-line no-console
+      console.debug('signIn result:', result);
+
+      if (!result) {
+        throw new Error('Resposta inesperada do provedor de autenticação.');
       }
 
-      router.replace(result?.url ?? callbackUrl);
-      router.refresh();
+      if (result?.error) {
+        throw new Error(result.error || 'Erro ao autenticar');
+      }
+
+      // Navigate to callback (or fallback)
+      try {
+        await Promise.resolve(router.replace(result?.url ?? callbackUrl));
+      } catch (navErr) {
+        // eslint-disable-next-line no-console
+        console.error('Erro ao redirecionar após login:', navErr);
+      }
+      try {
+        await Promise.resolve(router.refresh());
+      } catch (rErr) {
+        // ignore
+      }
     } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Erro em handleVerifyCode:', err);
       setError(err instanceof Error ? err.message : 'Não foi possível autenticar com o código informado.');
       setIsSubmitting(false);
     }
@@ -142,15 +169,6 @@ export default function LoginPage() {
     setCode('');
     setInfoMessage(null);
     setError(null);
-  };
-
-  const onCodeChange = (value: string) => {
-    const sanitizedValue = value.replace(/\D/g, '').slice(0, 6);
-    setCode(sanitizedValue);
-
-    if (error) {
-      setError(null);
-    }
   };
 
   return (
@@ -232,25 +250,17 @@ export default function LoginPage() {
 
               <p className="text-sm text-gray-400">Enviamos o código para {normalizedEmail}. Digite abaixo para entrar.</p>
 
-              <InputOTP
-                id="access-code"
+              <SimpleOTP
                 value={code}
-                onChange={onCodeChange}
-                maxLength={6}
-                containerClassName="justify-center"
-                inputMode="numeric"
-                pattern="\\d*"
+                onChange={(v) => {
+                  const sanitized = (v ?? '').toString().replace(/\D/g, '').slice(0, 6);
+                  setCode(sanitized);
+                  if (error) setError(null);
+                }}
+                length={6}
                 autoFocus
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
+                className="justify-center"
+              />
 
               {error && <p className="text-sm text-red-400 text-center">{error}</p>}
               {infoMessage && !error && <p className="text-sm text-emerald-400 text-center">{infoMessage}</p>}

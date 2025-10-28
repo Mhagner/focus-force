@@ -38,45 +38,52 @@ export const {
         code: { label: 'Código', type: 'text' },
       },
       async authorize(credentials) {
-        const parsed = credentialsSchema.safeParse(credentials);
+        try {
+          const parsed = credentialsSchema.safeParse(credentials);
 
-        if (!parsed.success) {
-          return null;
-        }
+          if (!parsed.success) {
+            return null;
+          }
 
-        const email = normalizeEmail(parsed.data.email);
-        const code = parsed.data.code;
-        const hashedCode = hashVerificationCode(email, code);
-        const now = new Date();
+          const email = normalizeEmail(parsed.data.email);
+          const code = parsed.data.code;
+          const hashedCode = hashVerificationCode(email, code);
+          const now = new Date();
 
-        const storedToken = await prisma.verificationToken.findFirst({
-          where: {
-            identifier: email,
-            expires: {
-              gt: now,
+          const storedToken = await prisma.verificationToken.findFirst({
+            where: {
+              identifier: email,
+              expires: {
+                gt: now,
+              },
             },
-          },
-          orderBy: {
-            expires: 'desc',
-          },
-        });
+            orderBy: {
+              expires: 'desc',
+            },
+          });
 
-        if (!storedToken || storedToken.token !== hashedCode) {
-          throw new Error('Código inválido ou expirado.');
+          if (!storedToken || storedToken.token !== hashedCode) {
+            throw new Error('Código inválido ou expirado.');
+          }
+
+          await prisma.verificationToken.deleteMany({ where: { identifier: email } });
+
+          const user = await prisma.user.upsert({
+            where: { email },
+            update: { emailVerified: new Date() },
+            create: {
+              email,
+              emailVerified: new Date(),
+            },
+          });
+
+          return user;
+        } catch (err) {
+          // Log unexpected errors server-side to help debugging (do not log codes)
+          // eslint-disable-next-line no-console
+          console.error('magic-link authorize error:', err);
+          throw err;
         }
-
-        await prisma.verificationToken.deleteMany({ where: { identifier: email } });
-
-        const user = await prisma.user.upsert({
-          where: { email },
-          update: { emailVerified: new Date() },
-          create: {
-            email,
-            emailVerified: new Date(),
-          },
-        });
-
-        return user;
       },
     }),
     ...(googleClientId && googleClientSecret

@@ -51,14 +51,63 @@ export function TopNav() {
     setIsLoggingOut(true);
 
     try {
+      // Request sign out from the auth handler without redirecting so we can
+      // control the client navigation and show appropriate UI feedback.
       const result = await signOut({ redirect: false, callbackUrl: '/login' });
-      router.replace(result?.url ?? '/login');
+
+      // Log result for debugging (helps when signOut silently fails)
+      // eslint-disable-next-line no-console
+      console.debug('signOut result:', result);
+
+      // If the library returned a URL, navigate to it. Otherwise fallback
+      // to a local /login redirect.
+      const target = result?.url ?? '/login';
+      // Use replace to avoid adding an extra history entry
+      router.replace(target);
       router.refresh();
+      // Fallback: if client-side redirect didn't happen for some reason,
+      // force a hard navigation after a short delay so the user gets sent
+      // to the login page and the session cookies get cleared client-side.
+      const fallbackForce = setTimeout(() => {
+        // eslint-disable-next-line no-console
+        console.debug('signOut fallback: forcing navigation to', target);
+        try {
+          window.location.href = target;
+        } catch (e) {
+          // ignore - navigation best-effort
+        }
+      }, 800);
+
+      // If navigation happens synchronously, clear the fallback timer.
+      // We clear it after a short delay to allow replace() to take effect.
+      setTimeout(() => clearTimeout(fallbackForce), 1000);
     } catch (err) {
       toast.error('Não foi possível sair. Tente novamente.');
+      // Ensure the UI doesn't stay stuck and try a hard redirect as a last
+      // resort so the user can at least return to the login page.
       setIsLoggingOut(false);
+      // eslint-disable-next-line no-console
+      console.error('signOut failed:', err);
+      try {
+        window.location.href = '/login';
+      } catch (e) {
+        // noop
+      }
     }
   };
+
+  // Extra safety: if the signOut call doesn't complete for some reason,
+  // ensure the spinner/state doesn't stay stuck. This effect will reset
+  // the logging state when the route changes (i.e. navigation happened).
+  useEffect(() => {
+    const onRouteChange = () => setIsLoggingOut(false);
+    // next/navigation doesn't expose a router.events like next/router, but
+    // a replace/ push will cause this component to unmount in most cases.
+    // Still, attach a fallback to the visibilitychange event to clear the
+    // loading state if the page was navigated away via other means.
+    document.addEventListener('visibilitychange', onRouteChange);
+    return () => document.removeEventListener('visibilitychange', onRouteChange);
+  }, []);
 
   const projectMap = useMemo(() => {
     return projects.reduce<Record<string, typeof projects[number]>>((acc, project) => {
