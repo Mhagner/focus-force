@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,7 @@ export default function SettingsPage() {
     projects,
   } = useAppStore();
   const { toast } = useToast();
+  const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
 
   const [settings, setSettings] = useState(pomodoroSettings);
   const [clockfyForm, setClockfyForm] = useState({
@@ -328,12 +329,12 @@ export default function SettingsPage() {
             )}
 
             <div className="space-y-2">
-              {projects.length === 0 ? (
+              {activeProjects.length === 0 ? (
                 <p className="text-sm text-gray-400">
                   Nenhum projeto cadastrado ainda.
                 </p>
               ) : (
-                projects.map((project) => {
+                activeProjects.map((project) => {
                   const clockfyStatus = project.syncWithClockfy
                     ? project.clockfyProjectId
                       ? 'synced'

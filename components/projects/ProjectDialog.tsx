@@ -81,12 +81,14 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       const trimmedSalesforceUrl = salesforceOppUrl.trim();
       const trimmedSharepointUrl = sharepointRepoUrl.trim();
 
+      const isEditing = Boolean(project);
+
       const projectData = {
         name: name.trim(),
         client: client.trim() || undefined,
         color,
         hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
-        active: true,
+        active: isEditing && project ? project.active : true,
         syncWithClockfy,
         salesforceOppUrl: trimmedSalesforceUrl ? trimmedSalesforceUrl : null,
         sharepointRepoUrl: trimmedSharepointUrl ? trimmedSharepointUrl : null,

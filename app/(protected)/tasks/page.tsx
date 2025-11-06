@@ -97,7 +97,10 @@ export default function TasksPage() {
   }, []);
 
   const searchTerm = searchQuery.trim().toLowerCase();
+  const activeProjectIds = useMemo(() => new Set(projects.filter(project => project.active).map(project => project.id)), [projects]);
+
   const filteredTasks = tasks.filter(task => {
+    if (!activeProjectIds.has(task.projectId)) return false;
     if (selectedProjectId !== 'all' && task.projectId !== selectedProjectId) return false;
     if (showOnlyToday) return getTodayTasks([task]).length > 0;
     if (!searchTerm) return true;

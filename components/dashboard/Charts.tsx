@@ -7,8 +7,9 @@ import { getHoursByProject, getDailyHours } from '@/lib/utils';
 
 export function Charts() {
   const { sessions, projects } = useAppStore();
-  
-  const projectData = getHoursByProject(sessions, projects).filter(p => p.hours > 0);
+  const activeProjects = projects.filter(project => project.active);
+
+  const projectData = getHoursByProject(sessions, activeProjects).filter(p => p.hours > 0);
   const dailyData = getDailyHours(sessions, 7);
 
   return (
