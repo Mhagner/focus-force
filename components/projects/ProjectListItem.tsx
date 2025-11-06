@@ -3,12 +3,13 @@
 import { Project } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Edit, Link2, MessageSquare } from 'lucide-react';
+import { Calendar, Edit, Link2, MessageSquare, Archive, ArchiveRestore } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface ProjectListItemProps {
   project: Project;
   onEdit: (project: Project) => void;
+  onToggleActive: (project: Project) => void;
   newUrlsLabel: string;
   plannedDateLabel: string;
   salesforceUrl?: string | null;
@@ -19,6 +20,7 @@ interface ProjectListItemProps {
 export function ProjectListItem({
   project,
   onEdit,
+  onToggleActive,
   newUrlsLabel,
   plannedDateLabel,
   salesforceUrl,
@@ -32,6 +34,8 @@ export function ProjectListItem({
       ? 'linked'
       : 'pending'
     : 'disabled';
+
+  const isArchived = !project.active;
 
   const badgeClassName =
     clockfyStatus === 'linked'
@@ -58,7 +62,14 @@ export function ProjectListItem({
           style={{ backgroundColor: project.color }}
         />
         <div>
-          <p className="font-medium text-white">{project.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-white">{project.name}</p>
+            {isArchived && (
+              <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-400/60 bg-amber-500/10">
+                Arquivado
+              </Badge>
+            )}
+          </div>
           <Badge
             variant={clockfyStatus === 'linked' ? 'secondary' : 'outline'}
             className={`mt-2 h-5 px-2 text-xs ${badgeClassName}`}
@@ -132,7 +143,7 @@ export function ProjectListItem({
         </span>
       </div>
 
-      <div className="flex justify-start md:justify-end">
+      <div className="flex justify-start md:justify-end gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -141,6 +152,19 @@ export function ProjectListItem({
         >
           <Edit className="mr-2 h-4 w-4" />
           Editar
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onToggleActive(project)}
+          className={`border-gray-700 hover:bg-gray-800 ${isArchived ? 'text-emerald-300' : 'text-red-300'}`}
+        >
+          {isArchived ? (
+            <ArchiveRestore className="mr-2 h-4 w-4" />
+          ) : (
+            <Archive className="mr-2 h-4 w-4" />
+          )}
+          {isArchived ? 'Desarquivar' : 'Arquivar'}
         </Button>
       </div>
     </div>

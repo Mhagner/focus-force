@@ -35,6 +35,11 @@ export default function ReportsPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
+  const allowedProjectIds = useMemo(
+    () => new Set(activeProjects.map(project => project.id)),
+    [activeProjects]
+  );
 
   const weeklyPlanning = useMemo(() => {
     const startOfCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -87,9 +92,10 @@ export default function ReportsPage() {
   const filteredSessions = sessions.filter(session => {
     const sessionDate = new Date(session.start);
     const inDateRange = sessionDate >= normalizedStartDate && sessionDate <= normalizedEndDate;
-    const matchesProject = selectedProjectId === 'all' || session.projectId === selectedProjectId;
+    const matchesSelectedProject = selectedProjectId === 'all' || session.projectId === selectedProjectId;
+    const belongsToActiveProject = allowedProjectIds.has(session.projectId);
 
-    return inDateRange && matchesProject;
+    return inDateRange && matchesSelectedProject && belongsToActiveProject;
   });
 
   // Calculate metrics
@@ -99,7 +105,7 @@ export default function ReportsPage() {
   const avgHoursPerDay = totalSeconds / totalDays;
 
   // Top projects
-  const projectHours = projects.map(project => ({
+  const projectHours = activeProjects.map(project => ({
     project,
     totalSeconds: filteredSessions
       .filter(s => s.projectId === project.id)
@@ -109,7 +115,9 @@ export default function ReportsPage() {
     .slice(0, 3);
 
   // Completed tasks
-  const completedTasks = tasks.filter(task => task.status === 'done').length;
+  const completedTasks = tasks.filter(
+    task => task.status === 'done' && allowedProjectIds.has(task.projectId)
+  ).length;
 
   // Prepare chart data
   const dailyData = [];
@@ -131,7 +139,7 @@ export default function ReportsPage() {
     });
   }
 
-  const pieData = projects
+  const pieData = activeProjects
     .map(project => ({
       name: project.name,
       value: filteredSessions
@@ -247,7 +255,7 @@ export default function ReportsPage() {
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
                 <SelectItem value="all">Todos os projetos</SelectItem>
-                {projects.filter(p => p.active).map((project) => (
+                {activeProjects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     <div className="flex items-center gap-2">
                       <div

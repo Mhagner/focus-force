@@ -24,6 +24,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
   const [endTime, setEndTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const activeProjects = projects.filter(project => project.active);
   const projectTasks = projectId ? tasks.filter(t => t.projectId === projectId) : [];
 
   const handleSave = async () => {
@@ -69,7 +70,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
-                {projects.map(p => (
+                {activeProjects.map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
               </SelectContent>

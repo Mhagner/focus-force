@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { formatDuration, formatFriendlyDate, getProjectHoursToday } from '@/lib/utils';
-import { MoreVertical, Edit, Archive, Play, MessageSquare } from 'lucide-react';
+import { MoreVertical, Edit, Archive, ArchiveRestore, Play, MessageSquare } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
 
@@ -18,6 +18,8 @@ interface ProjectCardProps {
 export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   const { sessions, tasks, updateProject } = useAppStore();
   const router = useRouter();
+
+  const isArchived = !project.active;
 
   const todayHours = getProjectHoursToday(sessions, project.id);
   const weekHours = sessions
@@ -42,8 +44,8 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
       : 'pending'
     : 'disabled';
 
-  const handleArchive = () => {
-    updateProject(project.id, { active: false });
+  const handleToggleArchive = () => {
+    updateProject(project.id, { active: !project.active });
   };
 
   return (
@@ -55,7 +57,14 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
             style={{ backgroundColor: project.color }} 
           />
           <div>
-            <h3 className="font-semibold text-white">{project.name}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-white">{project.name}</h3>
+              {isArchived && (
+                <Badge variant="outline" className="text-xs text-amber-300 border-amber-400/60 bg-amber-500/10">
+                  Arquivado
+                </Badge>
+              )}
+            </div>
             <div className="flex items-center gap-2 mt-1">
               {project.client && (
                 <p className="text-sm text-gray-400">{project.client}</p>
@@ -91,9 +100,16 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleArchive} className="cursor-pointer text-red-400">
-              <Archive className="h-4 w-4 mr-2" />
-              Arquivar
+            <DropdownMenuItem
+              onClick={handleToggleArchive}
+              className={`cursor-pointer ${isArchived ? 'text-emerald-300' : 'text-red-400'}`}
+            >
+              {isArchived ? (
+                <ArchiveRestore className="h-4 w-4 mr-2" />
+              ) : (
+                <Archive className="h-4 w-4 mr-2" />
+              )}
+              {isArchived ? 'Desarquivar' : 'Arquivar'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -166,7 +182,11 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
       )}
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <Button className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={() => router.push('/focus')}>
+        <Button
+          className="flex-1 bg-blue-600 hover:bg-blue-700"
+          onClick={() => router.push('/focus')}
+          disabled={isArchived}
+        >
           <Play className="h-4 w-4 mr-2" />
           Iniciar Foco
         </Button>

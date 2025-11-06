@@ -14,13 +14,14 @@ import { Project } from '@/types';
 import { LayoutGrid, List, Plus } from 'lucide-react';
 
 export default function ProjectsPage() {
-  const { projects, tasks } = useAppStore();
+  const { projects, tasks, updateProject } = useAppStore();
   const router = useRouter();
   const pathname = usePathname();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -59,15 +60,23 @@ export default function ProjectsPage() {
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
   }, [pendingEditId, projects, pathname, router]);
-  let activeProjects = projects.filter(p => p.active && (!searchTerm || (
-    p.name.toLowerCase().includes(searchTerm) || (p.client ?? '').toLowerCase().includes(searchTerm)
-  )));
+  const filteredProjects = projects.filter(project => {
+    const matchesStatus = statusFilter === 'active' ? project.active : !project.active;
+    if (!matchesStatus) return false;
 
-  if (focusId) {
-    activeProjects = activeProjects.filter(p => p.id === focusId);
-  }
+    if (!searchTerm) return true;
 
-  const sortedActiveProjects = [...activeProjects].sort(
+    return (
+      project.name.toLowerCase().includes(searchTerm) ||
+      (project.client ?? '').toLowerCase().includes(searchTerm)
+    );
+  });
+
+  const visibleProjects = focusId
+    ? filteredProjects.filter(project => project.id === focusId)
+    : filteredProjects;
+
+  const sortedProjects = [...visibleProjects].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
@@ -212,6 +221,12 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleToggleActive = (project: Project) => {
+    updateProject(project.id, { active: !project.active });
+  };
+
+  const isActiveFilter = statusFilter === 'active';
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
@@ -222,35 +237,62 @@ export default function ProjectsPage() {
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-          <ToggleGroup
-            type="single"
-            value={viewMode}
-            onValueChange={(value) => {
-              if (value === 'list' || value === 'grid') {
-                setViewMode(value);
-              }
-            }}
-            className="self-start rounded-lg border border-gray-800 bg-gray-900/60 p-1 text-gray-300"
-            aria-label="Alternar visualização"
-          >
-            <ToggleGroupItem
-              value="list"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
-              aria-label="Visualização em lista"
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+            <ToggleGroup
+              type="single"
+              value={statusFilter}
+              onValueChange={(value) => {
+                if (value === 'active' || value === 'archived') {
+                  setStatusFilter(value);
+                }
+              }}
+              className="self-start rounded-lg border border-gray-800 bg-gray-900/60 p-1 text-gray-300"
+              aria-label="Filtrar por status do projeto"
             >
-              <List className="h-4 w-4" />
-              <span className="hidden sm:inline">Lista</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="grid"
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
-              aria-label="Visualização em cards"
+              <ToggleGroupItem
+                value="active"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+              >
+                Ativos
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="archived"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+              >
+                Arquivados
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            <ToggleGroup
+              type="single"
+              value={viewMode}
+              onValueChange={(value) => {
+                if (value === 'list' || value === 'grid') {
+                  setViewMode(value);
+                }
+              }}
+              className="self-start rounded-lg border border-gray-800 bg-gray-900/60 p-1 text-gray-300"
+              aria-label="Alternar visualização"
             >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="hidden sm:inline">Cards</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
+              <ToggleGroupItem
+                value="list"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+                aria-label="Visualização em lista"
+              >
+                <List className="h-4 w-4" />
+                <span className="hidden sm:inline">Lista</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="grid"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+                aria-label="Visualização em cards"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                <span className="hidden sm:inline">Cards</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
 
           <Button
             onClick={handleNewProject}
@@ -262,7 +304,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {sortedActiveProjects.length > 0 ? (
+      {sortedProjects.length > 0 ? (
         viewMode === 'list' ? (
           <div className="space-y-3">
             <div className="hidden md:grid md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] px-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -273,11 +315,12 @@ export default function ProjectsPage() {
               <span className="text-right">Ações</span>
             </div>
 
-            {sortedActiveProjects.map(project => (
+            {sortedProjects.map(project => (
               <ProjectListItem
                 key={project.id}
                 project={project}
                 onEdit={handleEdit}
+                onToggleActive={handleToggleActive}
                 newUrlsLabel={getProjectNewUrlsLabel(project)}
                 plannedDateLabel={getProjectPlannedDateLabel(project)}
                 salesforceUrl={project.salesforceOppUrl ?? null}
@@ -288,7 +331,7 @@ export default function ProjectsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedActiveProjects.map(project => (
+            {sortedProjects.map(project => (
               <ProjectCard
                 key={project.id}
                 project={project}
@@ -299,10 +342,14 @@ export default function ProjectsPage() {
         )
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-400 mb-4">Nenhum projeto ativo encontrado</p>
-          <Button onClick={handleNewProject}>
-            Criar Primeiro Projeto
-          </Button>
+          <p className="text-gray-400 mb-4">
+            Nenhum projeto {isActiveFilter ? 'ativo' : 'arquivado'} encontrado
+          </p>
+          {isActiveFilter && (
+            <Button onClick={handleNewProject}>
+              Criar Primeiro Projeto
+            </Button>
+          )}
         </div>
       )}
 

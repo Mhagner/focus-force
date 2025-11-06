@@ -39,7 +39,10 @@ export function TopNav() {
   } = useTimerStore();
 
   const { projects, tasks } = useAppStore();
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
+  const selectedProject = selectedProjectId
+    ? activeProjects.find(project => project.id === selectedProjectId)
+    : undefined;
 
   const handleOpenMiniTimer = () => {
     const features = 'width=360,height=260,menubar=no,toolbar=no,location=no,status=no';
@@ -72,7 +75,7 @@ export function TopNav() {
   }, [projects]);
 
   const searchTerm = searchQuery.trim().toLowerCase();
-  const filteredProjects = projects.filter((project) => {
+  const filteredProjects = activeProjects.filter((project) => {
     if (!searchTerm) {
       return true;
     }
@@ -83,10 +86,14 @@ export function TopNav() {
   });
 
   const filteredTasks = tasks.filter((task) => {
+    const project = projectMap[task.projectId];
+    if (!project?.active) {
+      return false;
+    }
     if (!searchTerm) {
       return true;
     }
-    const projectName = (projectMap[task.projectId]?.name ?? '').toLowerCase();
+    const projectName = (project?.name ?? '').toLowerCase();
     const description = (task.description ?? '').toLowerCase();
     return (
       task.title.toLowerCase().includes(searchTerm) ||
