@@ -290,6 +290,12 @@ export const storage = {
     await request<unknown>(`/api/sessions/${id}`, { method: 'DELETE' });
   },
 
+  async syncSessionWithClockfy(id: string): Promise<FocusSession> {
+    return request<FocusSession>(`/api/sessions/${id}/sync-clockfy`, {
+      method: 'POST',
+    });
+  },
+
   /**
    * ---------------------------
    * Pomodoro (database)

@@ -9,7 +9,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { formatDuration, exportToCsv, exportToPdf, getTotalWorkSecondsForDate } from '@/lib/utils';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { format, startOfDay, endOfDay, addDays, differenceInCalendarDays, startOfWeek } from 'date-fns';
-import { Download, Filter, FileDown, Trash2, Loader2 } from 'lucide-react';
+import { Download, Filter, FileDown, Trash2, Loader2, RefreshCcw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ManualSessionDialog } from '@/components/sessions/ManualSessionDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -27,13 +27,14 @@ import {
 import { ptBR } from 'date-fns/locale';
 
 export default function ReportsPage() {
-  const { sessions, projects, tasks, deleteSession, dailyPlans } = useAppStore();
+  const { sessions, projects, tasks, deleteSession, dailyPlans, syncSessionWithClockfy } = useAppStore();
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [manualOpen, setManualOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [syncingSessionId, setSyncingSessionId] = useState<string | null>(null);
   const { toast } = useToast();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
   const allowedProjectIds = useMemo(
@@ -82,6 +83,23 @@ export default function ReportsPage() {
     } finally {
       setIsDeleting(false);
       setPendingDeleteId(null);
+    }
+  };
+
+  const handleSyncSession = async (id: string) => {
+    setSyncingSessionId(id);
+    try {
+      await syncSessionWithClockfy(id);
+      toast({ title: 'Sessão sincronizada com o Clockfy' });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Erro ao sincronizar sessão',
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingSessionId(null);
     }
   };
 
@@ -459,6 +477,13 @@ export default function ReportsPage() {
                   const project = projects.find(p => p.id === session.projectId);
                   const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
                   const isTargetSession = pendingDeleteId === session.id;
+                  const canSyncWithClockfy = Boolean(
+                    project?.syncWithClockfy &&
+                    project?.clockfyProjectId &&
+                    session.end &&
+                    !session.clockfyTimeEntryId
+                  );
+                  const isSyncing = syncingSessionId === session.id;
 
                   return (
                     <tr key={session.id} className="border-t border-gray-800">
@@ -468,50 +493,69 @@ export default function ReportsPage() {
                       <td className="p-2">{project?.name || 'N/A'}</td>
                       <td className="p-2">{task?.title || 'Sem tarefa'}</td>
                       <td className="p-2">{formatDuration(session.durationSec)}</td>
-                      <td className="p-2 text-right">
-                        <AlertDialog
-                          open={isTargetSession}
-                          onOpenChange={(open) => setPendingDeleteId(open ? session.id : null)}
-                        >
-                          <AlertDialogTrigger asChild>
+                      <td className="p-2">
+                        <div className="flex items-center justify-end gap-2">
+                          {canSyncWithClockfy ? (
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-gray-400 hover:text-red-400"
-                              aria-label="Excluir sessão"
-                              onClick={() => setPendingDeleteId(session.id)}
+                              variant="outline"
+                              size="sm"
+                              className="border-gray-700 text-gray-200 hover:text-white"
+                              onClick={() => handleSyncSession(session.id)}
+                              disabled={isSyncing}
                             >
-                              {isDeleting && isTargetSession ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                              {isSyncing ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               ) : (
-                                <Trash2 className="h-4 w-4" />
+                                <RefreshCcw className="mr-2 h-4 w-4" />
                               )}
+                              Sincronizar
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="bg-gray-900 border border-gray-700 text-white">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir sessão</AlertDialogTitle>
-                              <AlertDialogDescription className="text-gray-300">
-                                Tem certeza que deseja remover esta sessão? Esta ação não pode ser desfeita.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel className="bg-gray-800 border border-gray-700 text-white">
-                                Cancelar
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-red-600 hover:bg-red-700"
-                                onClick={() => handleDelete(session.id)}
-                                disabled={isDeleting}
+                          ) : null}
+
+                          <AlertDialog
+                            open={isTargetSession}
+                            onOpenChange={(open) => setPendingDeleteId(open ? session.id : null)}
+                          >
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-gray-400 hover:text-red-400"
+                                aria-label="Excluir sessão"
+                                onClick={() => setPendingDeleteId(session.id)}
                               >
                                 {isDeleting && isTargetSession ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : null}
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-gray-900 border border-gray-700 text-white">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir sessão</AlertDialogTitle>
+                                <AlertDialogDescription className="text-gray-300">
+                                  Tem certeza que deseja remover esta sessão? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="bg-gray-800 border border-gray-700 text-white">
+                                  Cancelar
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-red-600 hover:bg-red-700"
+                                  onClick={() => handleDelete(session.id)}
+                                  disabled={isDeleting}
+                                >
+                                  {isDeleting && isTargetSession ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : null}
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </td>
                     </tr>
                   );
