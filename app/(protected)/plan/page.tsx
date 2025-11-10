@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, Calendar as CalendarIcon, Plus, Trash, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Save, Calendar as CalendarIcon, Plus, Trash, Loader2, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import { addDays, format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,6 +36,11 @@ export default function PlanPage() {
     () => dailyPlans.find(plan => plan.dateISO === selectedDateISO),
     [dailyPlans, selectedDateISO]
   );
+
+  const previousPlan = useMemo(() => {
+    const previousDateISO = format(addDays(selectedDate, -1), 'yyyy-MM-dd');
+    return dailyPlans.find(plan => plan.dateISO === previousDateISO);
+  }, [dailyPlans, selectedDate]);
 
   const [blocks, setBlocks] = useState<{ projectId: string; targetMinutes: number }[]>([]);
   const [notes, setNotes] = useState('');
@@ -105,6 +110,20 @@ export default function PlanPage() {
     }
   };
 
+  const handleCopyPreviousDay = () => {
+    if (!previousPlan) {
+      toast({
+        title: 'Nenhum plano anterior encontrado',
+        description: 'Crie um planejamento para o dia anterior para habilitar a cópia automática.',
+      });
+      return;
+    }
+
+    setBlocks(previousPlan.blocks.map(block => ({ ...block })));
+    setNotes(previousPlan.notes ?? '');
+    toast({ title: 'Planejamento copiado do dia anterior' });
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -165,23 +184,35 @@ export default function PlanPage() {
           </Button>
         </div>
 
-        <Button
-          onClick={handleSave}
-          className="bg-blue-600 hover:bg-blue-700"
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Salvando...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Salvar Plano
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="bg-gray-900/60 border-gray-700 text-white hover:text-white"
+            onClick={handleCopyPreviousDay}
+            disabled={isSaving}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Copiar dia anterior
+          </Button>
+
+          <Button
+            onClick={handleSave}
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Plano
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Progress Overview */}

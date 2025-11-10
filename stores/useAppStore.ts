@@ -34,6 +34,7 @@ interface AppStore {
   addSession: (session: Omit<FocusSession, 'id'>) => Promise<void>;
   updateSession: (id: string, updates: Partial<FocusSession>) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
+  syncSessionWithClockfy: (id: string) => Promise<FocusSession>;
 
   updatePomodoroSettings: (settings: Partial<PomodoroSettings>) => Promise<void>;
   updateClockfySettings: (settings: Partial<ClockfySettings>) => Promise<void>;
@@ -187,6 +188,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((state) => ({
       sessions: state.sessions.filter(s => s.id !== id),
     }));
+  },
+
+  syncSessionWithClockfy: async (id) => {
+    const session = await storage.syncSessionWithClockfy(id);
+    set((state) => ({
+      sessions: state.sessions.map(s => (s.id === id ? session : s)),
+    }));
+    return session;
   },
 
   // Settings
