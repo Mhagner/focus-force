@@ -1,23 +1,29 @@
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
-import { ACCESS_COOKIE_NAME } from '@/lib/auth';
-
+// Lightweight middleware that checks for NextAuth session cookie without importing
+// server-only auth modules (avoids bundling Prisma into the edge runtime).
 const PUBLIC_ROUTES = ['/login'];
-const AUTH_API_ROUTES = ['/api/auth/login', '/api/auth/logout'];
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const hasAccessCookie = Boolean(request.cookies.get(ACCESS_COOKIE_NAME));
-  const isLoginRoute = PUBLIC_ROUTES.some((route) =>
-    pathname === route || pathname.startsWith(`${route}/`)
+export default function middleware(request: NextRequest) {
+  const req = request;
+  const { pathname } = req.nextUrl;
+
+  // allow the auth API routes through
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
+  const isPublicRoute = PUBLIC_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
-  const isAuthApiRoute = AUTH_API_ROUTES.some((route) => pathname.startsWith(route));
-  const isApiRoute = pathname.startsWith('/api');
 
-  if (isLoginRoute) {
-    if (hasAccessCookie) {
-      const redirectUrl = request.nextUrl.clone();
+  // Check common NextAuth cookie names (secure and non-secure).
+  const sessionCookie = req.cookies.get('__Secure-next-auth.session-token') ?? req.cookies.get('next-auth.session-token');
+  const isAuthenticated = Boolean(sessionCookie && sessionCookie.value);
+
+  if (isPublicRoute) {
+    if (isAuthenticated) {
+      const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = '/';
       redirectUrl.searchParams.delete('from');
       return NextResponse.redirect(redirectUrl);
@@ -26,19 +32,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isAuthApiRoute || request.method === 'OPTIONS') {
+  if (isAuthenticated) {
     return NextResponse.next();
   }
 
-  if (hasAccessCookie) {
-    return NextResponse.next();
-  }
-
-  if (isApiRoute) {
+  if (pathname.startsWith('/api')) {
     return NextResponse.json({ message: 'Não autenticado.' }, { status: 401 });
   }
 
-  const loginUrl = request.nextUrl.clone();
+  const loginUrl = req.nextUrl.clone();
   loginUrl.pathname = '/login';
 
   if (pathname && pathname !== '/') {
