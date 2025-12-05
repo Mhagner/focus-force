@@ -4,9 +4,15 @@ import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
+const workspaceSchema = z.object({
+  id: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+});
+
 const settingsSchema = z.object({
   apiKey: z.string().optional().nullable(),
   workspaceId: z.string().optional().nullable(),
+  workspaces: z.array(workspaceSchema).optional(),
 });
 
 function normalize(value?: string | null): string | null {
@@ -21,6 +27,7 @@ export async function GET() {
   return NextResponse.json({
     apiKey: settings?.apiKey ?? '',
     workspaceId: settings?.workspaceId ?? '',
+    workspaces: (settings?.workspaces as any[])?.filter(Boolean) ?? [],
     updatedAt: settings?.updatedAt ?? null,
   });
 }
@@ -30,9 +37,17 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const parsed = settingsSchema.parse(body);
 
+    const workspaces = (parsed.workspaces ?? [])
+      .map((workspace) => ({
+        id: normalize(workspace.id),
+        description: normalize(workspace.description),
+      }))
+      .filter((workspace) => Boolean(workspace.id));
+
     const data = {
       apiKey: normalize(parsed.apiKey),
-      workspaceId: normalize(parsed.workspaceId),
+      workspaceId: normalize(parsed.workspaceId) ?? workspaces[0]?.id ?? null,
+      workspaces,
     };
 
     const existing = await prisma.clockfySettings.findFirst();

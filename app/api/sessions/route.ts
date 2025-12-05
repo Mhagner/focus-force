@@ -41,9 +41,10 @@ export async function POST(req: Request) {
     });
 
     const settings = await prisma.clockfySettings.findFirst();
+    const workspaces = (settings?.workspaces as any[]) ?? [];
     const credentials = {
       apiKey: settings?.apiKey ?? undefined,
-      workspaceId: settings?.workspaceId ?? undefined,
+      workspaceId: session.project?.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id,
     };
 
     type SessionPayload = typeof session | Awaited<ReturnType<typeof prisma.focusSession.update>>;
@@ -74,7 +75,12 @@ export async function POST(req: Request) {
       return description;
     };
 
-    if (session.project?.syncWithClockfy && session.project?.clockfyProjectId && session.end) {
+    if (
+      session.project?.syncWithClockfy &&
+      session.project?.clockfyProjectId &&
+      session.end &&
+      credentials.workspaceId
+    ) {
       const timeEntryId = await createClockfyTimeEntry({
         projectId: session.project.clockfyProjectId,
         start: session.start,
