@@ -66,6 +66,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   clockfySettings: {
     apiKey: '',
     workspaceId: '',
+    workspaces: [],
     updatedAt: null,
   },
   dailyPlans: [],
@@ -88,7 +89,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [] })),
       sessions,
       pomodoroSettings,
-      clockfySettings,
+      clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
       dailyPlans,
     });
   },

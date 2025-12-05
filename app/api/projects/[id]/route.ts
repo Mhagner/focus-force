@@ -72,6 +72,7 @@ export async function PATCH(
         .refine((v) => v === undefined || Number.isFinite(v), 'hourlyRate inválido'),
       active: z.boolean().optional(),
       syncWithClockfy: z.boolean().optional(),
+      clockfyWorkspaceId: z.string().optional().nullable(),
       salesforceOppUrl: optionalUrlSchema,
       sharepointRepoUrl: optionalUrlSchema,
       estimatedDeliveryDate: estimatedDateSchema,
@@ -88,11 +89,13 @@ export async function PATCH(
     if (parsed.salesforceOppUrl !== undefined) data.salesforceOppUrl = parsed.salesforceOppUrl;
     if (parsed.sharepointRepoUrl !== undefined) data.sharepointRepoUrl = parsed.sharepointRepoUrl;
     if (parsed.estimatedDeliveryDate !== undefined) data.estimatedDeliveryDate = parsed.estimatedDeliveryDate;
+    if (parsed.clockfyWorkspaceId !== undefined) data.clockfyWorkspaceId = parsed.clockfyWorkspaceId;
     if (parsed.syncWithClockfy !== undefined) {
       data.syncWithClockfy = parsed.syncWithClockfy;
       if (parsed.syncWithClockfy === false) {
         data.clockfyProjectId = null;
         data.clockfyClientId = null;
+        data.clockfyWorkspaceId = null;
       }
     }
 
@@ -104,14 +107,23 @@ export async function PATCH(
         parsed.name !== undefined ||
         parsed.client !== undefined ||
         parsed.syncWithClockfy === true ||
+        parsed.clockfyWorkspaceId !== undefined ||
         !project.clockfyProjectId
       );
 
     if (shouldAttemptSync) {
       const settings = await prisma.clockfySettings.findFirst();
+      const workspaces = (settings?.workspaces as any[]) ?? [];
+      const selectedWorkspaceId =
+        parsed.clockfyWorkspaceId ?? project.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id;
+
+      if (!selectedWorkspaceId) {
+        throw new Error('Nenhum workspace configurado para sincronizar com o Clockfy.');
+      }
+
       const credentials = {
         apiKey: settings?.apiKey ?? undefined,
-        workspaceId: settings?.workspaceId ?? undefined,
+        workspaceId: selectedWorkspaceId ?? undefined,
       };
 
       const syncResult = await ensureClockfySyncForProject({
@@ -126,6 +138,7 @@ export async function PATCH(
           data: {
             clockfyProjectId: syncResult.projectId ?? project.clockfyProjectId ?? undefined,
             clockfyClientId: syncResult.clientId ?? project.clockfyClientId ?? undefined,
+            clockfyWorkspaceId: selectedWorkspaceId,
           },
         });
         return NextResponse.json(updated);

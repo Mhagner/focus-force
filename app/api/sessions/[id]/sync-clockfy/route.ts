@@ -67,10 +67,15 @@ export async function POST(
     }
 
     const settings = await prisma.clockfySettings.findFirst();
+    const workspaces = (settings?.workspaces as any[]) ?? [];
     const credentials = {
       apiKey: settings?.apiKey ?? undefined,
-      workspaceId: settings?.workspaceId ?? undefined,
+      workspaceId: session.project?.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id,
     };
+
+    if (!credentials.workspaceId) {
+      return NextResponse.json({ message: 'Nenhum workspace configurado para sincronização.' }, { status: 400 });
+    }
 
     const timeEntryId = await createClockfyTimeEntry({
       projectId: session.project.clockfyProjectId,

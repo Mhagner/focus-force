@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +25,7 @@ const defaultColors = [
 ];
 
 export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProps) {
-  const { addProject, updateProject } = useAppStore();
+  const { addProject, updateProject, clockfySettings } = useAppStore();
   const { toast } = useToast();
 
   const [name, setName] = useState('');
@@ -36,6 +37,15 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const [salesforceOppUrl, setSalesforceOppUrl] = useState('');
   const [sharepointRepoUrl, setSharepointRepoUrl] = useState('');
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
+  const [clockfyWorkspaceId, setClockfyWorkspaceId] = useState('');
+
+  const availableWorkspaces = clockfySettings.workspaces ?? [];
+
+  useEffect(() => {
+    if (syncWithClockfy && !clockfyWorkspaceId && availableWorkspaces.length > 0) {
+      setClockfyWorkspaceId(availableWorkspaces[0].id);
+    }
+  }, [syncWithClockfy, clockfyWorkspaceId, availableWorkspaces]);
 
   useEffect(() => {
     if (project) {
@@ -46,6 +56,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setSyncWithClockfy(project.syncWithClockfy);
       setSalesforceOppUrl(project.salesforceOppUrl || '');
       setSharepointRepoUrl(project.sharepointRepoUrl || '');
+      setClockfyWorkspaceId(project.clockfyWorkspaceId || availableWorkspaces[0]?.id || '');
 
       if (project.estimatedDeliveryDate) {
         const dateValue =
@@ -69,11 +80,21 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setSalesforceOppUrl('');
       setSharepointRepoUrl('');
       setEstimatedDeliveryDate('');
+      setClockfyWorkspaceId(availableWorkspaces[0]?.id || '');
     }
-  }, [project, open]);
+  }, [project, open, availableWorkspaces]);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
+
+    const selectedWorkspaceId = syncWithClockfy
+      ? clockfyWorkspaceId || availableWorkspaces[0]?.id || ''
+      : null;
+
+    if (syncWithClockfy && !selectedWorkspaceId) {
+      toast({ title: 'Selecione um workspace para sincronizar.', variant: 'destructive' });
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -90,6 +111,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
         hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
         active: isEditing && project ? project.active : true,
         syncWithClockfy,
+        clockfyWorkspaceId: syncWithClockfy ? selectedWorkspaceId || undefined : null,
         salesforceOppUrl: trimmedSalesforceUrl ? trimmedSalesforceUrl : null,
         sharepointRepoUrl: trimmedSharepointUrl ? trimmedSharepointUrl : null,
         estimatedDeliveryDate: estimatedDeliveryDate ? estimatedDeliveryDate : null,
@@ -216,6 +238,33 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
               onCheckedChange={setSyncWithClockfy}
             />
           </div>
+
+          {syncWithClockfy && (
+            <div>
+              <Label className="text-gray-300">Workspace do Clockfy</Label>
+              {availableWorkspaces.length > 0 ? (
+                <Select
+                  value={clockfyWorkspaceId || availableWorkspaces[0]?.id || ''}
+                  onValueChange={setClockfyWorkspaceId}
+                >
+                  <SelectTrigger className="mt-2 bg-gray-800 border-gray-700 text-white">
+                    <SelectValue placeholder="Selecione um workspace" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-900 text-white">
+                    {availableWorkspaces.map((workspace) => (
+                      <SelectItem key={workspace.id} value={workspace.id}>
+                        {workspace.description || workspace.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-yellow-300/80 mt-2">
+                  Cadastre workspaces na página de configurações para habilitar a sincronização.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <Button
