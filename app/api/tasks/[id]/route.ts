@@ -50,6 +50,9 @@ export async function PATCH(
         comments: {
           orderBy: { createdAt: 'desc' },
         },
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
     return NextResponse.json(task);

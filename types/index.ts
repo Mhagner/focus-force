@@ -25,12 +25,21 @@ export interface Task {
   estimateMin?: number;
   createdAt: string;
   comments?: TaskComment[];
+  subtasks?: TaskSubtask[];
 }
 
 export interface TaskComment {
   id: string;
   taskId: string;
   message: string;
+  createdAt: string;
+}
+
+export interface TaskSubtask {
+  id: string;
+  taskId: string;
+  title: string;
+  completed: boolean;
   createdAt: string;
 }
 
