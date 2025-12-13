@@ -60,6 +60,9 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
   const hasRepoLink = Boolean(repoLink);
 
   const commentCount = task.comments?.length ?? 0;
+  const subtasks = task.subtasks ?? [];
+  const completedSubtasks = subtasks.filter(subtask => subtask.completed).length;
+  const subtaskCompletion = subtasks.length ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
   const STATUS_LABELS: Record<string, string> = {
     todo: 'Todo',
@@ -212,6 +215,24 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {subtasks.length > 0 && (
+        <div className="mb-3 space-y-1">
+          <div className="flex items-center justify-between text-[11px] text-gray-300">
+            <span className="inline-flex items-center gap-1">
+              <ListChecks className="h-3.5 w-3.5" /> Checklist
+            </span>
+            <span className="font-semibold text-white">{subtaskCompletion}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-800">
+            <span
+              className="block h-full rounded-full bg-blue-500"
+              style={{ width: `${subtaskCompletion}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-gray-400">{completedSubtasks}/{subtasks.length} subtarefas completas</p>
+        </div>
+      )}
 
       {/* Ações compactas + progresso */}
       <div className="flex items-center justify-between gap-2">

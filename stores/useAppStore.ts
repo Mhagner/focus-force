@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
+import { Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask } from '@/types';
 import { storage } from '@/lib/storage';
 
 interface TasksFilters {
@@ -30,6 +30,9 @@ interface AppStore {
   addTaskComment: (taskId: string, message: string) => Promise<void>;
   updateTaskComment: (taskId: string, commentId: string, message: string) => Promise<void>;
   deleteTaskComment: (taskId: string, commentId: string) => Promise<void>;
+  addTaskSubtask: (taskId: string, title: string) => Promise<void>;
+  updateTaskSubtask: (taskId: string, subtaskId: string, updates: Partial<Pick<TaskSubtask, 'title' | 'completed'>>) => Promise<void>;
+  deleteTaskSubtask: (taskId: string, subtaskId: string) => Promise<void>;
 
   addSession: (session: Omit<FocusSession, 'id'>) => Promise<void>;
   updateSession: (id: string, updates: Partial<FocusSession>) => Promise<void>;
@@ -86,7 +89,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     ]);
     set({
       projects,
-      tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [] })),
+      tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
       sessions,
       pomodoroSettings,
       clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
@@ -115,12 +118,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // Tasks
   addTask: async (taskData) => {
     const task = await storage.addTask(taskData);
-    set((state) => ({ tasks: [...state.tasks, { ...task, comments: task.comments ?? [] }] }));
+    set((state) => ({ tasks: [...state.tasks, { ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] }] }));
   },
   updateTask: async (id, updates) => {
     const task = await storage.updateTask(id, updates);
     set((state) => ({
-      tasks: state.tasks.map(t => (t.id === id ? { ...task, comments: task.comments ?? [] } : t)),
+      tasks: state.tasks.map(t => (t.id === id ? { ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] } : t)),
     }));
   },
   deleteTask: async (id) => {
@@ -167,6 +170,47 @@ export const useAppStore = create<AppStore>((set, get) => ({
           ? {
               ...task,
               comments: (task.comments ?? []).filter(comment => comment.id !== commentId),
+            }
+          : task
+      ),
+    }));
+  },
+
+  addTaskSubtask: async (taskId, title) => {
+    const subtask = await storage.addTaskSubtask(taskId, title);
+    set((state) => ({
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? { ...task, subtasks: [...(task.subtasks ?? []), subtask] }
+          : task
+      ),
+    }));
+  },
+
+  updateTaskSubtask: async (taskId, subtaskId, updates) => {
+    const updated = await storage.updateTaskSubtask(taskId, subtaskId, updates);
+    set((state) => ({
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: (task.subtasks ?? []).map(subtask =>
+                subtask.id === subtaskId ? updated : subtask
+              ),
+            }
+          : task
+      ),
+    }));
+  },
+
+  deleteTaskSubtask: async (taskId, subtaskId) => {
+    await storage.deleteTaskSubtask(taskId, subtaskId);
+    set((state) => ({
+      tasks: state.tasks.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: (task.subtasks ?? []).filter(subtask => subtask.id !== subtaskId),
             }
           : task
       ),

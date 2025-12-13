@@ -59,6 +59,7 @@ model Task {
   createdAt   DateTime       @default(now())
   sessions    FocusSession[]
   comments    TaskComment[]
+  subtasks    TaskSubtask[]
 }
 
 model TaskComment {
@@ -66,6 +67,15 @@ model TaskComment {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId    String
   message   String
+  createdAt DateTime @default(now())
+}
+
+model TaskSubtask {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  title     String
+  completed Boolean  @default(false)
   createdAt DateTime @default(now())
 }
 
