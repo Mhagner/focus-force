@@ -9,6 +9,9 @@ export async function GET() {
       comments: {
         orderBy: { createdAt: 'desc' },
       },
+      subtasks: {
+        orderBy: { createdAt: 'asc' },
+      },
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -71,6 +74,9 @@ export async function POST(req: Request) {
       include: {
         comments: {
           orderBy: { createdAt: 'desc' },
+        },
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
         },
       },
     });

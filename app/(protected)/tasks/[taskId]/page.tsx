@@ -4,13 +4,14 @@ import { FormEvent, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { formatDateTime, formatDuration, formatFriendlyDate } from '@/lib/utils';
-import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus } from 'lucide-react';
 
 type Params = { taskId?: string | string[] };
 
@@ -24,7 +25,7 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const taskId = resolveParam(params?.taskId);
 
-  const { tasks, projects, updateTask, addTaskComment, updateTaskComment, deleteTaskComment } = useAppStore();
+  const { tasks, projects, updateTask, addTaskComment, updateTaskComment, deleteTaskComment, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask } = useAppStore();
   const { startTimer, switchTask, isRunning } = useTimerStore();
 
   const task = tasks.find((current) => current.id === taskId);
@@ -36,6 +37,9 @@ export default function TaskDetailPage() {
   const [editingCommentText, setEditingCommentText] = useState('');
   const [savingCommentId, setSavingCommentId] = useState<string | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
+  const [processingSubtaskId, setProcessingSubtaskId] = useState<string | null>(null);
 
   const sortedComments = useMemo(() => {
     if (!task) return [];
@@ -43,6 +47,10 @@ export default function TaskDetailPage() {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }, [task]);
+
+  const subtasks = task?.subtasks ?? [];
+  const completedSubtasks = subtasks.filter((subtask) => subtask.completed).length;
+  const completionPercent = subtasks.length ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
   const handleStatusChange = (status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done') => {
     if (!task) return;
@@ -114,6 +122,42 @@ export default function TaskDetailPage() {
       }
     } finally {
       setDeletingCommentId(null);
+    }
+  };
+
+  const handleAddSubtask = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!task || isAddingSubtask || newSubtaskTitle.trim().length === 0) return;
+
+    setIsAddingSubtask(true);
+    try {
+      await addTaskSubtask(task.id, newSubtaskTitle.trim());
+      setNewSubtaskTitle('');
+    } finally {
+      setIsAddingSubtask(false);
+    }
+  };
+
+  const handleToggleSubtask = async (subtaskId: string, completed: boolean) => {
+    if (!task || processingSubtaskId) return;
+    setProcessingSubtaskId(subtaskId);
+    try {
+      await updateTaskSubtask(task.id, subtaskId, { completed });
+    } finally {
+      setProcessingSubtaskId(null);
+    }
+  };
+
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    if (!task || processingSubtaskId) return;
+    const confirmed = window.confirm('Excluir esta subtarefa?');
+    if (!confirmed) return;
+
+    setProcessingSubtaskId(subtaskId);
+    try {
+      await deleteTaskSubtask(task.id, subtaskId);
+    } finally {
+      setProcessingSubtaskId(null);
     }
   };
 
@@ -264,6 +308,103 @@ export default function TaskDetailPage() {
             </div>
           </div>
         </div>
+      </Card>
+
+      <Card className="p-6 bg-gray-900/60 border border-gray-800 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Checklist</h2>
+            <p className="text-sm text-gray-400">Acompanhe o andamento das subtarefas desta atividade.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <span className="text-2xl font-bold text-white">{completionPercent}%</span>
+              <p className="text-xs uppercase tracking-wide text-gray-400">Concluído</p>
+            </div>
+            <div className="h-12 w-1 rounded bg-gray-800" />
+            <div className="w-32 rounded-full bg-gray-800">
+              <div
+                className="h-2 rounded-full bg-blue-600 transition-all"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {subtasks.length === 0 ? (
+            <p className="text-sm text-gray-500">Nenhuma subtarefa adicionada ainda.</p>
+          ) : (
+            subtasks.map((subtask) => {
+              const isProcessing = processingSubtaskId === subtask.id;
+              return (
+                <div
+                  key={subtask.id}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3"
+                >
+                  <button
+                    type="button"
+                    className="flex flex-1 items-start gap-3 text-left"
+                    onClick={() => handleToggleSubtask(subtask.id, !subtask.completed)}
+                    disabled={isProcessing}
+                  >
+                    <div
+                      className={
+                        'mt-0.5 flex h-5 w-5 items-center justify-center rounded border ' +
+                        (subtask.completed
+                          ? 'border-blue-500 bg-blue-600/20 text-blue-400'
+                          : 'border-gray-700 bg-gray-900 text-gray-400')
+                      }
+                    >
+                      {subtask.completed ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className={subtask.completed ? 'text-sm text-gray-400 line-through' : 'text-sm text-gray-200'}>
+                        {subtask.title}
+                      </p>
+                    </div>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-400 hover:text-red-200 hover:bg-red-950/40"
+                    onClick={() => handleDeleteSubtask(subtask.id)}
+                    disabled={isProcessing}
+                    aria-label="Excluir subtarefa"
+                  >
+                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <form onSubmit={handleAddSubtask} className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4 md:flex-row md:items-center">
+          <Input
+            placeholder="Adicionar subtarefa..."
+            value={newSubtaskTitle}
+            onChange={(event) => setNewSubtaskTitle(event.target.value)}
+            className="flex-1 bg-gray-900/70 border-gray-800 text-white"
+          />
+          <Button
+            type="submit"
+            disabled={newSubtaskTitle.trim().length === 0 || isAddingSubtask}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {isAddingSubtask ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adicionando...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar
+              </>
+            )}
+          </Button>
+        </form>
       </Card>
 
       <Card className="p-6 bg-gray-900/60 border border-gray-800 space-y-4">

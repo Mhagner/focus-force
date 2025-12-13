@@ -1,5 +1,5 @@
 // src/lib/storage.ts
-import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings } from '@/types';
+import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask } from '@/types';
 
 /**
  * ------------------------------------------------------------
@@ -247,6 +247,26 @@ export const storage = {
     return request<TaskComment>(`/api/tasks/${taskId}/comments`, {
       method: 'POST',
       body: { message },
+    });
+  },
+
+  async addTaskSubtask(taskId: string, title: string): Promise<TaskSubtask> {
+    return request<TaskSubtask>(`/api/tasks/${taskId}/subtasks`, {
+      method: 'POST',
+      body: { title },
+    });
+  },
+
+  async updateTaskSubtask(taskId: string, subtaskId: string, updates: Partial<Pick<TaskSubtask, 'title' | 'completed'>>): Promise<TaskSubtask> {
+    return request<TaskSubtask>(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+  },
+
+  async deleteTaskSubtask(taskId: string, subtaskId: string): Promise<void> {
+    await request<unknown>(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
+      method: 'DELETE',
     });
   },
 
