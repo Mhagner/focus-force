@@ -59,6 +59,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({
       apiKey: saved.apiKey ?? '',
       workspaceId: saved.workspaceId ?? '',
+      workspaces: (saved.workspaces as any[])?.filter(Boolean) ?? [],
       updatedAt: saved.updatedAt,
     });
   } catch (err: any) {

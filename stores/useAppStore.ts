@@ -211,6 +211,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const payload = {
       apiKey: settings.apiKey ?? current.apiKey,
       workspaceId: settings.workspaceId ?? current.workspaceId,
+      workspaces: settings.workspaces ?? current.workspaces ?? [],
     };
     const updated = await storage.updateClockfySettings(payload);
     set({ clockfySettings: updated });
