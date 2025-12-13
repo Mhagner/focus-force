@@ -39,6 +39,7 @@ model Project {
   blocks            DailyPlanBlock[]
   clockfyClientId   String?
   clockfyProjectId  String?
+  clockfyWorkspaceId String?
   syncWithClockfy   Boolean          @default(false)
   salesforceOppUrl      String?
   sharepointRepoUrl     String?
@@ -123,6 +124,7 @@ model ClockfySettings {
   id           String   @id @default(cuid())
   apiKey       String?
   workspaceId  String?
+  workspaces   Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

@@ -69,6 +69,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   clockfySettings: {
     apiKey: '',
     workspaceId: '',
+    workspaces: [],
     updatedAt: null,
   },
   dailyPlans: [],
@@ -91,7 +92,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
       sessions,
       pomodoroSettings,
-      clockfySettings,
+      clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
       dailyPlans,
     });
   },
@@ -254,6 +255,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const payload = {
       apiKey: settings.apiKey ?? current.apiKey,
       workspaceId: settings.workspaceId ?? current.workspaceId,
+      workspaces: settings.workspaces ?? current.workspaces ?? [],
     };
     const updated = await storage.updateClockfySettings(payload);
     set({ clockfySettings: updated });

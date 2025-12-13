@@ -75,6 +75,7 @@ export async function POST(req: Request) {
         .refine((v) => v === undefined || Number.isFinite(v), 'hourlyRate inválido'),
       active: z.boolean().optional(),
       syncWithClockfy: z.boolean().optional(),
+      clockfyWorkspaceId: z.string().optional().nullable(),
       salesforceOppUrl: optionalUrlSchema,
       sharepointRepoUrl: optionalUrlSchema,
       estimatedDeliveryDate: estimatedDateSchema,
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
       hourlyRate: parsed.hourlyRate !== undefined ? parsed.hourlyRate : undefined,
       active: parsed.active ?? true,
       syncWithClockfy: parsed.syncWithClockfy ?? false,
+      clockfyWorkspaceId: parsed.clockfyWorkspaceId ?? undefined,
       salesforceOppUrl: parsed.salesforceOppUrl ?? undefined,
       sharepointRepoUrl: parsed.sharepointRepoUrl ?? undefined,
       estimatedDeliveryDate: parsed.estimatedDeliveryDate ?? undefined,
@@ -101,9 +103,17 @@ export async function POST(req: Request) {
     }
 
     const settings = await prisma.clockfySettings.findFirst();
+    const workspaces = (settings?.workspaces as any[]) ?? [];
+    const selectedWorkspaceId =
+      parsed.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id ?? undefined;
+
+    if (!selectedWorkspaceId) {
+      throw new Error('Nenhum workspace configurado para sincronizar com o Clockfy.');
+    }
+
     const credentials = {
       apiKey: settings?.apiKey ?? undefined,
-      workspaceId: settings?.workspaceId ?? undefined,
+      workspaceId: selectedWorkspaceId,
     };
 
     const syncResult = await ensureClockfySyncForProject({
@@ -118,6 +128,7 @@ export async function POST(req: Request) {
         data: {
           clockfyProjectId: syncResult.projectId ?? undefined,
           clockfyClientId: syncResult.clientId ?? undefined,
+          clockfyWorkspaceId: selectedWorkspaceId,
         },
       });
       return NextResponse.json(updated);

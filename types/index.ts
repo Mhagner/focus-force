@@ -8,6 +8,7 @@ export interface Project {
   createdAt: string;
   clockfyClientId?: string | null;
   clockfyProjectId?: string | null;
+  clockfyWorkspaceId?: string | null;
   syncWithClockfy: boolean;
   salesforceOppUrl?: string | null;
   sharepointRepoUrl?: string | null;
@@ -97,8 +98,14 @@ export interface TimerState {
   elapsedInCycle: number;
 }
 
+export interface ClockfyWorkspace {
+  id: string;
+  description?: string | null;
+}
+
 export interface ClockfySettings {
   apiKey: string;
-  workspaceId: string;
+  workspaceId?: string;
+  workspaces: ClockfyWorkspace[];
   updatedAt?: string | null;
 }

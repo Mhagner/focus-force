@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(pomodoroSettings);
   const [clockfyForm, setClockfyForm] = useState({
     apiKey: clockfySettings.apiKey,
-    workspaceId: clockfySettings.workspaceId,
+    workspaces: clockfySettings.workspaces ?? [],
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSavingClockfy, setIsSavingClockfy] = useState(false);
@@ -37,9 +37,31 @@ export default function SettingsPage() {
   useEffect(() => {
     setClockfyForm({
       apiKey: clockfySettings.apiKey,
-      workspaceId: clockfySettings.workspaceId,
+      workspaces: clockfySettings.workspaces ?? [],
     });
   }, [clockfySettings]);
+
+  const handleWorkspaceChange = (index: number, field: 'id' | 'description', value: string) => {
+    setClockfyForm((prev) => {
+      const updated = [...(prev.workspaces ?? [])];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, workspaces: updated };
+    });
+  };
+
+  const handleAddWorkspace = () => {
+    setClockfyForm((prev) => ({
+      ...prev,
+      workspaces: [...(prev.workspaces ?? []), { id: '', description: '' }],
+    }));
+  };
+
+  const handleRemoveWorkspace = (index: number) => {
+    setClockfyForm((prev) => ({
+      ...prev,
+      workspaces: (prev.workspaces ?? []).filter((_, i) => i !== index),
+    }));
+  };
 
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
@@ -133,7 +155,9 @@ export default function SettingsPage() {
     }
   };
 
-  const clockfyConfigured = Boolean(clockfySettings.apiKey && clockfySettings.workspaceId);
+  const clockfyConfigured = Boolean(
+    clockfySettings.apiKey && ((clockfySettings.workspaces?.length ?? 0) > 0 || clockfySettings.workspaceId)
+  );
   const lastClockfyUpdate = clockfySettings.updatedAt
     ? new Date(clockfySettings.updatedAt).toLocaleString()
     : null;
@@ -278,16 +302,56 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div>
-              <Label htmlFor="clockfy-workspace" className="text-gray-300">Workspace ID</Label>
-              <Input
-                id="clockfy-workspace"
-                value={clockfyForm.workspaceId}
-                onChange={(e) => setClockfyForm({ ...clockfyForm, workspaceId: e.target.value })}
-                placeholder="workspace_id"
-                className="bg-gray-800 border-gray-700 text-white"
-                autoComplete="off"
-              />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-gray-300">Workspaces</Label>
+                <Button variant="outline" size="sm" onClick={handleAddWorkspace} className="border-gray-700 text-gray-200">
+                  Adicionar
+                </Button>
+              </div>
+
+              {(clockfyForm.workspaces?.length ?? 0) === 0 && (
+                <p className="text-sm text-gray-400">Cadastre ao menos um workspace para sincronizar.</p>
+              )}
+
+              <div className="space-y-3">
+                {clockfyForm.workspaces?.map((workspace, index) => (
+                  <div key={index} className="rounded-md border border-gray-800 p-3 bg-gray-900/60 space-y-2">
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Label className="text-gray-400 text-xs">Workspace ID</Label>
+                        <Input
+                          value={workspace.id ?? ''}
+                          onChange={(e) => handleWorkspaceChange(index, 'id', e.target.value)}
+                          placeholder="workspace_id"
+                          className="bg-gray-800 border-gray-700 text-white"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="self-start text-gray-400 hover:text-white"
+                        onClick={() => handleRemoveWorkspace(index)}
+                        disabled={(clockfyForm.workspaces?.length ?? 0) <= 1}
+                        title="Remover workspace"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                    <div>
+                      <Label className="text-gray-400 text-xs">Descrição</Label>
+                      <Input
+                        value={workspace.description ?? ''}
+                        onChange={(e) => handleWorkspaceChange(index, 'description', e.target.value)}
+                        placeholder="Ex: Equipe Produto"
+                        className="bg-gray-800 border-gray-700 text-white"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -324,7 +388,7 @@ export default function SettingsPage() {
 
             {!clockfyConfigured && (
               <p className="text-sm text-yellow-300/80 mb-4">
-                Informe a API Key e o Workspace ID para ativar a sincronização com o Clockfy.
+                Informe a API Key e cadastre pelo menos um workspace para ativar a sincronização com o Clockfy.
               </p>
             )}
 
