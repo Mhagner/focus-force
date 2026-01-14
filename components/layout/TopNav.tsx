@@ -187,9 +187,9 @@ export function TopNav() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleOpenMiniTimer}
+                    onClick={() => router.push('/focus')}
                     className="h-8 w-8 p-0 hover:bg-gray-700"
-                    title="Abrir mini cronômetro"
+                    title="Ir para página de foco"
                   >
                     <SquareArrowOutUpRight className="h-4 w-4" />
                   </Button>
