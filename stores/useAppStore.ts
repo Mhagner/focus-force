@@ -20,7 +20,7 @@ interface AppStore {
 
   initializeData: () => Promise<void>;
 
-  addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<void>;
+  addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
 
@@ -101,6 +101,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   addProject: async (projectData) => {
     const project = await storage.addProject(projectData);
     set((state) => ({ projects: [...state.projects, project] }));
+    return project;
   },
   updateProject: async (id, updates) => {
     const project = await storage.updateProject(id, updates);

@@ -25,8 +25,9 @@ const defaultColors = [
 ];
 
 export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProps) {
-  const { addProject, updateProject, clockfySettings } = useAppStore();
+  const { addProject, updateProject, addTask, clockfySettings } = useAppStore();
   const { toast } = useToast();
+  const defaultTaskTitle = 'Análise e elaboração do escopo';
 
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
@@ -38,6 +39,8 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const [sharepointRepoUrl, setSharepointRepoUrl] = useState('');
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
   const [clockfyWorkspaceId, setClockfyWorkspaceId] = useState('');
+  const [createDefaultTask, setCreateDefaultTask] = useState(false);
+  const [defaultTaskName, setDefaultTaskName] = useState(defaultTaskTitle);
 
   const availableWorkspaces = clockfySettings.workspaces ?? [];
 
@@ -57,6 +60,8 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setSalesforceOppUrl(project.salesforceOppUrl || '');
       setSharepointRepoUrl(project.sharepointRepoUrl || '');
       setClockfyWorkspaceId(project.clockfyWorkspaceId || availableWorkspaces[0]?.id || '');
+      setCreateDefaultTask(false);
+      setDefaultTaskName(defaultTaskTitle);
 
       if (project.estimatedDeliveryDate) {
         const dateValue =
@@ -81,8 +86,17 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setSharepointRepoUrl('');
       setEstimatedDeliveryDate('');
       setClockfyWorkspaceId(availableWorkspaces[0]?.id || '');
+      setCreateDefaultTask(false);
+      setDefaultTaskName(defaultTaskTitle);
     }
   }, [project, open, availableWorkspaces]);
+
+  const handleCreateDefaultTaskToggle = (checked: boolean) => {
+    setCreateDefaultTask(checked);
+    if (checked && !defaultTaskName.trim()) {
+      setDefaultTaskName(defaultTaskTitle);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -121,7 +135,13 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
         await updateProject(project.id, projectData);
         toast({ title: 'Projeto atualizado' });
       } else {
-        await addProject(projectData);
+        const createdProject = await addProject(projectData);
+        if (createDefaultTask && defaultTaskName.trim()) {
+          await addTask({
+            projectId: createdProject.id,
+            title: defaultTaskName.trim(),
+          });
+        }
         toast({ title: 'Projeto criado' });
       }
 
@@ -264,6 +284,39 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
                 </p>
               )}
             </div>
+          )}
+
+          {!project && (
+            <>
+              <div className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3">
+                <div>
+                  <Label htmlFor="create-default-task" className="text-gray-200">
+                    Criar tarefa inicial
+                  </Label>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Gere automaticamente uma tarefa vinculada ao projeto.
+                  </p>
+                </div>
+                <Switch
+                  id="create-default-task"
+                  checked={createDefaultTask}
+                  onCheckedChange={handleCreateDefaultTaskToggle}
+                />
+              </div>
+
+              {createDefaultTask && (
+                <div>
+                  <Label htmlFor="defaultTaskName" className="text-gray-300">Nome da tarefa</Label>
+                  <Input
+                    id="defaultTaskName"
+                    value={defaultTaskName}
+                    onChange={(e) => setDefaultTaskName(e.target.value)}
+                    placeholder={defaultTaskTitle}
+                    className="bg-gray-800 border-gray-700 text-white"
+                  />
+                </div>
+              )}
+            </>
           )}
 
           <div className="flex gap-3 pt-4">
