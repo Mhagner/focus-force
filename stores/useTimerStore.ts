@@ -124,14 +124,6 @@ function advanceTimerState(
       }
     }
 
-    if (!pomodoroSettings.autoStartNext) {
-      isRunning = false;
-      sessionStart = undefined;
-      elapsedInCycle = 0;
-      timeRemaining = 0;
-      break;
-    }
-
     if (currentPhase === 'work') {
       const isLongBreak = currentCycle >= cycles;
       const nextTime = isLongBreak
@@ -141,16 +133,22 @@ function advanceTimerState(
       totalTime = nextTime;
       timeRemaining = nextTime;
       currentCycle = isLongBreak ? 1 : currentCycle + 1;
-      sessionStart = new Date(cursorMs).toISOString();
-      elapsedInCycle = 0;
     } else {
       const workTime = pomodoroSettings.workMin * 60;
       currentPhase = 'work';
       totalTime = workTime;
       timeRemaining = workTime;
-      sessionStart = new Date(cursorMs).toISOString();
-      elapsedInCycle = 0;
     }
+
+    if (!pomodoroSettings.autoStartNext) {
+      isRunning = false;
+      sessionStart = undefined;
+      elapsedInCycle = 0;
+      break;
+    }
+
+    sessionStart = new Date(cursorMs).toISOString();
+    elapsedInCycle = 0;
   }
 
   const updatedFields: Partial<TimerState> = {
@@ -171,11 +169,45 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   ...initialTimerState,
 
   startTimer: (type, projectId, taskId) => {
+    const currentState = get();
     const pomodoroSettings = useAppStore.getState().pomodoroSettings;
-
-    const totalTime = type === 'pomodoro' ? pomodoroSettings.workMin * 60 : 25 * 60;
     const nowIso = new Date().toISOString();
 
+    const canResumePomodoro =
+      type === 'pomodoro' &&
+      !currentState.isRunning &&
+      currentState.currentPhase !== 'manual' &&
+      currentState.totalTime > 0 &&
+      currentState.timeRemaining > 0 &&
+      currentState.cycles > 0;
+
+    if (canResumePomodoro) {
+      const elapsed = currentState.totalTime - currentState.timeRemaining;
+      set({
+        isRunning: true,
+        isPaused: false,
+        currentPhase: currentState.currentPhase,
+        timeRemaining: currentState.timeRemaining,
+        totalTime: currentState.totalTime,
+        cycles: currentState.cycles,
+        currentCycle: currentState.currentCycle,
+        selectedProjectId: projectId,
+        selectedTaskId: taskId,
+        sessionStart: nowIso,
+        lastTickAt: nowIso,
+        elapsedInCycle: elapsed,
+      });
+
+      get().saveState();
+
+      if (pomodoroSettings.soundOn) {
+        playSessionSound('start');
+      }
+
+      return;
+    }
+
+    const totalTime = type === 'pomodoro' ? pomodoroSettings.workMin * 60 : 25 * 60;
     set({
       isRunning: true,
       isPaused: false,
@@ -279,9 +311,25 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       }
     }
 
-    set({ ...initialTimerState });
+    if (state.currentPhase === 'manual') {
+      set({ ...initialTimerState });
+      storage.clearTimerState();
+      return;
+    }
 
-    storage.clearTimerState();
+    const elapsed = state.totalTime - state.timeRemaining;
+
+    set({
+      isRunning: false,
+      isPaused: false,
+      sessionStart: undefined,
+      lastTickAt: undefined,
+      selectedProjectId: undefined,
+      selectedTaskId: undefined,
+      elapsedInCycle: elapsed,
+    });
+
+    get().saveState();
   },
 
   resetTimer: () => {
@@ -409,7 +457,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
   saveState: () => {
     const state = get();
-    if (state.isRunning || state.sessionStart) {
+    if (state.isRunning || state.sessionStart || state.timeRemaining > 0) {
       storage.setTimerState({
         isRunning: state.isRunning,
         isPaused: state.isPaused,
