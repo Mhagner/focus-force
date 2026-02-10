@@ -74,6 +74,7 @@ export interface PomodoroSettings {
   cyclesToLongBreak: number;
   autoStartNext: boolean;
   soundOn: boolean;
+  defaultChecklist: string[];
 }
 
 export interface DailyPlan {

@@ -173,6 +173,7 @@ function getDefaultPomodoroSettings(): PomodoroSettings {
     cyclesToLongBreak: 3,
     autoStartNext: true,
     soundOn: true,
+    defaultChecklist: [],
   };
 }
 

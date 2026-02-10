@@ -118,6 +118,7 @@ model PomodoroSettings {
   cyclesToLongBreak Int
   autoStartNext    Boolean
   soundOn          Boolean
+  defaultChecklist Json?
 }
 
 model ClockfySettings {

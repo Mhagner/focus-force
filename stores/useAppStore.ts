@@ -65,6 +65,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     cyclesToLongBreak: 3,
     autoStartNext: true,
     soundOn: true,
+    defaultChecklist: [],
   },
   clockfySettings: {
     apiKey: '',
@@ -91,7 +92,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
       projects,
       tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
       sessions,
-      pomodoroSettings,
+      pomodoroSettings: {
+        ...pomodoroSettings,
+        defaultChecklist: pomodoroSettings.defaultChecklist ?? [],
+      },
       clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
       dailyPlans,
     });

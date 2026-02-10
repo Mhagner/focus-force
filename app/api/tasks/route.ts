@@ -69,6 +69,17 @@ export async function POST(req: Request) {
       data.estimateMin = parsed.estimateMin;
     }
 
+    const settings = await prisma.pomodoroSettings.findFirst();
+    const defaultChecklist = Array.isArray(settings?.defaultChecklist)
+      ? settings?.defaultChecklist.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : [];
+
+    if (defaultChecklist.length > 0) {
+      (data as any).subtasks = {
+        create: defaultChecklist.map((title) => ({ title })),
+      };
+    }
+
     const task = await prisma.task.create({
       data: data as any,
       include: {

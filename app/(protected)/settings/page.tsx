@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
 
   const [settings, setSettings] = useState(pomodoroSettings);
+  const [newChecklistItem, setNewChecklistItem] = useState('');
   const [clockfyForm, setClockfyForm] = useState({
     apiKey: clockfySettings.apiKey,
     workspaces: clockfySettings.workspaces ?? [],
@@ -40,6 +41,13 @@ export default function SettingsPage() {
       workspaces: clockfySettings.workspaces ?? [],
     });
   }, [clockfySettings]);
+
+  useEffect(() => {
+    setSettings((current) => ({
+      ...current,
+      defaultChecklist: pomodoroSettings.defaultChecklist ?? [],
+    }));
+  }, [pomodoroSettings]);
 
   const handleWorkspaceChange = (index: number, field: 'id' | 'description', value: string) => {
     setClockfyForm((prev) => {
@@ -66,7 +74,10 @@ export default function SettingsPage() {
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     try {
-      await updatePomodoroSettings(settings);
+      await updatePomodoroSettings({
+        ...settings,
+        defaultChecklist: settings.defaultChecklist ?? [],
+      });
       toast({
         title: 'Configurações salvas',
         description: 'As configurações do Pomodoro foram atualizadas.',
@@ -80,6 +91,23 @@ export default function SettingsPage() {
     } finally {
       setIsSavingSettings(false);
     }
+  };
+
+  const handleAddChecklistItem = () => {
+    const trimmed = newChecklistItem.trim();
+    if (!trimmed) return;
+    setSettings((current) => ({
+      ...current,
+      defaultChecklist: [...(current.defaultChecklist ?? []), trimmed],
+    }));
+    setNewChecklistItem('');
+  };
+
+  const handleRemoveChecklistItem = (index: number) => {
+    setSettings((current) => ({
+      ...current,
+      defaultChecklist: (current.defaultChecklist ?? []).filter((_, i) => i !== index),
+    }));
   };
 
   const handleSaveClockfy = async () => {
@@ -273,6 +301,80 @@ export default function SettingsPage() {
               </>
             ) : (
               'Salvar Configurações'
+            )}
+          </Button>
+        </Card>
+
+        <Card className="p-6 bg-gray-900/50 border-gray-800">
+          <div className="flex items-center gap-2 mb-6">
+            <Settings className="h-5 w-5 text-gray-400" />
+            <div>
+              <h2 className="text-lg font-semibold text-white">Checklist padrão das tarefas</h2>
+              <p className="text-xs text-gray-400 mt-1">
+                Itens adicionados aqui serão incluídos automaticamente em novas tarefas.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end">
+              <div className="flex-1">
+                <Label htmlFor="new-checklist-item" className="text-gray-300">Novo item</Label>
+                <Input
+                  id="new-checklist-item"
+                  value={newChecklistItem}
+                  onChange={(e) => setNewChecklistItem(e.target.value)}
+                  placeholder="Ex: Revisar requisitos"
+                  className="bg-gray-800 border-gray-700 text-white"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleAddChecklistItem}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={!newChecklistItem.trim()}
+              >
+                Adicionar
+              </Button>
+            </div>
+
+            {(settings.defaultChecklist?.length ?? 0) === 0 ? (
+              <p className="text-sm text-gray-400">Nenhum item padrão definido.</p>
+            ) : (
+              <div className="space-y-2">
+                {settings.defaultChecklist?.map((item, index) => (
+                  <div
+                    key={`${item}-${index}`}
+                    className="flex items-center justify-between rounded-md border border-gray-800 bg-gray-900/60 px-3 py-2"
+                  >
+                    <span className="text-sm text-gray-200">{item}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveChecklistItem(index)}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={handleSaveSettings}
+            className="mt-6 bg-blue-600 hover:bg-blue-700"
+            disabled={isSavingSettings}
+          >
+            {isSavingSettings ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              'Salvar checklist'
             )}
           </Button>
         </Card>
