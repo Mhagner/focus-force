@@ -21,18 +21,70 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    const optionalUrlSchema = z
+      .string()
+      .trim()
+      .optional()
+      .nullable()
+      .transform((value) => {
+        if (value === undefined) return undefined;
+        if (value === null) return null;
+        return value.length > 0 ? value : undefined;
+      });
+
+    const estimatedDateSchema = z
+      .union([z.string(), z.date()])
+      .optional()
+      .nullable()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        if (value === null) return null;
+
+        if (value instanceof Date) {
+          if (Number.isNaN(value.getTime())) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Data inválida' });
+            return z.NEVER;
+          }
+          return value;
+        }
+
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
+
+        // If the client sent a date-only string like 'YYYY-MM-DD',
+        // construct a Date at noon UTC to avoid timezone shifts.
+        const dateOnlyMatch = /^\d{4}-\d{2}-\d{2}$/.test(trimmed);
+        if (dateOnlyMatch) {
+          const [y, m, d] = trimmed.split('-').map((s) => Number(s));
+          const utcNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+          return utcNoon;
+        }
+
+        const parsedDate = new Date(trimmed);
+        if (Number.isNaN(parsedDate.getTime())) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Data inválida' });
+          return z.NEVER;
+        }
+
+        return parsedDate;
+      });
+
     const schema = z.object({
       projectId: z.string().min(1),
       title: z.string().min(1),
       description: z.string().optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
-  status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
+      status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
       estimateMin: z
         .union([z.string(), z.number()])
         .optional()
         .transform((v) => (v === undefined ? undefined : Number(v)))
         .refine((v) => v === undefined || (Number.isFinite(v) && Number.isInteger(v) && v >= 0), 'estimateMin inválido'),
+      salesforceOppUrl: optionalUrlSchema,
+      repoUrl: optionalUrlSchema,
+      estimatedDeliveryDate: estimatedDateSchema,
     });
 
     const parsed = schema.parse(body);
@@ -50,6 +102,9 @@ export async function POST(req: Request) {
       description?: string | null;
       plannedFor?: string | null;
       estimateMin?: number;
+      salesforceOppUrl?: string | null;
+      repoUrl?: string | null;
+      estimatedDeliveryDate?: Date | null;
     } = {
       projectId: parsed.projectId,
       title: parsed.title,
@@ -67,6 +122,18 @@ export async function POST(req: Request) {
 
     if (parsed.estimateMin !== undefined) {
       data.estimateMin = parsed.estimateMin;
+    }
+
+    if (parsed.salesforceOppUrl !== undefined) {
+      data.salesforceOppUrl = parsed.salesforceOppUrl;
+    }
+
+    if (parsed.repoUrl !== undefined) {
+      data.repoUrl = parsed.repoUrl;
+    }
+
+    if (parsed.estimatedDeliveryDate !== undefined) {
+      data.estimatedDeliveryDate = parsed.estimatedDeliveryDate;
     }
 
     const settings = await prisma.pomodoroSettings.findFirst();

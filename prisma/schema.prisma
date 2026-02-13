@@ -56,6 +56,9 @@ model Task {
   plannedFor  String?
   status      Status         @default(todo)
   estimateMin Int?
+  salesforceOppUrl      String?
+  repoUrl               String?
+  estimatedDeliveryDate DateTime?
   createdAt   DateTime       @default(now())
   sessions    FocusSession[]
   comments    TaskComment[]

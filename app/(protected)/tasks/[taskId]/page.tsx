@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,13 @@ type Params = { taskId?: string | string[] };
 function resolveParam(value: string | string[] | undefined): string | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function toDateInputValue(value: string | Date | null | undefined): string {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return format(date, 'yyyy-MM-dd');
 }
 
 export default function TaskDetailPage() {
@@ -40,6 +48,19 @@ export default function TaskDetailPage() {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
   const [processingSubtaskId, setProcessingSubtaskId] = useState<string | null>(null);
+
+  const [estimatedDeliveryDateInput, setEstimatedDeliveryDateInput] = useState('');
+  const [salesforceOppUrlInput, setSalesforceOppUrlInput] = useState('');
+  const [repoUrlInput, setRepoUrlInput] = useState('');
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+
+  useEffect(() => {
+    if (!taskId) return;
+    if (!task) return;
+    setEstimatedDeliveryDateInput(toDateInputValue(task.estimatedDeliveryDate));
+    setSalesforceOppUrlInput(task.salesforceOppUrl ?? '');
+    setRepoUrlInput(task.repoUrl ?? '');
+  }, [taskId, task]);
 
   const sortedComments = useMemo(() => {
     if (!task) return [];
@@ -161,6 +182,25 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleSaveMetadata = async () => {
+    if (!task || isSavingMetadata) return;
+
+    setIsSavingMetadata(true);
+    try {
+      const trimmedSalesforce = salesforceOppUrlInput.trim();
+      const trimmedRepo = repoUrlInput.trim();
+      const trimmedDate = estimatedDeliveryDateInput.trim();
+
+      await updateTask(task.id, {
+        salesforceOppUrl: trimmedSalesforce.length > 0 ? trimmedSalesforce : null,
+        repoUrl: trimmedRepo.length > 0 ? trimmedRepo : null,
+        estimatedDeliveryDate: trimmedDate.length > 0 ? trimmedDate : null,
+      });
+    } finally {
+      setIsSavingMetadata(false);
+    }
+  };
+
   if (!task || !project) {
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -177,11 +217,11 @@ export default function TaskDetailPage() {
 
   const todayISO = new Date().toISOString().split('T')[0];
   const isPlannedForToday = task.plannedFor === 'today' || task.plannedFor === todayISO;
-  const estimatedDelivery = project.estimatedDeliveryDate
-    ? formatFriendlyDate(project.estimatedDeliveryDate)
+  const estimatedDelivery = task.estimatedDeliveryDate
+    ? formatFriendlyDate(task.estimatedDeliveryDate)
     : 'Não informada';
-  const salesforceLink = project.salesforceOppUrl ?? '';
-  const repoLink = project.sharepointRepoUrl ?? '';
+  const salesforceLink = task.salesforceOppUrl ?? '';
+  const repoLink = task.repoUrl ?? '';
   const estimateLabel = task.estimateMin ? formatDuration(task.estimateMin * 60) : 'Não informada';
 
   return (
@@ -305,6 +345,64 @@ export default function TaskDetailPage() {
               ) : (
                 <p className="text-sm text-gray-500">Não informado</p>
               )}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Editar metadados</h3>
+              <p className="text-xs text-gray-400">Atualize entrega, Salesforce e repositório desta tarefa.</p>
+            </div>
+            <Button
+              variant="outline"
+              className="border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+              onClick={handleSaveMetadata}
+              disabled={isSavingMetadata}
+            >
+              {isSavingMetadata ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar'
+              )}
+            </Button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Entrega prevista</label>
+              <Input
+                type="date"
+                value={estimatedDeliveryDateInput}
+                onChange={(event) => setEstimatedDeliveryDateInput(event.target.value)}
+                className="bg-gray-900/70 border-gray-800 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">URL da oportunidade no Salesforce</label>
+              <Input
+                type="url"
+                value={salesforceOppUrlInput}
+                onChange={(event) => setSalesforceOppUrlInput(event.target.value)}
+                placeholder="https://..."
+                className="bg-gray-900/70 border-gray-800 text-white"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm text-gray-300 mb-2">URL do repositório</label>
+              <Input
+                type="url"
+                value={repoUrlInput}
+                onChange={(event) => setRepoUrlInput(event.target.value)}
+                placeholder="https://..."
+                className="bg-gray-900/70 border-gray-800 text-white"
+              />
             </div>
           </div>
         </div>

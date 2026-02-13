@@ -24,6 +24,9 @@ export interface Task {
   plannedFor?: 'today' | string | null; // dateISO
   status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
   estimateMin?: number;
+  salesforceOppUrl?: string | null;
+  repoUrl?: string | null;
+  estimatedDeliveryDate?: string | Date | null;
   createdAt: string;
   comments?: TaskComment[];
   subtasks?: TaskSubtask[];
@@ -52,6 +55,9 @@ export type TaskInput = {
   plannedFor?: 'today' | string | null;
   status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
   estimateMin?: number;
+  salesforceOppUrl?: string | null;
+  repoUrl?: string | null;
+  estimatedDeliveryDate?: string | Date | null;
 };
 
 export interface FocusSession {

@@ -17,6 +17,7 @@ import clsx from 'clsx';
 interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
+  disableCardClick?: boolean;
 }
 
 /** Compact TaskCard
@@ -28,7 +29,7 @@ interface TaskCardProps {
  * - Controle de status via Dropdown compacto
  * - Ações reduzidas a ícones (Foco/Comentários)
  */
-export function TaskCard({ task, onEdit }: TaskCardProps) {
+export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
   const { projects, updateTask, deleteTask } = useAppStore();
   const [isDeleting, setIsDeleting] = useState(false);
   const { startTimer, switchTask, isRunning } = useTimerStore();
@@ -51,11 +52,11 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
     updateTask(task.id, { plannedFor: newPlannedFor });
   };
 
-  const estimatedDeliveryDate = project.estimatedDeliveryDate ? formatFriendlyDate(project.estimatedDeliveryDate) : '';
+  const estimatedDeliveryDate = task.estimatedDeliveryDate ? formatFriendlyDate(task.estimatedDeliveryDate) : '';
   const hasEstimatedDelivery = Boolean(estimatedDeliveryDate);
 
-  const salesforceLink = project.salesforceOppUrl ?? '';
-  const repoLink = project.sharepointRepoUrl ?? '';
+  const salesforceLink = task.salesforceOppUrl ?? '';
+  const repoLink = task.repoUrl ?? '';
   const hasSalesforceLink = Boolean(salesforceLink);
   const hasRepoLink = Boolean(repoLink);
 
@@ -79,6 +80,27 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
         'hover:border-gray-700 hover:bg-gray-900/70'
       )}
       aria-label={`Tarefa: ${task.title}`}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (disableCardClick) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          router.push(`/tasks/${task.id}`);
+        }
+      }}
+      onClick={(event) => {
+        if (disableCardClick) return;
+        const target = event.target as HTMLElement | null;
+        if (!target) return;
+
+        // Don't navigate when interacting with buttons/links/menus inside the card.
+        if (target.closest('button, a, [role="menuitem"], [role="menu"], input, textarea, select')) {
+          return;
+        }
+
+        router.push(`/tasks/${task.id}`);
+      }}
     >
       {/* Header compacto */}
       <div className="mb-2 flex items-start justify-between gap-2">
