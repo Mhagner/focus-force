@@ -12,7 +12,7 @@ import { useTimerStore } from '@/stores/useTimerStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { formatDateTime, formatDuration, formatFriendlyDate } from '@/lib/utils';
-import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus, Check, X } from 'lucide-react';
 
 type Params = { taskId?: string | string[] };
 
@@ -48,6 +48,8 @@ export default function TaskDetailPage() {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
   const [processingSubtaskId, setProcessingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
 
   const [estimatedDeliveryDateInput, setEstimatedDeliveryDateInput] = useState('');
   const [salesforceOppUrlInput, setSalesforceOppUrlInput] = useState('');
@@ -182,6 +184,56 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleStartEditSubtask = (subtaskId: string, title: string) => {
+    setEditingSubtaskId(subtaskId);
+    setEditingSubtaskTitle(title);
+  };
+
+  const handleCancelEditSubtask = () => {
+    setEditingSubtaskId(null);
+    setEditingSubtaskTitle('');
+  };
+
+  const handleSaveSubtaskTitle = async (subtaskId: string, originalTitle: string) => {
+    if (!task || processingSubtaskId) return;
+    const trimmed = editingSubtaskTitle.trim();
+    if (!trimmed) return;
+    if (trimmed === originalTitle.trim()) {
+      handleCancelEditSubtask();
+      return;
+    }
+
+    setProcessingSubtaskId(subtaskId);
+    try {
+      await updateTaskSubtask(task.id, subtaskId, { title: trimmed });
+      handleCancelEditSubtask();
+    } finally {
+      setProcessingSubtaskId(null);
+    }
+  };
+
+  const handleUpdateSubtaskCompletedAt = async (subtaskId: string, dateValue: string) => {
+    if (!task || processingSubtaskId) return;
+    setProcessingSubtaskId(subtaskId);
+    try {
+      const trimmed = dateValue.trim();
+      await updateTaskSubtask(task.id, subtaskId, { completedAt: trimmed.length > 0 ? trimmed : null });
+    } finally {
+      setProcessingSubtaskId(null);
+    }
+  };
+
+  const handleUpdateSubtaskEstimatedDeliveryDate = async (subtaskId: string, dateValue: string) => {
+    if (!task || processingSubtaskId) return;
+    setProcessingSubtaskId(subtaskId);
+    try {
+      const trimmed = dateValue.trim();
+      await updateTaskSubtask(task.id, subtaskId, { estimatedDeliveryDate: trimmed.length > 0 ? trimmed : null });
+    } finally {
+      setProcessingSubtaskId(null);
+    }
+  };
+
   const handleSaveMetadata = async () => {
     if (!task || isSavingMetadata) return;
 
@@ -272,16 +324,16 @@ export default function TaskDetailPage() {
 
           <div className="flex flex-wrap gap-3">
             {(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done'] as const).map((status) => (
-                <Button
-                  key={status}
-                  size="sm"
-                  variant={task.status === status ? 'default' : 'outline'}
-                  className="capitalize"
-                  onClick={() => handleStatusChange(status)}
-                >
-                  {status === 'todo' ? 'Todo' : status === 'call_agendada' ? 'Call' : status === 'pronta_elaboracao' ? 'Pronta' : status === 'doing' ? 'Fazendo' : 'Feito'}
-                </Button>
-              ))}
+              <Button
+                key={status}
+                size="sm"
+                variant={task.status === status ? 'default' : 'outline'}
+                className="capitalize"
+                onClick={() => handleStatusChange(status)}
+              >
+                {status === 'todo' ? 'Todo' : status === 'call_agendada' ? 'Call' : status === 'pronta_elaboracao' ? 'Pronta' : status === 'doing' ? 'Fazendo' : 'Feito'}
+              </Button>
+            ))}
           </div>
         </div>
 
@@ -435,43 +487,122 @@ export default function TaskDetailPage() {
           ) : (
             subtasks.map((subtask) => {
               const isProcessing = processingSubtaskId === subtask.id;
+              const isEditing = editingSubtaskId === subtask.id;
+              const completedAtValue = toDateInputValue(subtask.completedAt);
+              const subtaskEstimatedDeliveryDateValue = toDateInputValue(subtask.estimatedDeliveryDate);
               return (
                 <div
                   key={subtask.id}
                   className="flex items-start justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3"
                 >
-                  <button
-                    type="button"
-                    className="flex flex-1 items-start gap-3 text-left"
-                    onClick={() => handleToggleSubtask(subtask.id, !subtask.completed)}
-                    disabled={isProcessing}
-                  >
-                    <div
-                      className={
-                        'mt-0.5 flex h-5 w-5 items-center justify-center rounded border ' +
-                        (subtask.completed
-                          ? 'border-blue-500 bg-blue-600/20 text-blue-400'
-                          : 'border-gray-700 bg-gray-900 text-gray-400')
-                      }
+                  <div className="flex flex-1 items-start gap-3">
+                    <button
+                      type="button"
+                      className="mt-0.5"
+                      onClick={() => handleToggleSubtask(subtask.id, !subtask.completed)}
+                      disabled={isProcessing}
+                      aria-label={subtask.completed ? 'Marcar como não concluída' : 'Marcar como concluída'}
                     >
-                      {subtask.completed ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-                    </div>
+                      <div
+                        className={
+                          'flex h-5 w-5 items-center justify-center rounded border ' +
+                          (subtask.completed
+                            ? 'border-blue-500 bg-blue-600/20 text-blue-400'
+                            : 'border-gray-700 bg-gray-900 text-gray-400')
+                        }
+                      >
+                        {subtask.completed ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                      </div>
+                    </button>
+
                     <div className="flex-1">
-                      <p className={subtask.completed ? 'text-sm text-gray-400 line-through' : 'text-sm text-gray-200'}>
-                        {subtask.title}
-                      </p>
+                      {isEditing ? (
+                        <Input
+                          value={editingSubtaskTitle}
+                          onChange={(event) => setEditingSubtaskTitle(event.target.value)}
+                          className="bg-gray-900/70 border-gray-800 text-white"
+                          disabled={isProcessing}
+                        />
+                      ) : (
+                        <p className={subtask.completed ? 'text-sm text-gray-400 line-through' : 'text-sm text-gray-200'}>
+                          {subtask.title}
+                        </p>
+                      )}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-gray-500">Entrega prevista</span>
+                        <Input
+                          type="date"
+                          value={subtaskEstimatedDeliveryDateValue}
+                          onChange={(event) => handleUpdateSubtaskEstimatedDeliveryDate(subtask.id, event.target.value)}
+                          className="h-8 w-40 bg-gray-900/70 border-gray-800 text-white"
+                          disabled={isProcessing}
+                        />
+                      </div>
+
+                      {subtask.completed && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-gray-500">Concluída em</span>
+                          <Input
+                            type="date"
+                            value={completedAtValue}
+                            onChange={(event) => handleUpdateSubtaskCompletedAt(subtask.id, event.target.value)}
+                            className="h-8 w-40 bg-gray-900/70 border-gray-800 text-white"
+                            disabled={isProcessing}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-red-400 hover:text-red-200 hover:bg-red-950/40"
-                    onClick={() => handleDeleteSubtask(subtask.id)}
-                    disabled={isProcessing}
-                    aria-label="Excluir subtarefa"
-                  >
-                    {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  </Button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {isEditing ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-emerald-300 hover:text-emerald-200 hover:bg-emerald-950/30"
+                          onClick={() => handleSaveSubtaskTitle(subtask.id, subtask.title)}
+                          disabled={isProcessing}
+                          aria-label="Salvar"
+                        >
+                          {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                          onClick={handleCancelEditSubtask}
+                          disabled={isProcessing}
+                          aria-label="Cancelar"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                        onClick={() => handleStartEditSubtask(subtask.id, subtask.title)}
+                        disabled={isProcessing}
+                        aria-label="Editar subtarefa"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-400 hover:text-red-200 hover:bg-red-950/40"
+                      onClick={() => handleDeleteSubtask(subtask.id)}
+                      disabled={isProcessing}
+                      aria-label="Excluir subtarefa"
+                    >
+                      {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
               );
             })

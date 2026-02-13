@@ -258,7 +258,11 @@ export const storage = {
     });
   },
 
-  async updateTaskSubtask(taskId: string, subtaskId: string, updates: Partial<Pick<TaskSubtask, 'title' | 'completed'>>): Promise<TaskSubtask> {
+  async updateTaskSubtask(
+    taskId: string,
+    subtaskId: string,
+    updates: Partial<Pick<TaskSubtask, 'title' | 'completed' | 'completedAt' | 'estimatedDeliveryDate'>>,
+  ): Promise<TaskSubtask> {
     return request<TaskSubtask>(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
       method: 'PATCH',
       body: updates,

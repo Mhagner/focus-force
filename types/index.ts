@@ -44,6 +44,8 @@ export interface TaskSubtask {
   taskId: string;
   title: string;
   completed: boolean;
+  completedAt?: string | Date | null;
+  estimatedDeliveryDate?: string | Date | null;
   createdAt: string;
 }
 

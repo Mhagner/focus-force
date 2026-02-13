@@ -79,6 +79,8 @@ model TaskSubtask {
   taskId    String
   title     String
   completed Boolean  @default(false)
+  completedAt DateTime?
+  estimatedDeliveryDate DateTime?
   createdAt DateTime @default(now())
 }
 

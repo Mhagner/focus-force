@@ -31,7 +31,11 @@ interface AppStore {
   updateTaskComment: (taskId: string, commentId: string, message: string) => Promise<void>;
   deleteTaskComment: (taskId: string, commentId: string) => Promise<void>;
   addTaskSubtask: (taskId: string, title: string) => Promise<void>;
-  updateTaskSubtask: (taskId: string, subtaskId: string, updates: Partial<Pick<TaskSubtask, 'title' | 'completed'>>) => Promise<void>;
+  updateTaskSubtask: (
+    taskId: string,
+    subtaskId: string,
+    updates: Partial<Pick<TaskSubtask, 'title' | 'completed' | 'completedAt' | 'estimatedDeliveryDate'>>,
+  ) => Promise<void>;
   deleteTaskSubtask: (taskId: string, subtaskId: string) => Promise<void>;
 
   addSession: (session: Omit<FocusSession, 'id'>) => Promise<void>;
