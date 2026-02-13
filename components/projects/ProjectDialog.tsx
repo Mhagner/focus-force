@@ -33,13 +33,13 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const [client, setClient] = useState('');
   const [color, setColor] = useState(defaultColors[0]);
   const [hourlyRate, setHourlyRate] = useState('');
-  const [syncWithClockfy, setSyncWithClockfy] = useState(false);
+  const [syncWithClockfy, setSyncWithClockfy] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [salesforceOppUrl, setSalesforceOppUrl] = useState('');
   const [sharepointRepoUrl, setSharepointRepoUrl] = useState('');
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
   const [clockfyWorkspaceId, setClockfyWorkspaceId] = useState('');
-  const [createDefaultTask, setCreateDefaultTask] = useState(false);
+  const [createDefaultTask, setCreateDefaultTask] = useState(true);
   const [defaultTaskName, setDefaultTaskName] = useState(defaultTaskTitle);
 
   const availableWorkspaces = clockfySettings.workspaces ?? [];
@@ -81,12 +81,12 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setClient('');
       setColor(defaultColors[0]);
       setHourlyRate('');
-      setSyncWithClockfy(false);
+      setSyncWithClockfy(true);
       setSalesforceOppUrl('');
       setSharepointRepoUrl('');
       setEstimatedDeliveryDate('');
       setClockfyWorkspaceId(availableWorkspaces[0]?.id || '');
-      setCreateDefaultTask(false);
+      setCreateDefaultTask(true);
       setDefaultTaskName(defaultTaskTitle);
     }
   }, [project, open, availableWorkspaces]);

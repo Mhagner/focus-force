@@ -56,6 +56,9 @@ model Task {
   plannedFor  String?
   status      Status         @default(todo)
   estimateMin Int?
+  salesforceOppUrl      String?
+  repoUrl               String?
+  estimatedDeliveryDate DateTime?
   createdAt   DateTime       @default(now())
   sessions    FocusSession[]
   comments    TaskComment[]
@@ -76,6 +79,8 @@ model TaskSubtask {
   taskId    String
   title     String
   completed Boolean  @default(false)
+  completedAt DateTime?
+  estimatedDeliveryDate DateTime?
   createdAt DateTime @default(now())
 }
 
@@ -118,6 +123,7 @@ model PomodoroSettings {
   cyclesToLongBreak Int
   autoStartNext    Boolean
   soundOn          Boolean
+  defaultChecklist Json?
 }
 
 model ClockfySettings {

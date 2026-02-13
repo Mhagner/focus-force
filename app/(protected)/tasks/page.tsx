@@ -39,7 +39,7 @@ function DraggableTask({ task, onEdit }: { task: Task; onEdit: (t: Task) => void
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="select-none">
-      <TaskCard task={task} onEdit={onEdit} />
+      <TaskCard task={task} onEdit={onEdit} disableCardClick={isDragging} />
     </div>
   );
 }

@@ -31,7 +31,11 @@ interface AppStore {
   updateTaskComment: (taskId: string, commentId: string, message: string) => Promise<void>;
   deleteTaskComment: (taskId: string, commentId: string) => Promise<void>;
   addTaskSubtask: (taskId: string, title: string) => Promise<void>;
-  updateTaskSubtask: (taskId: string, subtaskId: string, updates: Partial<Pick<TaskSubtask, 'title' | 'completed'>>) => Promise<void>;
+  updateTaskSubtask: (
+    taskId: string,
+    subtaskId: string,
+    updates: Partial<Pick<TaskSubtask, 'title' | 'completed' | 'completedAt' | 'estimatedDeliveryDate'>>,
+  ) => Promise<void>;
   deleteTaskSubtask: (taskId: string, subtaskId: string) => Promise<void>;
 
   addSession: (session: Omit<FocusSession, 'id'>) => Promise<void>;
@@ -65,6 +69,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     cyclesToLongBreak: 3,
     autoStartNext: true,
     soundOn: true,
+    defaultChecklist: [],
   },
   clockfySettings: {
     apiKey: '',
@@ -91,7 +96,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
       projects,
       tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
       sessions,
-      pomodoroSettings,
+      pomodoroSettings: {
+        ...pomodoroSettings,
+        defaultChecklist: pomodoroSettings.defaultChecklist ?? [],
+      },
       clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
       dailyPlans,
     });
