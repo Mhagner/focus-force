@@ -7,8 +7,8 @@ import { Task } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
-import { formatDuration, formatFriendlyDate } from '@/lib/utils';
-import { Play, Calendar, Clock, MoreVertical, ExternalLink, MessageSquare, Link as LinkIcon, CheckCircle2, Check, ListChecks } from 'lucide-react';
+import { formatDuration, formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel } from '@/lib/utils';
+import { Play, Calendar, Clock, MoreVertical, ExternalLink, MessageSquare, Link as LinkIcon, CheckCircle2, Check, ListChecks, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { useRouter } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -37,6 +37,10 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
 
   const project = useMemo(() => projects.find(p => p.id === task.projectId), [projects, task.projectId]);
   if (!project) return null;
+
+  const dueSignals = getTaskDueSignals(task, project);
+  const highestDueLevel = getTaskHighestDueLevel(dueSignals);
+  const hasDueAlert = highestDueLevel !== null;
 
   const handleStatusChange = (
     newStatus: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done'
@@ -77,7 +81,10 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
     <Card
       className={clsx(
         'group relative overflow-hidden rounded-xl border border-gray-800/70 bg-gray-900/60 p-3 transition-all duration-200',
-        'hover:border-gray-700 hover:bg-gray-900/70'
+        'hover:border-gray-700 hover:bg-gray-900/70',
+        highestDueLevel === 'overdue' && 'border-red-600/70 bg-red-950/20',
+        highestDueLevel === 'today' && 'border-amber-500/60 bg-amber-950/20',
+        highestDueLevel === 'upcoming' && 'border-blue-600/60 bg-blue-950/20',
       )}
       aria-label={`Tarefa: ${task.title}`}
       role="button"
@@ -107,6 +114,21 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2">
             <PriorityTag priority={task.priority || 'media'} />
+            {highestDueLevel === 'overdue' && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-red-950/80 px-1.5 py-0.5 text-[10px] text-red-300">
+                <AlertTriangle className="h-3 w-3" /> Atrasada
+              </span>
+            )}
+            {highestDueLevel === 'today' && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-950/80 px-1.5 py-0.5 text-[10px] text-amber-300">
+                <CalendarClock className="h-3 w-3" /> Vence hoje
+              </span>
+            )}
+            {highestDueLevel === 'upcoming' && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-blue-950/80 px-1.5 py-0.5 text-[10px] text-blue-300">
+                <Clock3 className="h-3 w-3" /> Prazo próximo
+              </span>
+            )}
             {isPlannedForToday && (
               <span className="inline-flex items-center gap-1 rounded-md bg-blue-950/50 px-1.5 py-0.5 text-[10px] text-blue-300">
                 <Calendar className="h-3 w-3" /> Hoje
@@ -161,6 +183,16 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {hasDueAlert && (
+        <div className="mb-2 rounded-md border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-gray-200">
+          {dueSignals.slice(0, 2).map((signal) => (
+            <p key={`${signal.source}-${signal.subtaskTitle ?? signal.date.toISOString()}`} className="truncate">
+              {signal.level === 'overdue' ? 'Atrasada' : signal.level === 'today' ? 'Vence hoje' : 'Próxima'} · {signal.source === 'task' ? 'Entrega da tarefa' : signal.source === 'project' ? 'Entrega do projeto' : `Checklist: ${signal.subtaskTitle}`}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* Metadados em linha */}
       <div className="mb-2 flex items-center gap-2 text-[11px] text-gray-400">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight } from 'lucide-react';
+import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/command';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { useAppStore } from '@/stores/useAppStore';
-import { cn, formatTime } from '@/lib/utils';
+import { buildTaskNotifications, cn, formatTime } from '@/lib/utils';
 import { FocusDialog } from '@/components/focus/FocusDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export function TopNav() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export function TopNav() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [hasDailyAlert, setHasDailyAlert] = useState(false);
 
   const {
     isRunning,
@@ -40,6 +42,10 @@ export function TopNav() {
 
   const { projects, tasks } = useAppStore();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
+  const notifications = useMemo(
+    () => buildTaskNotifications(tasks, activeProjects),
+    [tasks, activeProjects],
+  );
   const selectedProject = selectedProjectId
     ? activeProjects.find(project => project.id === selectedProjectId)
     : undefined;
@@ -117,6 +123,37 @@ export function TopNav() {
   }, [restoreState]);
 
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const storageKey = 'focusforce/notifications-last-check';
+    const lastCheck = localStorage.getItem(storageKey);
+
+    if (lastCheck === today) {
+      setHasDailyAlert(false);
+      return;
+    }
+
+    localStorage.setItem(storageKey, today);
+    const overdueCount = notifications.filter(item => item.level === 'overdue').length;
+    if (overdueCount > 0) {
+      setHasDailyAlert(true);
+      toast.warning(`Você tem ${overdueCount} tarefa(s) com prazo atrasado.`);
+      return;
+    }
+
+    setHasDailyAlert(false);
+  }, [notifications]);
+
+  const levelVisual = (level: 'overdue' | 'today' | 'upcoming') => {
+    if (level === 'overdue') {
+      return { icon: AlertTriangle, className: 'text-red-300', tag: 'Atrasada' };
+    }
+    if (level === 'today') {
+      return { icon: CalendarClock, className: 'text-amber-300', tag: 'Hoje' };
+    }
+    return { icon: Clock3, className: 'text-blue-300', tag: 'Próxima' };
+  };
+
+  useEffect(() => {
     if (isRunning && !isPaused) {
       const interval = setInterval(() => {
         tick();
@@ -160,6 +197,51 @@ export function TopNav() {
           </div>
 
           <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative text-gray-300 hover:text-white"
+                  aria-label="Notificações de prazo"
+                >
+                  <Bell className="h-5 w-5" />
+                  {notifications.length > 0 && (
+                    <span className={cn(
+                      'absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold',
+                      hasDailyAlert ? 'bg-red-500 text-white' : 'bg-blue-600 text-white',
+                    )}>
+                      {notifications.length > 9 ? '9+' : notifications.length}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[360px] border-gray-700 bg-gray-900 text-gray-100">
+                <DropdownMenuLabel className="text-gray-200">Notificações de prazo</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-gray-700" />
+                {notifications.length === 0 && (
+                  <div className="px-2 py-3 text-sm text-gray-400">Nenhum prazo crítico no momento.</div>
+                )}
+                {notifications.slice(0, 12).map((item) => {
+                  const visual = levelVisual(item.level);
+                  const Icon = visual.icon;
+                  return (
+                    <DropdownMenuItem
+                      key={item.id}
+                      className="cursor-pointer items-start gap-2 py-2"
+                      onClick={() => handleSelect(`/tasks/${item.taskId}`)}
+                    >
+                      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', visual.className)} />
+                      <div className="flex min-w-0 flex-col">
+                        <span className="text-xs font-semibold text-gray-200">{visual.tag} · {item.projectName}</span>
+                        <span className="line-clamp-2 text-xs text-gray-300">{item.message}</span>
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Timer Status */}
             {isRunning && (
               <div className="flex items-center gap-3 bg-gray-900/50 px-4 py-2 rounded-lg border border-gray-700">
