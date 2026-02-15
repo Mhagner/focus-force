@@ -26,6 +26,15 @@ export type TaskNotification = {
   message: string;
 };
 
+export type TaskPriorityRiskLevel = 'baixo' | 'medio' | 'alto' | 'critico';
+
+export type TaskPriorityInsight = {
+  taskId: string;
+  score: number;
+  riskLevel: TaskPriorityRiskLevel;
+  reasons: string[];
+};
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -348,4 +357,110 @@ export function buildTaskNotifications(tasks: Task[], projects: Project[]): Task
 
   const levelWeight = { overdue: 0, today: 1, upcoming: 2 };
   return notifications.sort((a, b) => levelWeight[a.level] - levelWeight[b.level]);
+}
+
+function getTaskPriorityRiskLevel(score: number): TaskPriorityRiskLevel {
+  if (score >= 80) return 'critico';
+  if (score >= 60) return 'alto';
+  if (score >= 40) return 'medio';
+  return 'baixo';
+}
+
+export function calculateTaskPriorityInsight(
+  task: Task,
+  project: Project | undefined,
+  sessions: FocusSession[],
+  now: Date = new Date(),
+): TaskPriorityInsight {
+  if (task.status === 'done') {
+    return {
+      taskId: task.id,
+      score: 0,
+      riskLevel: 'baixo',
+      reasons: ['Já concluída'],
+    };
+  }
+
+  let score = 0;
+  const reasons: string[] = [];
+  const priority = task.priority ?? 'media';
+
+  const priorityWeight: Record<'alta' | 'media' | 'baixa', number> = {
+    alta: 28,
+    media: 18,
+    baixa: 10,
+  };
+
+  score += priorityWeight[priority];
+  if (priority === 'alta') reasons.push('Prioridade alta');
+
+  const dueLevel = getTaskHighestDueLevel(getTaskDueSignals(task, project, now));
+  if (dueLevel === 'overdue') {
+    score += 38;
+    reasons.push('Prazo atrasado');
+  } else if (dueLevel === 'today') {
+    score += 30;
+    reasons.push('Vence hoje');
+  } else if (dueLevel === 'upcoming') {
+    score += 20;
+    reasons.push('Prazo próximo');
+  }
+
+  const statusWeight = {
+    todo: 16,
+    call_agendada: 12,
+    pronta_elaboracao: 10,
+    doing: 6,
+    done: 0,
+  } as const;
+
+  score += statusWeight[(task.status ?? 'todo') as keyof typeof statusWeight] ?? 10;
+
+  if (task.estimateMin == null) {
+    score += 8;
+    reasons.push('Sem estimativa de esforço');
+  } else if (task.estimateMin <= 60) {
+    score += 10;
+    reasons.push('Curta duração (ganho rápido)');
+  } else if (task.estimateMin <= 180) {
+    score += 6;
+  } else {
+    score += 2;
+  }
+
+  const todayISO = format(now, 'yyyy-MM-dd');
+  if (task.plannedFor === 'today' || task.plannedFor === todayISO) {
+    score += 6;
+    reasons.push('Planejada para hoje');
+  }
+
+  const taskSessions = sessions.filter(session => session.taskId === task.id);
+  const trackedSeconds = taskSessions.reduce((sum, session) => sum + session.durationSec, 0);
+  if (task.estimateMin && trackedSeconds > 0) {
+    const progressRatio = trackedSeconds / (task.estimateMin * 60);
+    if (progressRatio >= 0.9) {
+      score -= 8;
+      reasons.push('Quase concluída pelo tempo já investido');
+    } else if (progressRatio <= 0.25) {
+      score += 6;
+      reasons.push('Baixo avanço até agora');
+    }
+  }
+
+  if ((task.subtasks?.length ?? 0) > 0) {
+    const totalSubtasks = task.subtasks?.length ?? 0;
+    const doneSubtasks = task.subtasks?.filter(subtask => subtask.completed).length ?? 0;
+    if (totalSubtasks > 0 && doneSubtasks / totalSubtasks <= 0.2) {
+      score += 6;
+      reasons.push('Checklist com baixo progresso');
+    }
+  }
+
+  const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
+  return {
+    taskId: task.id,
+    score: boundedScore,
+    riskLevel: getTaskPriorityRiskLevel(boundedScore),
+    reasons: reasons.slice(0, 3),
+  };
 }

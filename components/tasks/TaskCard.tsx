@@ -18,6 +18,8 @@ interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
   disableCardClick?: boolean;
+  priorityScore?: number;
+  priorityReasons?: string[];
 }
 
 /** Compact TaskCard
@@ -29,7 +31,7 @@ interface TaskCardProps {
  * - Controle de status via Dropdown compacto
  * - Ações reduzidas a ícones (Foco/Comentários)
  */
-export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
+export function TaskCard({ task, onEdit, disableCardClick, priorityScore, priorityReasons }: TaskCardProps) {
   const { projects, updateTask, deleteTask } = useAppStore();
   const [isDeleting, setIsDeleting] = useState(false);
   const { startTimer, switchTask, isRunning } = useTimerStore();
@@ -68,6 +70,14 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
   const subtasks = task.subtasks ?? [];
   const completedSubtasks = subtasks.filter(subtask => subtask.completed).length;
   const subtaskCompletion = subtasks.length ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
+
+  const prioritySignal = (() => {
+    if (priorityScore == null) return null;
+    if (priorityScore >= 80) return { label: 'Risco crítico', classes: 'bg-red-950/80 text-red-200 border-red-700/50' };
+    if (priorityScore >= 60) return { label: 'Risco alto', classes: 'bg-orange-950/80 text-orange-200 border-orange-700/50' };
+    if (priorityScore >= 40) return { label: 'Risco médio', classes: 'bg-amber-950/80 text-amber-200 border-amber-700/50' };
+    return { label: 'Risco baixo', classes: 'bg-emerald-950/80 text-emerald-200 border-emerald-700/50' };
+  })();
 
   const STATUS_LABELS: Record<string, string> = {
     todo: 'Todo',
@@ -134,6 +144,12 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
                 <Calendar className="h-3 w-3" /> Hoje
               </span>
             )}
+
+            {prioritySignal && (
+              <span className={clsx('inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px]', prioritySignal.classes)}>
+                <AlertTriangle className="h-3 w-3" /> {prioritySignal.label} · {priorityScore}
+              </span>
+            )}
             {/* Status pill pequeno */}
             <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-gray-200">
               <ListChecks className="h-3 w-3" /> {STATUS_LABELS[task.status as string] ?? task.status}
@@ -194,6 +210,15 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
         </div>
       )}
 
+
+      {priorityReasons && priorityReasons.length > 0 && (
+        <div className="mb-2 rounded-md border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-gray-200">
+          <p className="text-gray-400">Motivos da prioridade</p>
+          {priorityReasons.map(reason => (
+            <p key={`${task.id}-${reason}`} className="truncate">• {reason}</p>
+          ))}
+        </div>
+      )}
       {/* Metadados em linha */}
       <div className="mb-2 flex items-center gap-2 text-[11px] text-gray-400">
         <ProjectBadge

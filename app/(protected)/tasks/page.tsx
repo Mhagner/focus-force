@@ -9,7 +9,7 @@ import { Task } from '@/types';
 import { Plus, Filter } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { getTodayTasks } from '@/lib/utils';
+import { calculateTaskPriorityInsight, getTodayTasks } from '@/lib/utils';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
 import clsx from 'clsx';
 
@@ -29,7 +29,7 @@ import { CSS } from '@dnd-kit/utilities';
 
 export type ColumnId = 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
 
-function DraggableTask({ task, onEdit }: { task: Task; onEdit: (t: Task) => void }) {
+function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task: Task; onEdit: (t: Task) => void; priorityScore?: number; priorityReasons?: string[] }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -39,7 +39,13 @@ function DraggableTask({ task, onEdit }: { task: Task; onEdit: (t: Task) => void
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="select-none">
-      <TaskCard task={task} onEdit={onEdit} disableCardClick={isDragging} />
+      <TaskCard
+        task={task}
+        onEdit={onEdit}
+        disableCardClick={isDragging}
+        priorityScore={priorityScore}
+        priorityReasons={priorityReasons}
+      />
     </div>
   );
 }
@@ -71,7 +77,7 @@ function DroppableColumn({ id, title, colorClass, children }: { id: ColumnId; ti
 }
 
 export default function TasksPage() {
-  const { tasks, projects, updateTask, tasksFilters, setTasksFilters } = useAppStore();
+  const { tasks, projects, sessions, updateTask, tasksFilters, setTasksFilters } = useAppStore();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -112,6 +118,21 @@ export default function TasksPage() {
 
   const sortedFilteredTasks = useMemo(() => [...filteredTasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [filteredTasks]);
 
+  const taskPriorityInsights = useMemo(() => {
+    return sortedFilteredTasks
+      .map(task => ({
+        task,
+        insight: calculateTaskPriorityInsight(
+          task,
+          projects.find(project => project.id === task.projectId),
+          sessions,
+        ),
+      }))
+      .sort((a, b) => b.insight.score - a.insight.score);
+  }, [sortedFilteredTasks, projects, sessions]);
+
+  const priorityQueue = useMemo(() => taskPriorityInsights.slice(0, 5), [taskPriorityInsights]);
+
   let visibleTasks = sortedFilteredTasks;
   if (focusId) visibleTasks = sortedFilteredTasks.filter(t => t.id === focusId);
 
@@ -130,6 +151,13 @@ export default function TasksPage() {
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } })
   );
+
+  const priorityByTaskId = useMemo(() => {
+    return taskPriorityInsights.reduce<Record<string, { score: number; reasons: string[] }>>((acc, entry) => {
+      acc[entry.task.id] = { score: entry.insight.score, reasons: entry.insight.reasons };
+      return acc;
+    }, {});
+  }, [taskPriorityInsights]);
 
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -201,36 +229,90 @@ export default function TasksPage() {
           </div>
         </div>
 
+        <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/40 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white">Radar de prioridade (Top 5)</h2>
+            <span className="text-xs text-gray-400">Sugestão automática de foco</span>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {priorityQueue.map(({ task, insight }, index) => (
+              <button
+                key={task.id}
+                type="button"
+                className="rounded-lg border border-gray-800 bg-gray-900/60 p-3 text-left hover:border-gray-700"
+                onClick={() => handleEdit(task)}
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="text-xs text-blue-300">#{index + 1} prioridade</span>
+                  <span className="text-xs font-semibold text-white">Score {insight.score}</span>
+                </div>
+                <p className="truncate text-sm font-medium text-white">{task.title}</p>
+                <p className="mt-1 truncate text-xs text-gray-400">{insight.reasons.join(' · ') || 'Sem sinais críticos no momento'}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Kanban Board with DnD (sem scroll, 5 colunas ajustadas à tela) */}
         <DndContext sensors={sensors} onDragEnd={onDragEnd} collisionDetection={rectIntersection}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             <DroppableColumn id="todo" title={`Todo (${todoTasks.length})`} colorClass="bg-gray-500">
               {todoTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask key={task.id} task={task} onEdit={handleEdit} />
+                <DraggableTask
+                  key={task.id}
+                  task={task}
+                  onEdit={handleEdit}
+                  priorityScore={priorityByTaskId[task.id]?.score}
+                  priorityReasons={priorityByTaskId[task.id]?.reasons}
+                />
               ))}
             </DroppableColumn>
 
             <DroppableColumn id="call_agendada" title={`Call agendada (${callTasks.length})`} colorClass="bg-amber-500">
               {callTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask key={task.id} task={task} onEdit={handleEdit} />
+                <DraggableTask
+                  key={task.id}
+                  task={task}
+                  onEdit={handleEdit}
+                  priorityScore={priorityByTaskId[task.id]?.score}
+                  priorityReasons={priorityByTaskId[task.id]?.reasons}
+                />
               ))}
             </DroppableColumn>
 
             <DroppableColumn id="pronta_elaboracao" title={`Pronta para elaboração (${readyTasks.length})`} colorClass="bg-purple-500">
               {readyTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask key={task.id} task={task} onEdit={handleEdit} />
+                <DraggableTask
+                  key={task.id}
+                  task={task}
+                  onEdit={handleEdit}
+                  priorityScore={priorityByTaskId[task.id]?.score}
+                  priorityReasons={priorityByTaskId[task.id]?.reasons}
+                />
               ))}
             </DroppableColumn>
 
             <DroppableColumn id="doing" title={`Fazendo (${doingTasks.length})`} colorClass="bg-blue-500">
               {doingTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask key={task.id} task={task} onEdit={handleEdit} />
+                <DraggableTask
+                  key={task.id}
+                  task={task}
+                  onEdit={handleEdit}
+                  priorityScore={priorityByTaskId[task.id]?.score}
+                  priorityReasons={priorityByTaskId[task.id]?.reasons}
+                />
               ))}
             </DroppableColumn>
 
             <DroppableColumn id="done" title={`Feito (${doneTasks.length})`} colorClass="bg-green-500">
               {doneTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask key={task.id} task={task} onEdit={handleEdit} />
+                <DraggableTask
+                  key={task.id}
+                  task={task}
+                  onEdit={handleEdit}
+                  priorityScore={priorityByTaskId[task.id]?.score}
+                  priorityReasons={priorityByTaskId[task.id]?.reasons}
+                />
               ))}
             </DroppableColumn>
           </div>
