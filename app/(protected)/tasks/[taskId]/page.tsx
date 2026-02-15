@@ -11,8 +11,8 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
-import { formatDateTime, formatDuration, formatFriendlyDate } from '@/lib/utils';
-import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus, Check, X } from 'lucide-react';
+import { formatDateTime, formatDuration, formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel } from '@/lib/utils';
+import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus, Check, X, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 
 type Params = { taskId?: string | string[] };
 
@@ -275,6 +275,8 @@ export default function TaskDetailPage() {
   const salesforceLink = task.salesforceOppUrl ?? '';
   const repoLink = task.repoUrl ?? '';
   const estimateLabel = task.estimateMin ? formatDuration(task.estimateMin * 60) : 'Não informada';
+  const dueSignals = getTaskDueSignals(task, project);
+  const highestDueLevel = getTaskHighestDueLevel(dueSignals);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -309,6 +311,24 @@ export default function TaskDetailPage() {
       </div>
 
       <Card className="p-6 bg-gray-900/60 border border-gray-800 space-y-6">
+        {highestDueLevel && (
+          <div className="rounded-lg border border-gray-700 bg-gray-950/60 p-3 text-sm text-gray-100">
+            <div className="mb-2 flex items-center gap-2 font-semibold">
+              {highestDueLevel === 'overdue' && <AlertTriangle className="h-4 w-4 text-red-300" />}
+              {highestDueLevel === 'today' && <CalendarClock className="h-4 w-4 text-amber-300" />}
+              {highestDueLevel === 'upcoming' && <Clock3 className="h-4 w-4 text-blue-300" />}
+              {highestDueLevel === 'overdue' ? 'Tarefa com atraso de prazo' : highestDueLevel === 'today' ? 'Tarefa com entrega para hoje' : 'Tarefa com entrega próxima'}
+            </div>
+            <ul className="space-y-1 text-xs text-gray-300">
+              {dueSignals.slice(0, 4).map((signal) => (
+                <li key={`${signal.source}-${signal.subtaskId ?? signal.subtaskTitle ?? signal.date.toISOString()}`}>
+                  • {signal.source === 'task' ? 'Entrega da tarefa' : signal.source === 'project' ? 'Entrega do projeto' : `Checklist: ${signal.subtaskTitle}`} ({signal.level === 'overdue' ? 'atrasada' : signal.level === 'today' ? 'vence hoje' : 'próxima do prazo'})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">

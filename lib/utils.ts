@@ -5,6 +5,27 @@ import { ptBR } from 'date-fns/locale';
 import { FocusSession, Task, Project } from '@/types';
 import jsPDF from 'jspdf';
 
+export type TaskDueLevel = 'overdue' | 'today' | 'upcoming' | null;
+
+type DueSource = 'task' | 'project' | 'subtask';
+
+export type TaskDueSignal = {
+  source: DueSource;
+  level: Exclude<TaskDueLevel, null>;
+  date: Date;
+  subtaskId?: string;
+  subtaskTitle?: string;
+};
+
+export type TaskNotification = {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  projectName: string;
+  level: Exclude<TaskDueLevel, null>;
+  message: string;
+};
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -220,4 +241,111 @@ export function getStatusColor(status: 'todo' | 'call_agendada' | 'pronta_elabor
     case 'done': return 'text-green-400 bg-green-950/50';
     default: return 'text-gray-400 bg-gray-950/50';
   }
+}
+
+function normalizeToDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function toValidDate(value?: string | Date | null): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return normalizeToDay(date);
+}
+
+function getDueLevel(date: Date, baseDate: Date, upcomingWindowInDays: number): Exclude<TaskDueLevel, null> | null {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.floor((date.getTime() - baseDate.getTime()) / dayMs);
+  if (diffDays < 0) return 'overdue';
+  if (diffDays === 0) return 'today';
+  if (diffDays <= upcomingWindowInDays) return 'upcoming';
+  return null;
+}
+
+export function getTaskDueSignals(
+  task: Task,
+  project?: Project,
+  now: Date = new Date(),
+  upcomingWindowInDays: number = 3,
+): TaskDueSignal[] {
+  if (task.status === 'done') return [];
+
+  const baseDate = normalizeToDay(now);
+  const signals: TaskDueSignal[] = [];
+  const taskDate = toValidDate(task.estimatedDeliveryDate);
+  const projectDate = toValidDate(project?.estimatedDeliveryDate);
+
+  if (taskDate) {
+    const level = getDueLevel(taskDate, baseDate, upcomingWindowInDays);
+    if (level) signals.push({ source: 'task', level, date: taskDate });
+  }
+
+  if (projectDate) {
+    const level = getDueLevel(projectDate, baseDate, upcomingWindowInDays);
+    if (level) signals.push({ source: 'project', level, date: projectDate });
+  }
+
+  for (const subtask of task.subtasks ?? []) {
+    if (subtask.completed) continue;
+    const subtaskDate = toValidDate(subtask.estimatedDeliveryDate);
+    if (!subtaskDate) continue;
+    const level = getDueLevel(subtaskDate, baseDate, upcomingWindowInDays);
+    if (!level) continue;
+    signals.push({
+      source: 'subtask',
+      level,
+      date: subtaskDate,
+      subtaskId: subtask.id,
+      subtaskTitle: subtask.title,
+    });
+  }
+
+  return signals;
+}
+
+export function getTaskHighestDueLevel(signals: TaskDueSignal[]): TaskDueLevel {
+  if (signals.some(signal => signal.level === 'overdue')) return 'overdue';
+  if (signals.some(signal => signal.level === 'today')) return 'today';
+  if (signals.some(signal => signal.level === 'upcoming')) return 'upcoming';
+  return null;
+}
+
+export function buildTaskNotifications(tasks: Task[], projects: Project[]): TaskNotification[] {
+  const projectMap = projects.reduce<Record<string, Project>>((acc, project) => {
+    acc[project.id] = project;
+    return acc;
+  }, {});
+
+  const notifications: TaskNotification[] = [];
+
+  for (const task of tasks) {
+    const project = projectMap[task.projectId];
+    if (!project) continue;
+    const signals = getTaskDueSignals(task, project);
+
+    for (const signal of signals) {
+      const sourceText =
+        signal.source === 'task'
+          ? 'na entrega da tarefa'
+          : signal.source === 'project'
+            ? 'na entrega do projeto'
+            : `na subtarefa "${signal.subtaskTitle ?? 'checklist'}"`;
+
+      const levelText =
+        signal.level === 'overdue' ? 'Atrasada' : signal.level === 'today' ? 'Vence hoje' : 'Próxima do prazo';
+
+      notifications.push({
+        id: `${task.id}-${signal.source}-${signal.subtaskId ?? signal.subtaskTitle ?? signal.date.toISOString()}-${signal.level}`,
+        taskId: task.id,
+        taskTitle: task.title,
+        projectName: project.name,
+        level: signal.level,
+        message: `${levelText}: ${task.title} (${sourceText})`,
+      });
+    }
+  }
+
+  const levelWeight = { overdue: 0, today: 1, upcoming: 2 };
+  return notifications.sort((a, b) => levelWeight[a.level] - levelWeight[b.level]);
 }
