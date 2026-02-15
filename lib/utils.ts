@@ -13,6 +13,7 @@ export type TaskDueSignal = {
   source: DueSource;
   level: Exclude<TaskDueLevel, null>;
   date: Date;
+  subtaskId?: string;
   subtaskTitle?: string;
 };
 
@@ -291,7 +292,13 @@ export function getTaskDueSignals(
     if (!subtaskDate) continue;
     const level = getDueLevel(subtaskDate, baseDate, upcomingWindowInDays);
     if (!level) continue;
-    signals.push({ source: 'subtask', level, date: subtaskDate, subtaskTitle: subtask.title });
+    signals.push({
+      source: 'subtask',
+      level,
+      date: subtaskDate,
+      subtaskId: subtask.id,
+      subtaskTitle: subtask.title,
+    });
   }
 
   return signals;
@@ -329,7 +336,7 @@ export function buildTaskNotifications(tasks: Task[], projects: Project[]): Task
         signal.level === 'overdue' ? 'Atrasada' : signal.level === 'today' ? 'Vence hoje' : 'Próxima do prazo';
 
       notifications.push({
-        id: `${task.id}-${signal.source}-${signal.subtaskTitle ?? signal.date.toISOString()}-${signal.level}`,
+        id: `${task.id}-${signal.source}-${signal.subtaskId ?? signal.subtaskTitle ?? signal.date.toISOString()}-${signal.level}`,
         taskId: task.id,
         taskTitle: task.title,
         projectName: project.name,

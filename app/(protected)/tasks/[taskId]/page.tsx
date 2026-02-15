@@ -321,7 +321,7 @@ export default function TaskDetailPage() {
             </div>
             <ul className="space-y-1 text-xs text-gray-300">
               {dueSignals.slice(0, 4).map((signal) => (
-                <li key={`${signal.source}-${signal.subtaskTitle ?? signal.date.toISOString()}`}>
+                <li key={`${signal.source}-${signal.subtaskId ?? signal.subtaskTitle ?? signal.date.toISOString()}`}>
                   • {signal.source === 'task' ? 'Entrega da tarefa' : signal.source === 'project' ? 'Entrega do projeto' : `Checklist: ${signal.subtaskTitle}`} ({signal.level === 'overdue' ? 'atrasada' : signal.level === 'today' ? 'vence hoje' : 'próxima do prazo'})
                 </li>
               ))}

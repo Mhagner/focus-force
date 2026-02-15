@@ -187,7 +187,7 @@ export function TaskCard({ task, onEdit, disableCardClick }: TaskCardProps) {
       {hasDueAlert && (
         <div className="mb-2 rounded-md border border-white/10 bg-black/20 px-2 py-1 text-[11px] text-gray-200">
           {dueSignals.slice(0, 2).map((signal) => (
-            <p key={`${signal.source}-${signal.subtaskTitle ?? signal.date.toISOString()}`} className="truncate">
+            <p key={`${signal.source}-${signal.subtaskId ?? signal.subtaskTitle ?? signal.date.toISOString()}`} className="truncate">
               {signal.level === 'overdue' ? 'Atrasada' : signal.level === 'today' ? 'Vence hoje' : 'Próxima'} · {signal.source === 'task' ? 'Entrega da tarefa' : signal.source === 'project' ? 'Entrega do projeto' : `Checklist: ${signal.subtaskTitle}`}
             </p>
           ))}
