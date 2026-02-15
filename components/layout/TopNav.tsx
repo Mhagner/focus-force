@@ -40,7 +40,7 @@ export function TopNav() {
     restoreState,
   } = useTimerStore();
 
-  const { projects, tasks } = useAppStore();
+  const { projects, tasks, isDataInitialized } = useAppStore();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
   const notifications = useMemo(
     () => buildTaskNotifications(tasks, activeProjects),
@@ -123,6 +123,10 @@ export function TopNav() {
   }, [restoreState]);
 
   useEffect(() => {
+    if (!isDataInitialized) {
+      return;
+    }
+
     const today = new Date().toISOString().split('T')[0];
     const storageKey = 'focusforce/notifications-last-check';
     const lastCheck = localStorage.getItem(storageKey);
@@ -132,16 +136,17 @@ export function TopNav() {
       return;
     }
 
-    localStorage.setItem(storageKey, today);
     const overdueCount = notifications.filter(item => item.level === 'overdue').length;
     if (overdueCount > 0) {
+      localStorage.setItem(storageKey, today);
       setHasDailyAlert(true);
       toast.warning(`Você tem ${overdueCount} tarefa(s) com prazo atrasado.`);
       return;
     }
 
+    localStorage.setItem(storageKey, today);
     setHasDailyAlert(false);
-  }, [notifications]);
+  }, [notifications, isDataInitialized]);
 
   const levelVisual = (level: 'overdue' | 'today' | 'upcoming') => {
     if (level === 'overdue') {

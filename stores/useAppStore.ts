@@ -17,6 +17,7 @@ interface AppStore {
   dailyPlans: DailyPlan[];
   theme: 'dark' | 'light' | 'system';
   tasksFilters: TasksFilters;
+  isDataInitialized: boolean;
 
   initializeData: () => Promise<void>;
 
@@ -82,6 +83,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   tasksFilters: {
     showOnlyToday: false,
   },
+  isDataInitialized: false,
 
   initializeData: async () => {
     const [projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans] = await Promise.all([
@@ -102,6 +104,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       },
       clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
       dailyPlans,
+      isDataInitialized: true,
     });
   },
 
