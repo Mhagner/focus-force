@@ -227,23 +227,27 @@ export function TopNav() {
                 {notifications.length === 0 && (
                   <div className="px-2 py-3 text-sm text-gray-400">Nenhum prazo crítico no momento.</div>
                 )}
-                {notifications.slice(0, 12).map((item) => {
-                  const visual = levelVisual(item.level);
-                  const Icon = visual.icon;
-                  return (
-                    <DropdownMenuItem
-                      key={item.id}
-                      className="cursor-pointer items-start gap-2 py-2"
-                      onClick={() => handleSelect(`/tasks/${item.taskId}`)}
-                    >
-                      <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', visual.className)} />
-                      <div className="flex min-w-0 flex-col">
-                        <span className="text-xs font-semibold text-gray-200">{visual.tag} · {item.projectName}</span>
-                        <span className="line-clamp-2 text-xs text-gray-300">{item.message}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  );
-                })}
+                {notifications.length > 0 && (
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.map((item) => {
+                      const visual = levelVisual(item.level);
+                      const Icon = visual.icon;
+                      return (
+                        <DropdownMenuItem
+                          key={item.id}
+                          className="cursor-pointer items-start gap-2 py-2"
+                          onClick={() => handleSelect(`/tasks/${item.taskId}`)}
+                        >
+                          <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', visual.className)} />
+                          <div className="flex min-w-0 flex-col">
+                            <span className="text-xs font-semibold text-gray-200">{visual.tag} · {item.projectName}</span>
+                            <span className="line-clamp-2 text-xs text-gray-300">{item.message}</span>
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 

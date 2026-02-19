@@ -26,6 +26,7 @@ import {
   rectIntersection,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { PriorityRadar } from '@/components/tasks/PriorityRadar';
 
 export type ColumnId = 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
 
@@ -229,28 +230,18 @@ export default function TasksPage() {
           </div>
         </div>
 
-        <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">Radar de prioridade (Top 5)</h2>
-            <span className="text-xs text-gray-400">Sugestão automática de foco</span>
+        <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/40 p-3">
+          <div className="mb-3 flex items-center justify-between px-1">
+            <div>
+              <h2 className="text-sm font-bold text-white">Radar de Prioridade</h2>
+              <p className="text-[10px] uppercase tracking-wider text-gray-500">Top 5 Sugestões</p>
+            </div>
+            <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
+              Auto-Focus
+            </span>
           </div>
-          <div className="grid gap-2 md:grid-cols-2">
-            {priorityQueue.map(({ task, insight }, index) => (
-              <button
-                key={task.id}
-                type="button"
-                className="rounded-lg border border-gray-800 bg-gray-900/60 p-3 text-left hover:border-gray-700"
-                onClick={() => handleEdit(task)}
-              >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-xs text-blue-300">#{index + 1} prioridade</span>
-                  <span className="text-xs font-semibold text-white">Score {insight.score}</span>
-                </div>
-                <p className="truncate text-sm font-medium text-white">{task.title}</p>
-                <p className="mt-1 truncate text-xs text-gray-400">{insight.reasons.join(' · ') || 'Sem sinais críticos no momento'}</p>
-              </button>
-            ))}
-          </div>
+
+          <PriorityRadar priorityQueue={priorityQueue} projects={projects} onEdit={handleEdit} />
         </div>
 
         {/* Kanban Board with DnD (sem scroll, 5 colunas ajustadas à tela) */}
