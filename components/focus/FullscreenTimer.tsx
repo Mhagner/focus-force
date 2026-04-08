@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/stores/useAppStore';
 import { useTimerStore } from '@/stores/useTimerStore';
+import { cn } from '@/lib/utils';
 import { X, Pause, Play, StopCircle, SkipForward } from 'lucide-react';
 
 const phaseLabels: Record<string, string> = {
@@ -59,6 +60,7 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
     nextPhase,
   } = useTimerStore();
   const { projects, tasks } = useAppStore();
+  const isBreakPhase = currentPhase === 'short-break' || currentPhase === 'long-break';
 
   const timeBlocks = useMemo(() => getTimeBlocks(timeRemaining), [timeRemaining]);
 
@@ -111,7 +113,14 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
   }, [restoreState, onClose]);
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-neutral-950 text-white">
+    <div
+      className={cn(
+        'flex min-h-screen w-full flex-col text-white transition-colors duration-500',
+        isBreakPhase
+          ? 'bg-gradient-to-br from-amber-950 via-red-950 to-neutral-950'
+          : 'bg-neutral-950'
+      )}
+    >
       <header className="flex items-center justify-between px-6 py-5 text-xs uppercase tracking-[0.3em] text-neutral-400">
         <div className="flex flex-col gap-1">
           <span>{phaseLabels[currentPhase] ?? 'Sessão'}</span>
@@ -134,11 +143,27 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
 
       <main className="flex flex-1 items-center justify-center px-6">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+          {isBreakPhase && (
+            <div className="animate-pulse rounded-xl border-2 border-amber-300/80 bg-amber-300/20 px-6 py-4 text-center shadow-[0_0_50px_rgba(251,191,36,0.45)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-100">
+                Pausa Obrigatória
+              </p>
+              <p className="mt-2 text-lg font-bold text-white">
+                Levante, hidrate-se e só retome quando terminar a pausa.
+              </p>
+            </div>
+          )}
+
           <div className="grid gap-8 md:grid-cols-2">
             {[timeBlocks.left, timeBlocks.right].map((value, index) => (
               <div
                 key={`${value}-${index}`}
-                className="flex min-h-[50vh] items-center justify-center rounded-lg border border-neutral-700 bg-gradient-to-b from-neutral-800 via-neutral-850 to-neutral-900 shadow-[0_25px_80px_rgba(0,0,0,0.6)]"
+                className={cn(
+                  'flex min-h-[50vh] items-center justify-center rounded-lg border bg-gradient-to-b shadow-[0_25px_80px_rgba(0,0,0,0.6)] transition-colors duration-500',
+                  isBreakPhase
+                    ? 'border-amber-300/70 from-amber-500/20 via-red-700/25 to-neutral-900 shadow-[0_25px_120px_rgba(251,191,36,0.25)]'
+                    : 'border-neutral-700 from-neutral-800 via-neutral-850 to-neutral-900'
+                )}
               >
                 <span className="font-mono text-[clamp(6rem,22vw,16rem)] font-bold leading-none text-white">
                   {value}

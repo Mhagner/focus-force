@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { PomodoroSettings, TimerState } from '@/types';
 import { storage } from '@/lib/storage';
 import { useAppStore } from '@/stores/useAppStore';
-import { playSessionSound } from '@/lib/sound';
+import { playBreakAlarm, playSessionSound } from '@/lib/sound';
 
 interface TimerStore extends TimerState {
   startTimer: (type: 'pomodoro' | 'manual', projectId: string, taskId?: string) => void;
@@ -41,6 +41,17 @@ const initialTimerState: TimerState = {
   lastTickAt: undefined,
   elapsedInCycle: 0,
 };
+
+function isBreakPhase(phase: TimerState['currentPhase']) {
+  return phase === 'short-break' || phase === 'long-break';
+}
+
+function shouldTriggerBreakAlarm(
+  fromPhase: TimerState['currentPhase'],
+  toPhase: TimerState['currentPhase']
+) {
+  return fromPhase === 'work' && isBreakPhase(toPhase);
+}
 
 function advanceTimerState(
   state: TimerState,
@@ -348,14 +359,16 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     const state = get();
     const pomodoroSettings = useAppStore.getState().pomodoroSettings;
     const nowIso = new Date().toISOString();
+    let enteredBreak = false;
 
     if (state.currentPhase === 'work') {
       const isLongBreak = state.currentCycle >= state.cycles;
-      const nextPhase = isLongBreak ? 'long-break' : 'short-break';
+      const nextTimerPhase = isLongBreak ? 'long-break' : 'short-break';
       const nextTime = isLongBreak ? pomodoroSettings.longBreakMin * 60 : pomodoroSettings.shortBreakMin * 60;
+      enteredBreak = shouldTriggerBreakAlarm(state.currentPhase, nextTimerPhase);
 
       set({
-        currentPhase: nextPhase,
+        currentPhase: nextTimerPhase,
         timeRemaining: nextTime,
         totalTime: nextTime,
         currentCycle: isLongBreak ? 1 : state.currentCycle + 1,
@@ -376,6 +389,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     }
 
     get().saveState();
+
+    if (enteredBreak && pomodoroSettings.soundOn) {
+      playBreakAlarm(10);
+    }
   },
 
   tick: () => {
@@ -396,6 +413,11 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
     if (Object.keys(updatedFields).length > 0) {
       set(updatedFields);
+    }
+
+    const updatedPhase = updatedFields.currentPhase ?? state.currentPhase;
+    if (shouldTriggerBreakAlarm(state.currentPhase, updatedPhase) && pomodoroSettings.soundOn) {
+      playBreakAlarm(10);
     }
 
     sessions.forEach((session) => {
@@ -428,9 +450,15 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       const now = new Date();
       const pomodoroSettings = useAppStore.getState().pomodoroSettings;
       const { updatedFields, sessions, manualStop } = advanceTimerState(normalized, now, pomodoroSettings);
+      const updatedPhase = updatedFields.currentPhase ?? normalized.currentPhase;
+      const enteredBreak = shouldTriggerBreakAlarm(normalized.currentPhase, updatedPhase);
 
       const finalState = { ...normalized, ...updatedFields };
       set(finalState);
+
+      if (enteredBreak && pomodoroSettings.soundOn) {
+        playBreakAlarm(10);
+      }
 
       if (manualStop) {
         get().stopTimer();
