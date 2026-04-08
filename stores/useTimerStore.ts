@@ -46,11 +46,14 @@ function isBreakPhase(phase: TimerState['currentPhase']) {
   return phase === 'short-break' || phase === 'long-break';
 }
 
-function shouldTriggerBreakAlarm(
+function shouldTriggerPhaseAlarm(
   fromPhase: TimerState['currentPhase'],
   toPhase: TimerState['currentPhase']
 ) {
-  return fromPhase === 'work' && isBreakPhase(toPhase);
+  return (
+    (fromPhase === 'work' && isBreakPhase(toPhase)) ||
+    (isBreakPhase(fromPhase) && toPhase === 'work')
+  );
 }
 
 function advanceTimerState(
@@ -365,7 +368,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       const isLongBreak = state.currentCycle >= state.cycles;
       const nextTimerPhase = isLongBreak ? 'long-break' : 'short-break';
       const nextTime = isLongBreak ? pomodoroSettings.longBreakMin * 60 : pomodoroSettings.shortBreakMin * 60;
-      enteredBreak = shouldTriggerBreakAlarm(state.currentPhase, nextTimerPhase);
+      enteredBreak = shouldTriggerPhaseAlarm(state.currentPhase, nextTimerPhase);
 
       set({
         currentPhase: nextTimerPhase,
@@ -377,6 +380,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         elapsedInCycle: 0,
       });
     } else {
+      enteredBreak = shouldTriggerPhaseAlarm(state.currentPhase, 'work');
       const workTime = pomodoroSettings.workMin * 60;
       set({
         currentPhase: 'work',
@@ -416,7 +420,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     }
 
     const updatedPhase = updatedFields.currentPhase ?? state.currentPhase;
-    if (shouldTriggerBreakAlarm(state.currentPhase, updatedPhase) && pomodoroSettings.soundOn) {
+    if (shouldTriggerPhaseAlarm(state.currentPhase, updatedPhase) && pomodoroSettings.soundOn) {
       playBreakAlarm(10);
     }
 
@@ -451,7 +455,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       const pomodoroSettings = useAppStore.getState().pomodoroSettings;
       const { updatedFields, sessions, manualStop } = advanceTimerState(normalized, now, pomodoroSettings);
       const updatedPhase = updatedFields.currentPhase ?? normalized.currentPhase;
-      const enteredBreak = shouldTriggerBreakAlarm(normalized.currentPhase, updatedPhase);
+      const enteredBreak = shouldTriggerPhaseAlarm(normalized.currentPhase, updatedPhase);
 
       const finalState = { ...normalized, ...updatedFields };
       set(finalState);
