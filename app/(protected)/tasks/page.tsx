@@ -1,6 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+// Utilitário para detectar se é touch device
+function isTouchDevice() {
+  return (
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      navigator.msMaxTouchPoints > 0)
+  );
+}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -124,6 +133,76 @@ function DroppableColumn({
 }
 
 export default function TasksPage() {
+  // Ref para o container do board
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  // Estado para controlar o pan
+  const [isPanning, setIsPanning] = useState(false);
+  const panStart = useRef<{ x: number; scrollLeft: number } | null>(null);
+
+  // Handlers para click-and-drag pan
+  useEffect(() => {
+    const board = boardScrollRef.current;
+    if (!board) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      // Só botão esquerdo
+      if (e.button !== 0) return;
+      setIsPanning(true);
+      panStart.current = {
+        x: e.clientX,
+        scrollLeft: board.scrollLeft,
+      };
+      board.classList.add('cursor-grabbing');
+    };
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isPanning || !panStart.current) return;
+      const dx = e.clientX - panStart.current.x;
+      board.scrollLeft = panStart.current.scrollLeft - dx;
+    };
+    const handleMouseUp = () => {
+      setIsPanning(false);
+      panStart.current = null;
+      board.classList.remove('cursor-grabbing');
+    };
+
+    // Touch events
+    let touchStartX = 0;
+    let touchScrollLeft = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      setIsPanning(true);
+      touchStartX = e.touches[0].clientX;
+      touchScrollLeft = board.scrollLeft;
+      board.classList.add('cursor-grabbing');
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isPanning) return;
+      const dx = e.touches[0].clientX - touchStartX;
+      board.scrollLeft = touchScrollLeft - dx;
+    };
+    const handleTouchEnd = () => {
+      setIsPanning(false);
+      board.classList.remove('cursor-grabbing');
+    };
+
+    // Mouse listeners
+    board.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    // Touch listeners
+    board.addEventListener('touchstart', handleTouchStart, { passive: false });
+    board.addEventListener('touchmove', handleTouchMove, { passive: false });
+    board.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      board.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      board.removeEventListener('touchstart', handleTouchStart);
+      board.removeEventListener('touchmove', handleTouchMove);
+      board.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isPanning]);
   const { tasks, projects, sessions, updateTask, tasksFilters, setTasksFilters, isDataInitialized } = useAppStore();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [editingTask, setEditingTask] = useState<Task | undefined>();
@@ -477,8 +556,13 @@ export default function TasksPage() {
             <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-gray-950 to-transparent" />
             <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-gray-950 to-transparent" />
 
-            <div className="overflow-x-auto pb-4">
-              <div className="flex w-max items-start gap-4 px-1">
+            {/* Board com scroll e pan */}
+            <div
+              ref={boardScrollRef}
+              className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+              style={{ WebkitOverflowScrolling: 'touch', cursor: isPanning ? 'grabbing' : 'grab' }}
+            >
+              <div className="flex w-max items-start gap-4 px-1 select-none">
                 {boardColumns.map((column) => {
                   const tasksForColumn = column.status
                     ? visibleTasksByStatus[column.status]
@@ -533,6 +617,28 @@ export default function TasksPage() {
                     </Button>
                   </div>
                 </div>
+              </div>
+            </div>
+            {/* Barra de rolagem fixa */}
+            <div className="sticky left-0 right-0 bottom-0 z-20 h-5 bg-gray-950/80 flex items-end pointer-events-none">
+              <div
+                className="w-full h-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 pointer-events-auto"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+                tabIndex={-1}
+                onScroll={e => {
+                  // Sincroniza scroll da barra fixa com o board
+                  if (boardScrollRef.current) {
+                    boardScrollRef.current.scrollLeft = (e.target as HTMLDivElement).scrollLeft;
+                  }
+                }}
+                ref={el => {
+                  // Sincroniza scroll da barra fixa ao board
+                  if (el && boardScrollRef.current) {
+                    el.scrollLeft = boardScrollRef.current.scrollLeft;
+                  }
+                }}
+              >
+                <div style={{ width: boardScrollRef.current ? boardScrollRef.current.scrollWidth : '100%' }} />
               </div>
             </div>
           </div>
