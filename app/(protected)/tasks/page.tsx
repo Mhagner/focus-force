@@ -7,7 +7,7 @@ function isTouchDevice() {
     typeof window !== 'undefined' &&
     ('ontouchstart' in window ||
       navigator.maxTouchPoints > 0 ||
-      navigator.msMaxTouchPoints > 0)
+      navigator.maxTouchPoints > 0)
   );
 }
 import { Button } from '@/components/ui/button';
