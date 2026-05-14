@@ -1,5 +1,5 @@
 // src/lib/storage.ts
-import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask } from '@/types';
+import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, TaskBoardSettings } from '@/types';
 
 /**
  * ------------------------------------------------------------
@@ -366,6 +366,22 @@ export const storage = {
     return request<DailyPlan>('/api/daily-plans', {
       method: 'POST',
       body: plan,
+    });
+  },
+
+  /**
+   * ---------------------------
+   * Tasks Board (database)
+   * ---------------------------
+   */
+  async getTasksBoardSettings(): Promise<TaskBoardSettings> {
+    return request<TaskBoardSettings>('/api/settings/tasks-board');
+  },
+
+  async setTasksBoardSettings(settings: Pick<TaskBoardSettings, 'columns' | 'taskColumnMap'>): Promise<TaskBoardSettings> {
+    return request<TaskBoardSettings>('/api/settings/tasks-board', {
+      method: 'PATCH',
+      body: settings,
     });
   },
 

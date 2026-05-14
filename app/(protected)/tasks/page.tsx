@@ -2,16 +2,18 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { Task } from '@/types';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, Columns3, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { calculateTaskPriorityInsight, getTodayTasks } from '@/lib/utils';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
 import clsx from 'clsx';
+import { storage } from '@/lib/storage';
 
 // DnD Kit
 import {
@@ -29,6 +31,25 @@ import { CSS } from '@dnd-kit/utilities';
 import { PriorityRadar } from '@/components/tasks/PriorityRadar';
 
 export type ColumnId = 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
+
+type BoardColumn = {
+  id: string;
+  title: string;
+  colorClass: string;
+  status?: ColumnId;
+  isCustom?: boolean;
+};
+
+const BOARD_COLUMNS_KEY = 'focusforge/tasks/custom-columns/v1';
+const BOARD_TASK_MAP_KEY = 'focusforge/tasks/custom-column-task-map/v1';
+
+const BASE_COLUMNS: BoardColumn[] = [
+  { id: 'status:todo', title: 'Todo', colorClass: 'bg-gray-500', status: 'todo' },
+  { id: 'status:call_agendada', title: 'Call agendada', colorClass: 'bg-amber-500', status: 'call_agendada' },
+  { id: 'status:pronta_elaboracao', title: 'Pronta para elaboracao', colorClass: 'bg-violet-500', status: 'pronta_elaboracao' },
+  { id: 'status:doing', title: 'Fazendo', colorClass: 'bg-sky-500', status: 'doing' },
+  { id: 'status:done', title: 'Feito', colorClass: 'bg-emerald-500', status: 'done' },
+];
 
 function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task: Task; onEdit: (t: Task) => void; priorityScore?: number; priorityReasons?: string[] }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
@@ -51,24 +72,49 @@ function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task:
   );
 }
 
-function DroppableColumn({ id, title, colorClass, children }: { id: ColumnId; title: string; colorClass: string; children: React.ReactNode }) {
+function DroppableColumn({
+  id,
+  title,
+  colorClass,
+  children,
+  onRemove,
+}: {
+  id: string;
+  title: string;
+  colorClass: string;
+  children: React.ReactNode;
+  onRemove?: () => void;
+}) {
   const { isOver, setNodeRef, active } = useDroppable({ id });
 
   return (
-    <div className="min-w-0">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-        <div className={clsx('h-2.5 w-2.5 rounded-full', colorClass)} />
-        {title}
-      </h2>
+    <div className="w-[310px] shrink-0">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
+          <div className={clsx('h-2.5 w-2.5 rounded-full', colorClass)} />
+          {title}
+        </h2>
+        {onRemove && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-500 hover:text-red-300"
+            onClick={onRemove}
+            aria-label={`Remover coluna ${title}`}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
       <div
         ref={setNodeRef}
         className={clsx(
-          'space-y-3 rounded-lg border border-transparent p-2 transition',
+          'min-h-[58vh] space-y-3 rounded-xl border border-gray-800/70 bg-gray-950/45 p-3 transition',
           isOver
-            ? 'border-blue-600/40 bg-blue-600/5'
+            ? 'border-blue-500/50 bg-blue-500/10'
             : active
-              ? 'border-gray-800 bg-gray-900/30'
-              : 'bg-transparent'
+              ? 'border-gray-700 bg-gray-900/60'
+              : ''
         )}
       >
         {children}
@@ -78,12 +124,16 @@ function DroppableColumn({ id, title, colorClass, children }: { id: ColumnId; ti
 }
 
 export default function TasksPage() {
-  const { tasks, projects, sessions, updateTask, tasksFilters, setTasksFilters } = useAppStore();
+  const { tasks, projects, sessions, updateTask, tasksFilters, setTasksFilters, isDataInitialized } = useAppStore();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [customColumns, setCustomColumns] = useState<Array<{ id: string; title: string }>>([]);
+  const [taskCustomColumnMap, setTaskCustomColumnMap] = useState<Record<string, string>>({});
+  const [newColumnTitle, setNewColumnTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [isBoardStateHydrated, setIsBoardStateHydrated] = useState(false);
 
   const showOnlyToday = tasksFilters.showOnlyToday;
 
@@ -102,6 +152,100 @@ export default function TasksPage() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadBoardState = async () => {
+      try {
+        const board = await storage.getTasksBoardSettings();
+        if (canceled) return;
+
+        setCustomColumns(Array.isArray(board.columns) ? board.columns : []);
+        setTaskCustomColumnMap(board.taskColumnMap && typeof board.taskColumnMap === 'object' ? board.taskColumnMap : {});
+
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(board.columns ?? []));
+          window.localStorage.setItem(BOARD_TASK_MAP_KEY, JSON.stringify(board.taskColumnMap ?? {}));
+        }
+      } catch {
+        if (typeof window !== 'undefined') {
+          try {
+            const savedColumns = window.localStorage.getItem(BOARD_COLUMNS_KEY);
+            if (savedColumns) {
+              const parsed = JSON.parse(savedColumns);
+              if (Array.isArray(parsed)) {
+                setCustomColumns(
+                  parsed
+                    .filter((item) => item && typeof item.id === 'string' && typeof item.title === 'string')
+                    .map((item) => ({ id: item.id, title: item.title })),
+                );
+              }
+            }
+
+            const savedTaskMap = window.localStorage.getItem(BOARD_TASK_MAP_KEY);
+            if (savedTaskMap) {
+              const parsed = JSON.parse(savedTaskMap);
+              if (parsed && typeof parsed === 'object') {
+                setTaskCustomColumnMap(parsed as Record<string, string>);
+              }
+            }
+          } catch {
+            setCustomColumns([]);
+            setTaskCustomColumnMap({});
+          }
+        }
+      } finally {
+        if (!canceled) {
+          setIsBoardStateHydrated(true);
+        }
+      }
+    };
+
+    void loadBoardState();
+
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isBoardStateHydrated) return;
+    window.localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(customColumns));
+    window.localStorage.setItem(BOARD_TASK_MAP_KEY, JSON.stringify(taskCustomColumnMap));
+
+    const timeoutId = window.setTimeout(() => {
+      void storage.setTasksBoardSettings({
+        columns: customColumns,
+        taskColumnMap: taskCustomColumnMap,
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [customColumns, taskCustomColumnMap, isBoardStateHydrated]);
+
+  useEffect(() => {
+    if (!isBoardStateHydrated) return;
+    if (!isDataInitialized) return;
+
+    const validColumnIds = new Set(customColumns.map((column) => column.id));
+    const validTaskIds = new Set(tasks.map((task) => task.id));
+
+    setTaskCustomColumnMap((previous) => {
+      let changed = false;
+      const nextMap: Record<string, string> = {};
+
+      for (const [taskId, columnId] of Object.entries(previous)) {
+        if (!validTaskIds.has(taskId) || !validColumnIds.has(columnId)) {
+          changed = true;
+          continue;
+        }
+        nextMap[taskId] = columnId;
+      }
+
+      return changed ? nextMap : previous;
+    });
+  }, [customColumns, tasks, isBoardStateHydrated, isDataInitialized]);
 
   const searchTerm = searchQuery.trim().toLowerCase();
   const activeProjectIds = useMemo(() => new Set(projects.filter(project => project.active).map(project => project.id)), [projects]);
@@ -137,11 +281,42 @@ export default function TasksPage() {
   let visibleTasks = sortedFilteredTasks;
   if (focusId) visibleTasks = sortedFilteredTasks.filter(t => t.id === focusId);
 
-  const todoTasks = sortedFilteredTasks.filter(t => t.status === 'todo');
-  const callTasks = sortedFilteredTasks.filter(t => (t.status as any) === 'call_agendada');
-  const readyTasks = sortedFilteredTasks.filter(t => (t.status as any) === 'pronta_elaboracao');
-  const doingTasks = sortedFilteredTasks.filter(t => t.status === 'doing');
-  const doneTasks = sortedFilteredTasks.filter(t => t.status === 'done');
+  const boardColumns = useMemo<BoardColumn[]>(() => {
+    return [
+      ...BASE_COLUMNS,
+      ...customColumns.map((column, index) => ({
+        id: `custom:${column.id}`,
+        title: column.title,
+        colorClass: index % 2 === 0 ? 'bg-fuchsia-400' : 'bg-cyan-400',
+        isCustom: true,
+      })),
+    ];
+  }, [customColumns]);
+
+  const visibleTasksByStatus = useMemo(() => {
+    const statusTasks: Record<ColumnId, Task[]> = {
+      todo: [],
+      call_agendada: [],
+      pronta_elaboracao: [],
+      doing: [],
+      done: [],
+    };
+
+    for (const task of visibleTasks) {
+      if (taskCustomColumnMap[task.id]) continue;
+      const status = (task.status ?? 'todo') as ColumnId;
+      statusTasks[status].push(task);
+    }
+
+    return statusTasks;
+  }, [visibleTasks, taskCustomColumnMap]);
+
+  const visibleTasksByCustomColumn = useMemo(() => {
+    return customColumns.reduce<Record<string, Task[]>>((acc, column) => {
+      acc[column.id] = visibleTasks.filter((task) => taskCustomColumnMap[task.id] === column.id);
+      return acc;
+    }, {});
+  }, [customColumns, visibleTasks, taskCustomColumnMap]);
 
   const handleEdit = (task: Task) => {
     setEditingTask(task);
@@ -165,14 +340,62 @@ export default function TasksPage() {
     if (!over) return;
 
     const taskId = String(active.id);
-    const target = String(over.id) as ColumnId;
+    const target = String(over.id);
 
-    if (['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done'].includes(target)) {
-      const moved = tasks.find(t => t.id === taskId);
-      if (moved && (moved.status as any) !== target) {
-        updateTask(taskId, { status: target as any });
+    if (target.startsWith('status:')) {
+      const status = target.replace('status:', '') as ColumnId;
+      const moved = tasks.find((task) => task.id === taskId);
+      if (!moved) return;
+
+      if ((moved.status ?? 'todo') !== status) {
+        updateTask(taskId, { status });
       }
+
+      if (taskCustomColumnMap[taskId]) {
+        setTaskCustomColumnMap((previous) => {
+          const nextMap = { ...previous };
+          delete nextMap[taskId];
+          return nextMap;
+        });
+      }
+      return;
     }
+
+    if (target.startsWith('custom:')) {
+      const targetColumnId = target.replace('custom:', '');
+      if (!customColumns.some((column) => column.id === targetColumnId)) return;
+
+      setTaskCustomColumnMap((previous) => {
+        if (previous[taskId] === targetColumnId) return previous;
+        return { ...previous, [taskId]: targetColumnId };
+      });
+    }
+  };
+
+  const handleAddCustomColumn = () => {
+    const normalizedTitle = newColumnTitle.trim().slice(0, 28);
+    if (!normalizedTitle) return;
+
+    const customId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    setCustomColumns((previous) => [...previous, { id: customId, title: normalizedTitle }]);
+    setNewColumnTitle('');
+  };
+
+  const handleRemoveCustomColumn = (columnId: string) => {
+    setCustomColumns((previous) => previous.filter((column) => column.id !== columnId));
+    setTaskCustomColumnMap((previous) => {
+      const nextMap: Record<string, string> = {};
+      for (const [taskId, mappedColumnId] of Object.entries(previous)) {
+        if (mappedColumnId !== columnId) {
+          nextMap[taskId] = mappedColumnId;
+        }
+      }
+      return nextMap;
+    });
   };
 
   return (
@@ -244,68 +467,74 @@ export default function TasksPage() {
           <PriorityRadar priorityQueue={priorityQueue} projects={projects} onEdit={handleEdit} />
         </div>
 
-        {/* Kanban Board with DnD (sem scroll, 5 colunas ajustadas à tela) */}
+        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-gray-500">
+          <Columns3 className="h-3.5 w-3.5" />
+          Quadro Kanban arrastavel com scroll lateral
+        </div>
+
         <DndContext sensors={sensors} onDragEnd={onDragEnd} collisionDetection={rectIntersection}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-            <DroppableColumn id="todo" title={`Todo (${todoTasks.length})`} colorClass="bg-gray-500">
-              {todoTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEdit}
-                  priorityScore={priorityByTaskId[task.id]?.score}
-                  priorityReasons={priorityByTaskId[task.id]?.reasons}
-                />
-              ))}
-            </DroppableColumn>
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-gray-950 to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-gray-950 to-transparent" />
 
-            <DroppableColumn id="call_agendada" title={`Call agendada (${callTasks.length})`} colorClass="bg-amber-500">
-              {callTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEdit}
-                  priorityScore={priorityByTaskId[task.id]?.score}
-                  priorityReasons={priorityByTaskId[task.id]?.reasons}
-                />
-              ))}
-            </DroppableColumn>
+            <div className="overflow-x-auto pb-4">
+              <div className="flex w-max items-start gap-4 px-1">
+                {boardColumns.map((column) => {
+                  const tasksForColumn = column.status
+                    ? visibleTasksByStatus[column.status]
+                    : visibleTasksByCustomColumn[column.id.replace('custom:', '')] ?? [];
 
-            <DroppableColumn id="pronta_elaboracao" title={`Pronta para elaboração (${readyTasks.length})`} colorClass="bg-purple-500">
-              {readyTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEdit}
-                  priorityScore={priorityByTaskId[task.id]?.score}
-                  priorityReasons={priorityByTaskId[task.id]?.reasons}
-                />
-              ))}
-            </DroppableColumn>
+                  return (
+                    <DroppableColumn
+                      key={column.id}
+                      id={column.id}
+                      title={`${column.title} (${tasksForColumn.length})`}
+                      colorClass={column.colorClass}
+                      onRemove={
+                        column.isCustom
+                          ? () => handleRemoveCustomColumn(column.id.replace('custom:', ''))
+                          : undefined
+                      }
+                    >
+                      {tasksForColumn.map((task) => (
+                        <DraggableTask
+                          key={task.id}
+                          task={task}
+                          onEdit={handleEdit}
+                          priorityScore={priorityByTaskId[task.id]?.score}
+                          priorityReasons={priorityByTaskId[task.id]?.reasons}
+                        />
+                      ))}
+                    </DroppableColumn>
+                  );
+                })}
 
-            <DroppableColumn id="doing" title={`Fazendo (${doingTasks.length})`} colorClass="bg-blue-500">
-              {doingTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEdit}
-                  priorityScore={priorityByTaskId[task.id]?.score}
-                  priorityReasons={priorityByTaskId[task.id]?.reasons}
-                />
-              ))}
-            </DroppableColumn>
+                <div className="w-[310px] shrink-0 rounded-xl border border-dashed border-gray-700 bg-gray-900/40 p-4">
+                  <h3 className="text-sm font-semibold text-white">Adicionar coluna</h3>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Crie colunas extras para organizar tarefas temporariamente no board.
+                  </p>
 
-            <DroppableColumn id="done" title={`Feito (${doneTasks.length})`} colorClass="bg-green-500">
-              {doneTasks.filter(t => visibleTasks.find(v => v.id === t.id)).map(task => (
-                <DraggableTask
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEdit}
-                  priorityScore={priorityByTaskId[task.id]?.score}
-                  priorityReasons={priorityByTaskId[task.id]?.reasons}
-                />
-              ))}
-            </DroppableColumn>
+                  <div className="mt-4 space-y-3">
+                    <Input
+                      value={newColumnTitle}
+                      onChange={(event) => setNewColumnTitle(event.target.value)}
+                      placeholder="Ex.: Bloqueadas"
+                      maxLength={28}
+                      className="border-gray-700 bg-gray-950/60"
+                    />
+                    <Button
+                      type="button"
+                      className="w-full bg-cyan-600 text-white hover:bg-cyan-500"
+                      onClick={handleAddCustomColumn}
+                      disabled={!newColumnTitle.trim()}
+                    >
+                      <Plus className="mr-2 h-4 w-4" /> Criar coluna
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </DndContext>
       </div>

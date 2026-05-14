@@ -118,3 +118,12 @@ export interface ClockfySettings {
   workspaces: ClockfyWorkspace[];
   updatedAt?: string | null;
 }
+
+export interface TaskBoardSettings {
+  columns: Array<{
+    id: string;
+    title: string;
+  }>;
+  taskColumnMap: Record<string, string>;
+  updatedAt?: string | null;
+}
