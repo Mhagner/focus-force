@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppStore } from '@/stores/useAppStore';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { Task } from '@/types';
-import { Plus, Filter, Columns3, X } from 'lucide-react';
+import { Plus, Filter, Columns3, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { calculateTaskPriorityInsight, getTodayTasks } from '@/lib/utils';
@@ -51,6 +51,7 @@ type BoardColumn = {
 
 const BOARD_COLUMNS_KEY = 'focusforge/tasks/custom-columns/v1';
 const BOARD_TASK_MAP_KEY = 'focusforge/tasks/custom-column-task-map/v1';
+const BOARD_COLLAPSED_KEY = 'focusforge/tasks/collapsed-columns/v1';
 
 const BASE_COLUMNS: BoardColumn[] = [
   { id: 'status:todo', title: 'Todo', colorClass: 'bg-gray-500', status: 'todo' },
@@ -87,14 +88,44 @@ function DroppableColumn({
   colorClass,
   children,
   onRemove,
+  isCollapsed,
+  onToggleCollapse,
 }: {
   id: string;
   title: string;
   colorClass: string;
   children: React.ReactNode;
   onRemove?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const { isOver, setNodeRef, active } = useDroppable({ id });
+
+  if (isCollapsed) {
+    return (
+      <div
+        ref={setNodeRef}
+        className="w-12 shrink-0 min-h-[58vh] flex flex-col items-center rounded-xl border border-gray-800/70 bg-gray-950/45 p-2 gap-3 cursor-pointer transition hover:border-gray-600"
+        onClick={onToggleCollapse}
+        title={`Expandir ${title}`}
+      >
+        <button
+          className="text-gray-500 hover:text-white transition"
+          onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
+          aria-label={`Expandir coluna ${title}`}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        <div
+          className="flex flex-1 flex-col items-center gap-2"
+          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+        >
+          <div className={clsx('h-2 w-2 rounded-full shrink-0', colorClass)} />
+          <span className="text-xs font-semibold text-white truncate">{title}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-[310px] shrink-0">
@@ -103,17 +134,30 @@ function DroppableColumn({
           <div className={clsx('h-2.5 w-2.5 rounded-full', colorClass)} />
           {title}
         </h2>
-        {onRemove && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-gray-500 hover:text-red-300"
-            onClick={onRemove}
-            aria-label={`Remover coluna ${title}`}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {onToggleCollapse && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-gray-500 hover:text-white"
+              onClick={onToggleCollapse}
+              aria-label={`Recolher coluna ${title}`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
+          {onRemove && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-gray-500 hover:text-red-300"
+              onClick={onRemove}
+              aria-label={`Remover coluna ${title}`}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
       <div
         ref={setNodeRef}
@@ -213,6 +257,17 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [isBoardStateHydrated, setIsBoardStateHydrated] = useState(false);
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const saved = window.localStorage.getItem(BOARD_COLLAPSED_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return new Set<string>(parsed as string[]);
+      }
+    } catch {}
+    return new Set<string>();
+  });
 
   const showOnlyToday = tasksFilters.showOnlyToday;
 
@@ -344,6 +399,10 @@ export default function TasksPage() {
 
   const taskPriorityInsights = useMemo(() => {
     return sortedFilteredTasks
+      .filter(task =>
+        !taskCustomColumnMap[task.id] &&
+        (task.status === 'pronta_elaboracao' || task.status === 'doing'),
+      )
       .map(task => ({
         task,
         insight: calculateTaskPriorityInsight(
@@ -353,7 +412,7 @@ export default function TasksPage() {
         ),
       }))
       .sort((a, b) => b.insight.score - a.insight.score);
-  }, [sortedFilteredTasks, projects, sessions]);
+  }, [sortedFilteredTasks, taskCustomColumnMap, projects, sessions]);
 
   const priorityQueue = useMemo(() => taskPriorityInsights.slice(0, 5), [taskPriorityInsights]);
 
@@ -477,6 +536,20 @@ export default function TasksPage() {
     });
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(BOARD_COLLAPSED_KEY, JSON.stringify(Array.from(collapsedColumns)));
+  }, [collapsedColumns]);
+
+  const handleToggleCollapse = (columnId: string) => {
+    setCollapsedColumns((previous) => {
+      const next = new Set(previous);
+      if (next.has(columnId)) next.delete(columnId);
+      else next.add(columnId);
+      return next;
+    });
+  };
+
   return (
     <>
       <div className="mx-auto max-w-9xl p-4">
@@ -568,12 +641,16 @@ export default function TasksPage() {
                     ? visibleTasksByStatus[column.status]
                     : visibleTasksByCustomColumn[column.id.replace('custom:', '')] ?? [];
 
+                  const isCollapsed = collapsedColumns.has(column.id);
+
                   return (
                     <DroppableColumn
                       key={column.id}
                       id={column.id}
                       title={`${column.title} (${tasksForColumn.length})`}
                       colorClass={column.colorClass}
+                      isCollapsed={isCollapsed}
+                      onToggleCollapse={() => handleToggleCollapse(column.id)}
                       onRemove={
                         column.isCustom
                           ? () => handleRemoveCustomColumn(column.id.replace('custom:', ''))

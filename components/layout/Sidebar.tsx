@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -31,7 +31,14 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('focusforge/sidebar/collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem('focusforge/sidebar/collapsed', String(isCollapsed));
+  }, [isCollapsed]);
 
   return (
     <div className={cn(

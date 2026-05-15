@@ -19,12 +19,12 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, Calendar as CalendarIcon, Plus, Trash, Loader2, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
+import { Save, Calendar as CalendarIcon, Plus, Trash, Loader2, ChevronLeft, ChevronRight, Copy, ListChecks } from 'lucide-react';
 import { addDays, format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function PlanPage() {
-  const { projects, dailyPlans, sessions, updateDailyPlan } = useAppStore();
+  const { projects, dailyPlans, sessions, tasks, updateDailyPlan } = useAppStore();
   const { toast } = useToast();
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
@@ -71,6 +71,21 @@ export default function PlanPage() {
     ));
   };
 
+  const activeProjectIds = useMemo(
+    () => new Set(projects.filter(p => p.active).map(p => p.id)),
+    [projects]
+  );
+
+  const plannedTasksForDate = useMemo(() => {
+    return tasks.filter(task => {
+      if (task.status === 'done') return false;
+      if (!activeProjectIds.has(task.projectId)) return false;
+      if (task.plannedFor === selectedDateISO) return true;
+      if (isToday(selectedDate) && task.plannedFor === 'today') return true;
+      return false;
+    });
+  }, [tasks, selectedDateISO, selectedDate, activeProjectIds]);
+
   const availableProjects = projects.filter(
     p => p.active && !blocks.some(b => b.projectId === p.id)
   );
@@ -108,6 +123,37 @@ export default function PlanPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleLoadTodayTasks = () => {
+    if (plannedTasksForDate.length === 0) {
+      toast({ title: 'Nenhuma tarefa planejada para este dia' });
+      return;
+    }
+
+    const minutesByProject = plannedTasksForDate.reduce<Record<string, number>>((acc, task) => {
+      acc[task.projectId] = (acc[task.projectId] ?? 0) + 120;
+      return acc;
+    }, {});
+
+    let newBlocks = 0;
+    setBlocks(prev => {
+      const next = [...prev];
+      for (const [projectId, minutes] of Object.entries(minutesByProject)) {
+        if (!next.some(b => b.projectId === projectId)) {
+          next.push({ projectId, targetMinutes: minutes });
+          newBlocks++;
+        }
+      }
+      return next;
+    });
+
+    toast({
+      title: `${plannedTasksForDate.length} tarefa(s) carregada(s)`,
+      description: newBlocks > 0
+        ? `${newBlocks} bloco(s) adicionado(s) ao planejamento`
+        : 'Todos os projetos já estavam nos blocos',
+    });
   };
 
   const handleCopyPreviousDay = () => {
@@ -185,6 +231,22 @@ export default function PlanPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="bg-gray-900/60 border-gray-700 text-white hover:text-white"
+            onClick={handleLoadTodayTasks}
+            disabled={isSaving}
+            title={plannedTasksForDate.length === 0 ? 'Nenhuma tarefa planejada para este dia' : undefined}
+          >
+            <ListChecks className="h-4 w-4 mr-2" />
+            Carregar tarefas do dia
+            {plannedTasksForDate.length > 0 && (
+              <span className="ml-2 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-xs text-blue-300">
+                {plannedTasksForDate.length}
+              </span>
+            )}
+          </Button>
+
           <Button
             variant="outline"
             className="bg-gray-900/60 border-gray-700 text-white hover:text-white"

@@ -1,20 +1,18 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { format, startOfDay, endOfDay, isToday, isThisWeek } from 'date-fns';
+import { format, startOfDay, endOfDay, isToday, isThisWeek, differenceInCalendarDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FocusSession, Task, Project } from '@/types';
 import jsPDF from 'jspdf';
 
 export type TaskDueLevel = 'overdue' | 'today' | 'upcoming' | null;
 
-type DueSource = 'task' | 'project' | 'subtask';
+type DueSource = 'task' | 'project';
 
 export type TaskDueSignal = {
   source: DueSource;
   level: Exclude<TaskDueLevel, null>;
   date: Date;
-  subtaskId?: string;
-  subtaskTitle?: string;
 };
 
 export type TaskNotification = {
@@ -295,21 +293,6 @@ export function getTaskDueSignals(
     if (level) signals.push({ source: 'project', level, date: projectDate });
   }
 
-  for (const subtask of task.subtasks ?? []) {
-    if (subtask.completed) continue;
-    const subtaskDate = toValidDate(subtask.estimatedDeliveryDate);
-    if (!subtaskDate) continue;
-    const level = getDueLevel(subtaskDate, baseDate, upcomingWindowInDays);
-    if (!level) continue;
-    signals.push({
-      source: 'subtask',
-      level,
-      date: subtaskDate,
-      subtaskId: subtask.id,
-      subtaskTitle: subtask.title,
-    });
-  }
-
   return signals;
 }
 
@@ -334,18 +317,12 @@ export function buildTaskNotifications(tasks: Task[], projects: Project[]): Task
     const signals = getTaskDueSignals(task, project);
 
     for (const signal of signals) {
-      const sourceText =
-        signal.source === 'task'
-          ? 'na entrega da tarefa'
-          : signal.source === 'project'
-            ? 'na entrega do projeto'
-            : `na subtarefa "${signal.subtaskTitle ?? 'checklist'}"`;
-
+      const sourceText = signal.source === 'task' ? 'entrega da tarefa' : 'entrega do projeto';
       const levelText =
         signal.level === 'overdue' ? 'Atrasada' : signal.level === 'today' ? 'Vence hoje' : 'Próxima do prazo';
 
       notifications.push({
-        id: `${task.id}-${signal.source}-${signal.subtaskId ?? signal.subtaskTitle ?? signal.date.toISOString()}-${signal.level}`,
+        id: `${task.id}-${signal.source}-${signal.date.toISOString()}-${signal.level}`,
         taskId: task.id,
         taskTitle: task.title,
         projectName: project.name,
@@ -454,6 +431,20 @@ export function calculateTaskPriorityInsight(
       score += 6;
       reasons.push('Checklist com baixo progresso');
     }
+  }
+
+  const ageDays = differenceInCalendarDays(now, new Date(task.createdAt));
+  if (ageDays >= 30) {
+    score += 16;
+    reasons.push('Tarefa antiga (30+ dias)');
+  } else if (ageDays >= 14) {
+    score += 12;
+    reasons.push('Tarefa antiga (14+ dias)');
+  } else if (ageDays >= 7) {
+    score += 8;
+    reasons.push('Tarefa antiga (7+ dias)');
+  } else if (ageDays >= 3) {
+    score += 4;
   }
 
   const boundedScore = Math.max(0, Math.min(100, Math.round(score)));

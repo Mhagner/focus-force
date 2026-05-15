@@ -25,7 +25,7 @@ const defaultColors = [
 ];
 
 export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProps) {
-  const { addProject, updateProject, addTask, clockfySettings } = useAppStore();
+  const { addProject, updateProject, addTask, clockfySettings, pomodoroSettings } = useAppStore();
   const { toast } = useToast();
   const defaultTaskTitle = 'Análise e elaboração do escopo';
 
@@ -80,7 +80,8 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       setName('');
       setClient('');
       setColor(defaultColors[0]);
-      setHourlyRate('');
+      const defaultRate = pomodoroSettings.defaultHourlyRate;
+      setHourlyRate(defaultRate ? defaultRate.toString() : '');
       setSyncWithClockfy(true);
       setSalesforceOppUrl('');
       setSharepointRepoUrl('');

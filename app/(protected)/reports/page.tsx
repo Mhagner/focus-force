@@ -3,13 +3,14 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
 import { useAppStore } from '@/stores/useAppStore';
 import { formatDuration, exportToCsv, exportToPdf, getTotalWorkSecondsForDate } from '@/lib/utils';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { format, startOfDay, endOfDay, addDays, differenceInCalendarDays, startOfWeek } from 'date-fns';
-import { Download, Filter, FileDown, Trash2, Loader2, RefreshCcw } from 'lucide-react';
+import { Download, Filter, FileDown, Trash2, Loader2, RefreshCcw, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ManualSessionDialog } from '@/components/sessions/ManualSessionDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +33,7 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [manualOpen, setManualOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [syncingSessionId, setSyncingSessionId] = useState<string | null>(null);
@@ -102,6 +104,33 @@ export default function ReportsPage() {
       setSyncingSessionId(null);
     }
   };
+
+  const pickerStart = new Date(`${startDate}T00:00:00`);
+  const pickerEnd = new Date(`${endDate}T00:00:00`);
+
+  const rangeDays = differenceInCalendarDays(pickerEnd, pickerStart) + 1;
+
+  const shiftRange = (direction: 1 | -1) => {
+    const shift = direction * rangeDays;
+    setStartDate(format(addDays(pickerStart, shift), 'yyyy-MM-dd'));
+    setEndDate(format(addDays(pickerEnd, shift), 'yyyy-MM-dd'));
+  };
+
+  const handleRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    if (!range) return;
+    if (range.from) setStartDate(format(range.from, 'yyyy-MM-dd'));
+    if (range.to) {
+      setEndDate(format(range.to, 'yyyy-MM-dd'));
+      setIsCalendarOpen(false);
+    } else {
+      setEndDate(format(range.from ?? pickerStart, 'yyyy-MM-dd'));
+    }
+  };
+
+  const dateRangeLabel =
+    startDate === endDate
+      ? format(pickerStart, 'dd/MM/yyyy')
+      : `${format(pickerStart, 'dd/MM/yyyy')} – ${format(pickerEnd, 'dd/MM/yyyy')}`;
 
   const normalizedStartDate = startOfDay(new Date(`${startDate}T00:00:00`));
   const normalizedEndDate = endOfDay(new Date(`${endDate}T00:00:00`));
@@ -238,29 +267,54 @@ export default function ReportsPage() {
           <h2 className="text-lg font-semibold text-white">Filtros</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Data Início
+              Período
             </label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white"
-            />
-          </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-gray-700 bg-gray-800 hover:bg-gray-700"
+                onClick={() => shiftRange(-1)}
+                aria-label="Período anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Data Fim
-            </label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-gray-800 border-gray-700 text-white"
-            />
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="min-w-[220px] justify-start gap-2 border-gray-700 bg-gray-800 font-normal hover:bg-gray-700"
+                  >
+                    <CalendarDays className="h-4 w-4 text-gray-400" />
+                    {dateRangeLabel}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 border-gray-700 bg-gray-900" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={{ from: pickerStart, to: pickerEnd }}
+                    onSelect={handleRangeSelect}
+                    numberOfMonths={2}
+                    locale={ptBR}
+                    className="text-white"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-gray-700 bg-gray-800 hover:bg-gray-700"
+                onClick={() => shiftRange(1)}
+                aria-label="Próximo período"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           <div>
@@ -268,7 +322,7 @@ export default function ReportsPage() {
               Projeto
             </label>
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="bg-gray-800 border-gray-700">
+              <SelectTrigger className="bg-gray-800 border-gray-700 min-w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">

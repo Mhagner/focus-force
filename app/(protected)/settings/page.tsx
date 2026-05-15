@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAppStore } from '@/stores/useAppStore';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Download, Upload, Trash2, PlugZap, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Settings, Download, Upload, Trash2, PlugZap, CheckCircle2, AlertCircle, Loader2, FolderKanban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
@@ -375,6 +375,60 @@ export default function SettingsPage() {
               </>
             ) : (
               'Salvar checklist'
+            )}
+          </Button>
+        </Card>
+
+        {/* Default Project Settings */}
+        <Card className="p-6 bg-gray-900/50 border-gray-800">
+          <div className="flex items-center gap-2 mb-6">
+            <FolderKanban className="h-5 w-5 text-gray-400" />
+            <div>
+              <h2 className="text-lg font-semibold text-white">Configurações de Projetos</h2>
+              <p className="text-xs text-gray-400 mt-1">
+                Valores padrão aplicados automaticamente ao criar novos projetos.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="default-hourly-rate" className="text-gray-300">
+                Valor/hora padrão (R$)
+              </Label>
+              <p className="text-xs text-gray-500 mb-2">
+                Preenchido automaticamente no campo de taxa ao criar um novo projeto.
+              </p>
+              <Input
+                id="default-hourly-rate"
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings.defaultHourlyRate ?? ''}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    defaultHourlyRate: e.target.value === '' ? 0 : parseFloat(e.target.value),
+                  })
+                }
+                placeholder="Ex: 150.00"
+                className="bg-gray-800 border-gray-700 text-white max-w-xs"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSaveSettings}
+            className="mt-6 bg-blue-600 hover:bg-blue-700"
+            disabled={isSavingSettings}
+          >
+            {isSavingSettings ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              'Salvar configurações de projeto'
             )}
           </Button>
         </Card>

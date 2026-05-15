@@ -71,6 +71,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     autoStartNext: true,
     soundOn: true,
     defaultChecklist: [],
+    defaultHourlyRate: 0,
   },
   clockfySettings: {
     apiKey: '',

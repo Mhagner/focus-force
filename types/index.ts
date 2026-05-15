@@ -83,6 +83,7 @@ export interface PomodoroSettings {
   autoStartNext: boolean;
   soundOn: boolean;
   defaultChecklist: string[];
+  defaultHourlyRate?: number;
 }
 
 export interface DailyPlan {
