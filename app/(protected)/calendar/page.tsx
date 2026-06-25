@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '@/stores/useAppStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,44 +8,28 @@ import clsx from 'clsx';
 import {
   format, addDays, addWeeks, addMonths,
   isSameDay, isSameMonth, isToday,
-  startOfDay, endOfDay,
   startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   eachDayOfInterval,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatDuration } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, CalendarDays, Clock, ZoomIn, ZoomOut } from 'lucide-react';
+import { TimelineGrid } from '@/components/calendar/TimelineGrid';
+import { SessionDetailDialog } from '@/components/calendar/SessionDetailDialog';
+import { FocusSession } from '@/types';
 
 enum ViewType { Month = 'month', Week = 'week', Day = 'day' }
 
-function withAlpha(color: string, alpha: number): string {
-  if (color.startsWith('#')) {
-    let hex = color.slice(1);
-    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-    if (hex.length >= 6) {
-      const base = hex.slice(0, 6);
-      const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
-      return `#${base}${alphaHex}`;
-    }
-  }
-  return `rgba(59,130,246,${alpha})`;
-}
-
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const WEEK_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const ZOOM_LEVELS_PX = [28, 40, 60, 90];
+const DEFAULT_ZOOM_INDEX = 1;
 
 export default function CalendarPage() {
-  const { sessions, tasks, projects } = useAppStore();
+  const { sessions, tasks, projects, addSession, updateSession } = useAppStore();
   const [view, setView] = useState<ViewType>(ViewType.Month);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const timelineRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (view !== ViewType.Day || !timelineRef.current) return;
-    const targetHour = isToday(selectedDate) ? new Date().getHours() : 8;
-    const container = timelineRef.current;
-    container.scrollTop = Math.max(0, (targetHour / 24) * container.scrollHeight - 120);
-  }, [view, selectedDate]);
+  const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   const navigate = (dir: 1 | -1) =>
     setSelectedDate(prev =>
@@ -95,41 +79,35 @@ export default function CalendarPage() {
     [sessionsForDate],
   );
 
-  const timelineSessions = useMemo(() => {
-    const dayStart = startOfDay(selectedDate);
-    const dayEnd = endOfDay(selectedDate);
-    const totalMinutes = 24 * 60;
+  const handleSessionChange = (id: string, updates: Partial<FocusSession>) => {
+    updateSession(id, updates);
+  };
 
-    return sessionsForDate.map(session => {
-      const startDate = new Date(session.start);
-      const computedEnd = session.end
-        ? new Date(session.end)
-        : new Date(startDate.getTime() + session.durationSec * 1000);
-      const clampedStart = startDate < dayStart ? dayStart : startDate;
-      const clampedEnd = computedEnd > dayEnd ? dayEnd : computedEnd;
-      let startM = clampedStart.getHours() * 60 + clampedStart.getMinutes();
-      let endM = clampedEnd.getHours() * 60 + clampedEnd.getMinutes();
-      startM = Math.max(0, Math.min(startM, totalMinutes - 1));
-      endM = Math.max(startM + 5, Math.min(endM, totalMinutes));
-      const top = (startM / totalMinutes) * 100;
-      const height = Math.min(((endM - startM) / totalMinutes) * 100, 100 - top);
-      const project = projects.find(p => p.id === session.projectId);
-      const task = session.taskId ? tasks.find(t => t.id === session.taskId) : undefined;
-      const color = project?.color ?? '#3b82f6';
-      return {
-        id: session.id,
-        top, height,
-        timeRange: `${format(startDate, 'HH:mm')} – ${format(computedEnd, 'HH:mm')}`,
-        durationLabel: formatDuration(session.durationSec),
-        taskTitle: task?.title ?? 'Sessão sem tarefa',
-        projectName: project?.name ?? '',
-        color,
-        bg: withAlpha(color, 0.18),
-        border: withAlpha(color, 0.55),
-        isCompact: height < 5,
-      };
+  const handleDuplicateSession = (session: FocusSession) => {
+    const sourceEnd = session.end
+      ? new Date(session.end)
+      : new Date(new Date(session.start).getTime() + session.durationSec * 1000);
+    const newStart = new Date(sourceEnd.getTime() + 30 * 60 * 1000);
+    const newEnd = new Date(newStart.getTime() + session.durationSec * 1000);
+
+    addSession({
+      projectId: session.projectId,
+      taskId: session.taskId,
+      start: newStart.toISOString(),
+      end: newEnd.toISOString(),
+      durationSec: session.durationSec,
+      type: session.type,
+      notes: session.notes,
     });
-  }, [sessionsForDate, selectedDate, tasks, projects]);
+  };
+
+  const handleBlockClick = (session: FocusSession) => {
+    setSelectedSessionId(session.id);
+  };
+
+  const selectedSession = selectedSessionId ? sessions.find(s => s.id === selectedSessionId) ?? null : null;
+  const selectedSessionProject = selectedSession ? projects.find(p => p.id === selectedSession.projectId) : undefined;
+  const selectedSessionTask = selectedSession?.taskId ? tasks.find(t => t.id === selectedSession.taskId) : undefined;
 
   const taskSummaries = useMemo(() => {
     const map = new Map<string, {
@@ -163,9 +141,6 @@ export default function CalendarPage() {
     const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) => addDays(ws, i));
   }, [selectedDate]);
-
-  const now = new Date();
-  const currentTimePct = (now.getHours() * 60 + now.getMinutes()) / (24 * 60) * 100;
 
   const selectDay = (day: Date) => {
     setSelectedDate(day);
@@ -220,6 +195,30 @@ export default function CalendarPage() {
         </div>
 
         <h2 className="text-lg font-semibold capitalize text-white">{periodLabel}</h2>
+
+        {/* Zoom controls (Week / Day) */}
+        {(view === ViewType.Week || view === ViewType.Day) && (
+          <div className="ml-auto flex items-center gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-gray-400 hover:text-white disabled:opacity-30"
+              disabled={zoomIndex === 0}
+              onClick={() => setZoomIndex(i => Math.max(0, i - 1))}
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-gray-400 hover:text-white disabled:opacity-30"
+              disabled={zoomIndex === ZOOM_LEVELS_PX.length - 1}
+              onClick={() => setZoomIndex(i => Math.min(ZOOM_LEVELS_PX.length - 1, i + 1))}
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── Month view ─────────────────────────────────────── */}
@@ -283,85 +282,34 @@ export default function CalendarPage() {
 
       {/* ── Week view ──────────────────────────────────────── */}
       {view === ViewType.Week && (
-        <div className="overflow-x-auto">
-          <div className="grid min-w-[600px] grid-cols-7 gap-2">
-            {weekDays.map(day => {
-              const daySessions = getSessionsForDay(day)
-                .slice()
-                .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-              const totalSec = daySessions.reduce((s, sess) => s + sess.durationSec, 0);
-              const isCurrentDay = isToday(day);
-              const isSelected = isSameDay(day, selectedDate);
-
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => selectDay(day)}
-                  className={clsx(
-                    'flex flex-col rounded-xl border p-3 text-left transition focus:outline-none focus:ring-1 focus:ring-blue-500',
-                    isCurrentDay
-                      ? 'border-blue-500/50 bg-blue-500/10'
-                      : isSelected
-                        ? 'border-gray-600 bg-gray-800/50'
-                        : 'border-gray-800 bg-gray-900/40 hover:border-gray-700 hover:bg-gray-900/70',
-                  )}
-                >
-                  {/* Day header */}
-                  <div className="mb-3 flex items-start justify-between gap-1">
-                    <div>
-                      <div className="text-[10px] uppercase tracking-widest text-gray-500">
-                        {format(day, 'EEE', { locale: ptBR })}
-                      </div>
-                      <div className={clsx(
-                        'text-xl font-bold leading-tight',
-                        isCurrentDay ? 'text-blue-400' : 'text-white',
-                      )}>
-                        {format(day, 'd')}
-                      </div>
-                    </div>
-                    {totalSec > 0 && (
-                      <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-400">
-                        {formatDuration(totalSec)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Sessions */}
-                  {daySessions.length === 0 ? (
-                    <div className="py-3 text-[11px] text-gray-600">Sem sessões</div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      {daySessions.slice(0, 3).map(session => {
-                        const project = projects.find(p => p.id === session.projectId);
-                        const task = session.taskId ? tasks.find(t => t.id === session.taskId) : undefined;
-                        const color = project?.color ?? '#3b82f6';
-                        return (
-                          <div
-                            key={session.id}
-                            className="flex items-start gap-1.5 rounded-md px-2 py-1.5"
-                            style={{ backgroundColor: withAlpha(color, 0.15) }}
-                          >
-                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-                            <div className="min-w-0">
-                              <div className="truncate text-[11px] font-medium leading-tight text-white">
-                                {task?.title ?? 'Sessão'}
-                              </div>
-                              <div className="text-[10px] text-gray-500">
-                                {format(new Date(session.start), 'HH:mm')} · {formatDuration(session.durationSec)}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {daySessions.length > 3 && (
-                        <div className="pl-1 text-[10px] text-gray-500">+{daySessions.length - 3} mais</div>
-                      )}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 border-gray-700 bg-gray-900/60 px-3 text-xs text-gray-300 hover:text-white"
+              onClick={() => selectDay(selectedDate)}
+            >
+              Ver dia selecionado
+            </Button>
           </div>
+          <Card className="border-gray-800 bg-gray-900/50 p-4">
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px]">
+                <TimelineGrid
+                  days={weekDays}
+                  sessions={sessions}
+                  tasks={tasks}
+                  projects={projects}
+                  onSessionChange={handleSessionChange}
+                  onDuplicate={handleDuplicateSession}
+                  onBlockClick={handleBlockClick}
+                  showWeekdayHeader
+                  rowHeightPx={ZOOM_LEVELS_PX[zoomIndex]}
+                />
+              </div>
+            </div>
+          </Card>
         </div>
       )}
 
@@ -392,66 +340,17 @@ export default function CalendarPage() {
                   Nenhuma sessão registrada para este dia
                 </div>
               ) : (
-                <div ref={timelineRef} className="overflow-y-auto" style={{ maxHeight: '64vh' }}>
-                  <div className="grid grid-cols-[40px_1fr] gap-2">
-                    {/* Hour labels */}
-                    <div className="relative flex h-[960px] flex-col select-none">
-                      {HOURS.map(h => (
-                        <div key={h} className="flex flex-1 items-start justify-end pr-1.5 pt-0.5">
-                          <span className="text-[10px] leading-none text-gray-600">{String(h).padStart(2, '0')}h</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Grid + blocks */}
-                    <div className="relative h-[960px] overflow-hidden rounded-lg border border-gray-800 bg-gray-950/50">
-                      {/* Hour lines */}
-                      <div className="pointer-events-none absolute inset-0 flex flex-col">
-                        {HOURS.map(h => (
-                          <div key={h} className="flex-1 border-t border-gray-800/40" />
-                        ))}
-                      </div>
-
-                      {/* Current time indicator */}
-                      {isToday(selectedDate) && (
-                        <div
-                          className="pointer-events-none absolute left-0 right-0 z-10"
-                          style={{ top: `${currentTimePct}%` }}
-                        >
-                          <div className="border-t-2 border-red-500/70" />
-                          <span className="absolute -top-2.5 left-2 rounded bg-red-600 px-1.5 py-0.5 text-[9px] leading-none text-white">
-                            {format(now, 'HH:mm')}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Session blocks */}
-                      {timelineSessions.map(session => (
-                        <div
-                          key={session.id}
-                          className="absolute left-1.5 right-1.5 rounded-md border px-2 py-1 shadow-md"
-                          style={{
-                            top: `${session.top}%`,
-                            height: `${session.height}%`,
-                            minHeight: '22px',
-                            backgroundColor: session.bg,
-                            borderColor: session.border,
-                          }}
-                        >
-                          {!session.isCompact && (
-                            <div className="flex items-center justify-between text-[10px] text-gray-300">
-                              <span>{session.timeRange}</span>
-                              <span>{session.durationLabel}</span>
-                            </div>
-                          )}
-                          <div className="truncate text-xs font-semibold text-white">{session.taskTitle}</div>
-                          {!session.isCompact && session.projectName && (
-                            <div className="text-[10px] text-gray-400">{session.projectName}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                <div className="overflow-y-auto" style={{ maxHeight: '64vh' }}>
+                  <TimelineGrid
+                    days={[selectedDate]}
+                    sessions={sessions}
+                    tasks={tasks}
+                    projects={projects}
+                    onSessionChange={handleSessionChange}
+                    onDuplicate={handleDuplicateSession}
+                    onBlockClick={handleBlockClick}
+                    rowHeightPx={ZOOM_LEVELS_PX[zoomIndex]}
+                  />
                 </div>
               )}
             </Card>
@@ -489,6 +388,15 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
+
+      <SessionDetailDialog
+        session={selectedSession}
+        project={selectedSessionProject}
+        task={selectedSessionTask}
+        onOpenChange={(open) => { if (!open) setSelectedSessionId(null); }}
+        onSave={handleSessionChange}
+        onDuplicate={handleDuplicateSession}
+      />
     </div>
   );
 }

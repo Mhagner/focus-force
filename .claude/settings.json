@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma *)",
+      "Bash(ls -la \"c:\\\\Users\\\\MAHIL\\\\Documents\\\\Projetos Pessoais\\\\focus-force\\\\\" | head -30)",
+      "Read(//c/Users/MAHIL/Documents/Projetos Pessoais/**)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(timeout 60 bash -c 'until curl -sf http://localhost:3000 >/dev/null 2>&1; do sleep 1; done; echo ready')",
+      "Read(//tmp/**)",
+      "Bash(curl -sf http://localhost:3000 -o /dev/null -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -sf http://localhost:3000 -o /dev/null -w \"porta 3000: HTTP %{http_code}\\\\n\")",
+      "Bash(curl -sf http://localhost:3001 -o /dev/null -w \"porta 3001: HTTP %{http_code}\\\\n\")"
+    ]
+  }
+}

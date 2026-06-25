@@ -6,7 +6,7 @@ export interface ClockfyCredentials {
 }
 
 interface ClockfyRequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT';
   body?: unknown;
   credentials?: Partial<ClockfyCredentials>;
   query?: Record<string, string | undefined>;
@@ -32,6 +32,16 @@ export interface ClockfyTimeEntryInput {
   projectId: string;
   start: Date;
   end?: Date | null;
+  description?: string;
+  billable?: boolean;
+  credentials?: Partial<ClockfyCredentials>;
+}
+
+export interface ClockfyTimeEntryUpdateInput {
+  timeEntryId: string;
+  projectId: string;
+  start: Date;
+  end: Date;
   description?: string;
   billable?: boolean;
   credentials?: Partial<ClockfyCredentials>;
@@ -217,5 +227,35 @@ export async function createClockfyTimeEntry(
   } catch (error) {
     console.error('Clockfy time entry creation failed', error);
     return null;
+  }
+}
+
+export async function updateClockfyTimeEntry(
+  input: ClockfyTimeEntryUpdateInput
+): Promise<boolean> {
+  const resolved = resolveClockfyCredentials(input.credentials);
+  if (!resolved) return false;
+  if (!input.timeEntryId || !input.projectId) return false;
+
+  try {
+    await clockfyRequest<{ id: string }>(
+      `/workspaces/${resolved.workspaceId}/time-entries/${input.timeEntryId}`,
+      {
+        method: 'PUT',
+        credentials: resolved,
+        body: {
+          start: input.start.toISOString(),
+          end: input.end.toISOString(),
+          description: input.description ?? 'Focus session',
+          billable: input.billable ?? true,
+          projectId: input.projectId,
+        },
+      }
+    );
+
+    return true;
+  } catch (error) {
+    console.error('Clockfy time entry update failed', error);
+    return false;
   }
 }

@@ -81,13 +81,21 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
           {task.title}
         </h4>
         {task.description && (
-          <p className="line-clamp-1 text-xs text-gray-500">{task.description}</p>
+          <p
+            className="line-clamp-1 text-xs text-gray-500 hover:text-gray-300 hover:underline cursor-pointer"
+            title={`Ir para o projeto ${project.name}`}
+            onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`); }}
+          >
+            {task.description}
+          </p>
         )}
       </div>
 
       {/* 3. Metadados */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs border-y border-gray-800/40 py-2.5">
-        <ProjectBadge name={project.name} color={project.color} size="sm" />
+        <div onClick={(e) => e.stopPropagation()}>
+          <ProjectBadge name={project.name} color={project.color} size="sm" href={`/projects/${project.id}`} />
+        </div>
 
         <div className={clsx("flex items-center gap-1.5", highestDueLevel === 'overdue' ? "text-red-400 font-bold" : "text-gray-400")}>
           <Calendar className="h-3.5 w-3.5" />

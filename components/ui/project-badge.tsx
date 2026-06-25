@@ -42,8 +42,8 @@ export function ProjectBadge({
         )}
         style={{ backgroundColor: color }}
       />
-      <span className="font-medium text-white truncate">
-        {name.length > 40 ? `${name.substring(0, 30)}...` : name}
+      <span className="font-medium text-white" title={name}>
+        {name}
       </span>
     </>
   );

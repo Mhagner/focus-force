@@ -102,6 +102,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       pomodoroSettings: {
         ...pomodoroSettings,
         defaultChecklist: pomodoroSettings.defaultChecklist ?? [],
+        defaultHourlyRate: pomodoroSettings.defaultHourlyRate ?? 0,
       },
       clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
       dailyPlans,
