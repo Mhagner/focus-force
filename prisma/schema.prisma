@@ -124,6 +124,7 @@ model PomodoroSettings {
   autoStartNext    Boolean
   soundOn          Boolean
   defaultChecklist Json?
+  defaultHourlyRate Float?
 }
 
 model ClockfySettings {

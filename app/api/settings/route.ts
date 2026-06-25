@@ -11,6 +11,7 @@ const defaultSettings = {
   autoStartNext: true,
   soundOn: true,
   defaultChecklist: [],
+  defaultHourlyRate: 0,
 };
 
 export async function GET() {
@@ -36,6 +37,7 @@ export async function PATCH(req: Request) {
       autoStartNext: z.boolean(),
       soundOn: z.boolean(),
       defaultChecklist: z.array(z.string().min(1)).default([]),
+      defaultHourlyRate: z.number().min(0).optional(),
     });
     const parsed = schema.parse(body);
     const existing = await prisma.pomodoroSettings.findFirst();
