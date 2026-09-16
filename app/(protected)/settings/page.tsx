@@ -22,12 +22,17 @@ export default function SettingsPage() {
     clockfySettings,
     updateClockfySettings,
     projects,
+    sessionDescriptionPresets,
+    addSessionDescriptionPreset,
+    deleteSessionDescriptionPreset,
   } = useAppStore();
   const { toast } = useToast();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
 
   const [settings, setSettings] = useState(pomodoroSettings);
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [newDescriptionPreset, setNewDescriptionPreset] = useState('');
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
   const [clockfyForm, setClockfyForm] = useState({
     apiKey: clockfySettings.apiKey,
     workspaces: clockfySettings.workspaces ?? [],
@@ -108,6 +113,36 @@ export default function SettingsPage() {
       ...current,
       defaultChecklist: (current.defaultChecklist ?? []).filter((_, i) => i !== index),
     }));
+  };
+
+  const handleAddDescriptionPreset = async () => {
+    const trimmed = newDescriptionPreset.trim();
+    if (!trimmed) return;
+    setIsSavingPreset(true);
+    try {
+      await addSessionDescriptionPreset(trimmed);
+      setNewDescriptionPreset('');
+    } catch (error) {
+      toast({
+        title: 'Não foi possível adicionar',
+        description: 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingPreset(false);
+    }
+  };
+
+  const handleRemoveDescriptionPreset = async (id: string) => {
+    try {
+      await deleteSessionDescriptionPreset(id);
+    } catch (error) {
+      toast({
+        title: 'Não foi possível remover',
+        description: 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSaveClockfy = async () => {
@@ -377,6 +412,65 @@ export default function SettingsPage() {
               'Salvar checklist'
             )}
           </Button>
+        </Card>
+
+        <Card className="p-6 bg-gray-900/50 border-gray-800">
+          <div className="flex items-center gap-2 mb-6">
+            <Settings className="h-5 w-5 text-gray-400" />
+            <div>
+              <h2 className="text-lg font-semibold text-white">Descrições de sessão</h2>
+              <p className="text-xs text-gray-400 mt-1">
+                Sugestões rápidas exibidas ao iniciar uma sessão de foco. A descrição é obrigatória em toda sessão.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end">
+              <div className="flex-1">
+                <Label htmlFor="new-description-preset" className="text-gray-300">Nova descrição padrão</Label>
+                <Input
+                  id="new-description-preset"
+                  value={newDescriptionPreset}
+                  onChange={(e) => setNewDescriptionPreset(e.target.value)}
+                  placeholder="Ex: Reunião com o cliente"
+                  className="bg-gray-800 border-gray-700 text-white"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={handleAddDescriptionPreset}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={!newDescriptionPreset.trim() || isSavingPreset}
+              >
+                {isSavingPreset ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Adicionar'}
+              </Button>
+            </div>
+
+            {sessionDescriptionPresets.length === 0 ? (
+              <p className="text-sm text-gray-400">Nenhuma descrição padrão definida.</p>
+            ) : (
+              <div className="space-y-2">
+                {sessionDescriptionPresets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="flex items-center justify-between rounded-md border border-gray-800 bg-gray-900/60 px-3 py-2"
+                  >
+                    <span className="text-sm text-gray-200">{preset.label}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveDescriptionPreset(preset.id)}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </Card>
 
         {/* Default Project Settings */}

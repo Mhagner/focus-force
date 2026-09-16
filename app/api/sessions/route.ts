@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
-import { createClockfyTimeEntry } from '@/lib/integrations/clockfy';
+import { createClockfyTimeEntry, buildClockfyDescription } from '@/lib/integrations/clockfy';
 
 export async function GET() {
   const sessions = await prisma.focusSession.findMany();
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       durationSec: z.number().int().nonnegative(),
       type: z.enum(['manual', 'pomodoro']),
       pomodoroCycles: z.number().int().optional().nullable(),
-      notes: z.string().optional().nullable(),
+      notes: z.string().min(1, 'Descrição da sessão é obrigatória'),
     });
 
     const parsed = schema.parse(body);
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       durationSec: parsed.durationSec,
       type: parsed.type,
       pomodoroCycles: parsed.pomodoroCycles ?? undefined,
-      notes: parsed.notes ?? undefined,
+      notes: parsed.notes,
     };
 
     const session = await prisma.focusSession.create({
@@ -50,31 +50,6 @@ export async function POST(req: Request) {
     type SessionPayload = typeof session | Awaited<ReturnType<typeof prisma.focusSession.update>>;
     let payload: SessionPayload = session;
 
-    const buildClockfyDescription = () => {
-      const segments: string[] = [];
-
-      if (session.task?.title) {
-        segments.push(`Tarefa: ${session.task.title}`);
-      }
-
-      let description = segments.join(' | ');
-
-      if (session.notes?.trim()) {
-        description = description
-          ? `${description} | Notas: ${session.notes.trim()}`
-          : session.notes.trim();
-      }
-
-      if (!description) {
-        const sessionLabel = session.type === 'pomodoro' ? 'Pomodoro' : 'Manual';
-        description = session.project?.name
-          ? `${session.project.name} - Sessão ${sessionLabel}`
-          : `Sessão ${sessionLabel}`;
-      }
-
-      return description;
-    };
-
     if (
       session.project?.syncWithClockfy &&
       session.project?.clockfyProjectId &&
@@ -85,7 +60,7 @@ export async function POST(req: Request) {
         projectId: session.project.clockfyProjectId,
         start: session.start,
         end: session.end,
-        description: buildClockfyDescription(),
+        description: buildClockfyDescription(session),
         credentials,
       });
 

@@ -1,38 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createClockfyTimeEntry } from '@/lib/integrations/clockfy';
+import { createClockfyTimeEntry, buildClockfyDescription } from '@/lib/integrations/clockfy';
 
 export const dynamic = 'force-dynamic';
-
-function buildClockfyDescription(session: {
-  type: 'manual' | 'pomodoro';
-  notes?: string | null;
-  project?: { name: string | null } | null;
-  task?: { title: string | null } | null;
-}) {
-  const segments: string[] = [];
-
-  if (session.task?.title) {
-    segments.push(`Tarefa: ${session.task.title}`);
-  }
-
-  let description = segments.join(' | ');
-
-  if (session.notes?.trim()) {
-    description = description
-      ? `${description} | Notas: ${session.notes.trim()}`
-      : session.notes.trim();
-  }
-
-  if (!description) {
-    const sessionLabel = session.type === 'pomodoro' ? 'Pomodoro' : 'Manual';
-    description = session.project?.name
-      ? `${session.project.name} - Sessão ${sessionLabel}`
-      : `Sessão ${sessionLabel}`;
-  }
-
-  return description;
-}
 
 export async function POST(
   _req: Request,

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { PriorityTag } from '@/components/ui/priority-tag';
@@ -21,10 +22,13 @@ import {
 interface FocusDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialProjectId?: string;
+  initialTaskId?: string;
+  onStarted?: () => void;
 }
 
-export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
-  const { projects, tasks } = useAppStore();
+export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskId, onStarted }: FocusDialogProps) {
+  const { projects, tasks, sessionDescriptionPresets } = useAppStore();
   const { startTimer, switchTask, isRunning } = useTimerStore();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -32,6 +36,7 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
   const [timerType, setTimerType] = useState<'pomodoro' | 'manual'>('pomodoro');
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isTaskOpen, setIsTaskOpen] = useState(false);
+  const [description, setDescription] = useState('');
 
   const activeProjects = projects.filter(p => p.active);
   const todayTasks = getTodayTasks(tasks);
@@ -45,19 +50,31 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
     ? projectTasks.find(task => task.id === selectedTaskId)
     : undefined;
 
+  useEffect(() => {
+    if (open) {
+      setSelectedProjectId(initialProjectId ?? '');
+      setSelectedTaskId(initialTaskId ?? '');
+      setDescription('');
+    }
+  }, [open, initialProjectId, initialTaskId]);
+
   const handleStart = () => {
-    if (!selectedProjectId) return;
+    const trimmedDescription = description.trim();
+    if (!selectedProjectId || !trimmedDescription) return;
     const taskId = selectedTaskId && selectedTaskId !== 'none' ? selectedTaskId : undefined;
     if (isRunning) {
-      switchTask(selectedProjectId, taskId);
+      switchTask(selectedProjectId, taskId, trimmedDescription);
     } else {
-      startTimer(timerType, selectedProjectId, taskId);
+      startTimer(timerType, selectedProjectId, taskId, trimmedDescription);
     }
     onOpenChange(false);
 
     // Reset selections
     setSelectedProjectId('');
     setSelectedTaskId('');
+    setDescription('');
+
+    onStarted?.();
   };
 
   return (
@@ -254,6 +271,39 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
             </div>
           )}
 
+          {/* Session Description (required) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Descrição da sessão *
+            </label>
+            {sessionDescriptionPresets.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {sessionDescriptionPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setDescription(preset.label)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs border transition-colors',
+                      description === preset.label
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="O que você vai fazer nesta sessão?"
+              className="bg-gray-800 border-gray-700 text-white resize-none"
+              rows={2}
+            />
+          </div>
+
           {/* Today's Tasks Preview */}
           {todayTasks.length > 0 && (
             <div>
@@ -294,7 +344,7 @@ export function FocusDialog({ open, onOpenChange }: FocusDialogProps) {
             </Button>
             <Button
               onClick={handleStart}
-              disabled={!selectedProjectId}
+              disabled={!selectedProjectId || !description.trim()}
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               <Play className="h-4 w-4 mr-2" />

@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask } from '@/types';
+import { Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, SessionDescriptionPreset } from '@/types';
 import { storage } from '@/lib/storage';
 
 interface TasksFilters {
@@ -15,6 +15,7 @@ interface AppStore {
   pomodoroSettings: PomodoroSettings;
   clockfySettings: ClockfySettings;
   dailyPlans: DailyPlan[];
+  sessionDescriptionPresets: SessionDescriptionPreset[];
   theme: 'dark' | 'light' | 'system';
   tasksFilters: TasksFilters;
   isDataInitialized: boolean;
@@ -50,6 +51,10 @@ interface AppStore {
   updateDailyPlan: (plan: DailyPlan) => Promise<void>;
   getDailyPlan: (dateISO: string) => DailyPlan | undefined;
 
+  addSessionDescriptionPreset: (label: string) => Promise<void>;
+  updateSessionDescriptionPreset: (id: string, updates: Partial<Pick<SessionDescriptionPreset, 'label' | 'active' | 'order'>>) => Promise<void>;
+  deleteSessionDescriptionPreset: (id: string) => Promise<void>;
+
   setTheme: (theme: 'dark' | 'light' | 'system') => void;
 
   exportData: () => string;
@@ -80,6 +85,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     updatedAt: null,
   },
   dailyPlans: [],
+  sessionDescriptionPresets: [],
   theme: 'dark',
   tasksFilters: {
     showOnlyToday: false,
@@ -87,13 +93,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   isDataInitialized: false,
 
   initializeData: async () => {
-    const [projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans] = await Promise.all([
+    const [projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans, sessionDescriptionPresets] = await Promise.all([
       storage.getProjects(),
       storage.getTasks(),
       storage.getSessions(),
       storage.getPomodoroSettings(),
       storage.getClockfySettings(),
       storage.getDailyPlans(),
+      storage.getSessionDescriptionPresets(),
     ]);
     set({
       projects,
@@ -106,6 +113,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       },
       clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
       dailyPlans,
+      sessionDescriptionPresets,
       isDataInitialized: true,
     });
   },
@@ -290,6 +298,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   getDailyPlan: (dateISO) => {
     return get().dailyPlans.find(p => p.dateISO === dateISO);
+  },
+
+  // Session Description Presets
+  addSessionDescriptionPreset: async (label) => {
+    const preset = await storage.addSessionDescriptionPreset(label);
+    set((state) => ({ sessionDescriptionPresets: [...state.sessionDescriptionPresets, preset] }));
+  },
+  updateSessionDescriptionPreset: async (id, updates) => {
+    const preset = await storage.updateSessionDescriptionPreset(id, updates);
+    set((state) => ({
+      sessionDescriptionPresets: preset.active
+        ? state.sessionDescriptionPresets.map(p => (p.id === id ? preset : p))
+        : state.sessionDescriptionPresets.filter(p => p.id !== id),
+    }));
+  },
+  deleteSessionDescriptionPreset: async (id) => {
+    await storage.deleteSessionDescriptionPreset(id);
+    set((state) => ({
+      sessionDescriptionPresets: state.sessionDescriptionPresets.filter(p => p.id !== id),
+    }));
   },
 
   // Theme

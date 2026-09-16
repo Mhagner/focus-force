@@ -1,5 +1,5 @@
 // src/lib/storage.ts
-import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, TaskBoardSettings } from '@/types';
+import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, TaskBoardSettings, SessionDescriptionPreset } from '@/types';
 
 /**
  * ------------------------------------------------------------
@@ -319,6 +319,36 @@ export const storage = {
     return request<FocusSession>(`/api/sessions/${id}/sync-clockfy`, {
       method: 'POST',
     });
+  },
+
+  /**
+   * ---------------------------
+   * Session Description Presets
+   * ---------------------------
+   */
+  async getSessionDescriptionPresets(): Promise<SessionDescriptionPreset[]> {
+    return request<SessionDescriptionPreset[]>('/api/session-description-presets');
+  },
+
+  async addSessionDescriptionPreset(label: string): Promise<SessionDescriptionPreset> {
+    return request<SessionDescriptionPreset>('/api/session-description-presets', {
+      method: 'POST',
+      body: { label },
+    });
+  },
+
+  async updateSessionDescriptionPreset(
+    id: string,
+    updates: Partial<Pick<SessionDescriptionPreset, 'label' | 'active' | 'order'>>
+  ): Promise<SessionDescriptionPreset> {
+    return request<SessionDescriptionPreset>(`/api/session-description-presets/${id}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+  },
+
+  async deleteSessionDescriptionPreset(id: string): Promise<void> {
+    await request<unknown>(`/api/session-description-presets/${id}`, { method: 'DELETE' });
   },
 
   /**

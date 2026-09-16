@@ -5,9 +5,11 @@ import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface ManualSessionDialogProps {
   open: boolean;
@@ -15,20 +17,22 @@ interface ManualSessionDialogProps {
 }
 
 export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogProps) {
-  const { projects, tasks, addSession } = useAppStore();
+  const { projects, tasks, addSession, sessionDescriptionPresets } = useAppStore();
   const { toast } = useToast();
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const activeProjects = projects.filter(project => project.active);
   const projectTasks = projectId ? tasks.filter(t => t.projectId === projectId) : [];
 
   const handleSave = async () => {
-    if (!projectId || !date || !startTime || !endTime || isSubmitting) return;
+    const trimmedDescription = description.trim();
+    if (!projectId || !date || !startTime || !endTime || !trimmedDescription || isSubmitting) return;
     const start = new Date(`${date}T${startTime}:00`);
     const end = new Date(`${date}T${endTime}:00`);
     const durationSec = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
@@ -43,6 +47,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
         end: end.toISOString(),
         durationSec,
         type: 'manual',
+        notes: trimmedDescription,
       });
       toast({ title: 'Sessão adicionada' });
       onOpenChange(false);
@@ -51,6 +56,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
       setDate('');
       setStartTime('');
       setEndTime('');
+      setDescription('');
     } finally {
       setIsSubmitting(false);
     }
@@ -109,12 +115,41 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
               <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="bg-gray-800 border-gray-700" />
             </div>
           </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-2">Descrição da sessão *</label>
+            {sessionDescriptionPresets.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {sessionDescriptionPresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setDescription(preset.label)}
+                    className={cn(
+                      'px-3 py-1 rounded-full text-xs border transition-colors',
+                      description === preset.label
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="O que foi feito nesta sessão?"
+              className="bg-gray-800 border-gray-700 text-white resize-none"
+              rows={2}
+            />
+          </div>
           <div className="pt-4 flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button
               className="flex-1 bg-blue-600 hover:bg-blue-700"
               onClick={handleSave}
-              disabled={!projectId || !date || !startTime || !endTime || isSubmitting}
+              disabled={!projectId || !date || !startTime || !endTime || !description.trim() || isSubmitting}
             >
               {isSubmitting ? (
                 <>

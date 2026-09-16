@@ -1,19 +1,19 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel } from '@/lib/utils';
 import { Play, Calendar, Clock, MoreVertical, ExternalLink, MessageSquare, CheckCircle2, AlertCircle, Zap, Check } from 'lucide-react';
-import { useTimerStore } from '@/stores/useTimerStore';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { useAppStore } from '@/stores/useAppStore';
+import { FocusDialog } from '@/components/focus/FocusDialog';
 
 export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopFive }: any) {
   const { projects, updateTask, deleteTask } = useAppStore();
-  const { startTimer } = useTimerStore();
+  const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   const router = useRouter();
 
   const project = useMemo(() => projects.find(p => p.id === task.projectId), [projects, task.projectId]);
@@ -134,7 +134,7 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
           <Button
             size="icon"
             className="h-9 w-9 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 hover:scale-105 transition-all"
-            onClick={(e) => { e.stopPropagation(); startTimer('pomodoro', project.id, task.id); }}
+            onClick={(e) => { e.stopPropagation(); setIsFocusDialogOpen(true); }}
           >
             <Play className="h-4 w-4 fill-current ml-0.5" />
           </Button>
@@ -162,6 +162,13 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
           </Button>
         </div>
       </div>
+
+      <FocusDialog
+        open={isFocusDialogOpen}
+        onOpenChange={setIsFocusDialogOpen}
+        initialProjectId={project.id}
+        initialTaskId={task.id}
+      />
     </Card>
   );
 }

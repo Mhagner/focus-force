@@ -106,6 +106,15 @@ export interface TimerState {
   sessionStart?: string;
   lastTickAt?: string;
   elapsedInCycle: number;
+  pendingNotes?: string;
+}
+
+export interface SessionDescriptionPreset {
+  id: string;
+  label: string;
+  active: boolean;
+  order: number;
+  createdAt: string;
 }
 
 export interface ClockfyWorkspace {

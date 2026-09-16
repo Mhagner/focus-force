@@ -47,6 +47,34 @@ export interface ClockfyTimeEntryUpdateInput {
   credentials?: Partial<ClockfyCredentials>;
 }
 
+export interface ClockfyDescriptionInput {
+  type: 'manual' | 'pomodoro';
+  notes?: string | null;
+  project?: { name: string | null } | null;
+  task?: { title: string | null } | null;
+}
+
+export function buildClockfyDescription(session: ClockfyDescriptionInput): string {
+  const segments: string[] = [];
+
+  if (session.task?.title) {
+    segments.push(`Tarefa: ${session.task.title}`);
+  }
+
+  if (session.notes?.trim()) {
+    segments.push(`Sessão: ${session.notes.trim()}`);
+  }
+
+  if (segments.length > 0) {
+    return segments.join(' - ');
+  }
+
+  const sessionLabel = session.type === 'pomodoro' ? 'Pomodoro' : 'Manual';
+  return session.project?.name
+    ? `${session.project.name} - Sessão ${sessionLabel}`
+    : `Sessão ${sessionLabel}`;
+}
+
 function buildQuery(query?: Record<string, string | undefined>): string {
   if (!query) return '';
   const params = new URLSearchParams();

@@ -8,11 +8,11 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
-import { useTimerStore } from '@/stores/useTimerStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { formatDateTime, formatDuration, formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel } from '@/lib/utils';
 import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus, Check, X, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
+import { FocusDialog } from '@/components/focus/FocusDialog';
 
 type Params = { taskId?: string | string[] };
 
@@ -34,11 +34,11 @@ export default function TaskDetailPage() {
   const taskId = resolveParam(params?.taskId);
 
   const { tasks, projects, updateTask, addTaskComment, updateTaskComment, deleteTaskComment, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask } = useAppStore();
-  const { startTimer, switchTask, isRunning } = useTimerStore();
 
   const task = tasks.find((current) => current.id === taskId);
   const project = task ? projects.find((current) => current.id === task.projectId) : undefined;
 
+  const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -295,18 +295,18 @@ export default function TaskDetailPage() {
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => {
-              if (isRunning) {
-                switchTask(project.id, task.id);
-              } else {
-                startTimer('pomodoro', project.id, task.id);
-              }
-              router.push('/focus');
-            }}
+            onClick={() => setIsFocusDialogOpen(true)}
           >
             <Play className="mr-2 h-4 w-4" />
             Iniciar foco
           </Button>
+          <FocusDialog
+            open={isFocusDialogOpen}
+            onOpenChange={setIsFocusDialogOpen}
+            initialProjectId={project.id}
+            initialTaskId={task.id}
+            onStarted={() => router.push('/focus')}
+          />
         </div>
       </div>
 

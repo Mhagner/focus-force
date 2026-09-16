@@ -7,8 +7,8 @@ import { useAppStore } from '@/stores/useAppStore';
 import { playBreakAlarm, playSessionSound } from '@/lib/sound';
 
 interface TimerStore extends TimerState {
-  startTimer: (type: 'pomodoro' | 'manual', projectId: string, taskId?: string) => void;
-  switchTask: (projectId: string, taskId?: string) => void;
+  startTimer: (type: 'pomodoro' | 'manual', projectId: string, taskId?: string, notes?: string) => void;
+  switchTask: (projectId: string, taskId?: string, notes?: string) => void;
   pauseTimer: () => void;
   resumeTimer: () => void;
   stopTimer: () => void;
@@ -40,6 +40,7 @@ const initialTimerState: TimerState = {
   sessionStart: undefined,
   lastTickAt: undefined,
   elapsedInCycle: 0,
+  pendingNotes: undefined,
 };
 
 function isBreakPhase(phase: TimerState['currentPhase']) {
@@ -54,6 +55,40 @@ function shouldTriggerPhaseAlarm(
     (fromPhase === 'work' && isBreakPhase(toPhase)) ||
     (isBreakPhase(fromPhase) && toPhase === 'work')
   );
+}
+
+/**
+ * Persists the session currently in progress (if any) as a completed FocusSession.
+ * Shared by startTimer (replacing a running session), switchTask and stopTimer so
+ * a session is never silently dropped when the user moves on before clicking "stop".
+ */
+function closeCurrentSession(state: TimerState, endIso: string, notes?: string) {
+  if (!state.sessionStart || !state.selectedProjectId) return;
+
+  const elapsed = state.totalTime - state.timeRemaining;
+  const durationSec = elapsed - state.elapsedInCycle;
+  if (durationSec <= 0) return;
+
+  const newSession = {
+    projectId: state.selectedProjectId,
+    taskId: state.selectedTaskId,
+    start: state.sessionStart,
+    end: endIso,
+    durationSec,
+    type: state.currentPhase === 'manual' ? ('manual' as const) : ('pomodoro' as const),
+    pomodoroCycles: state.currentPhase === 'manual' ? undefined : state.currentCycle,
+    notes: notes ?? '',
+  };
+
+  if (useAppStore.getState().pomodoroSettings.soundOn) {
+    playSessionSound('end');
+  }
+
+  storage.addSession(newSession).then((created) => {
+    try {
+      useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
+    } catch {}
+  });
 }
 
 function advanceTimerState(
@@ -134,6 +169,7 @@ function advanceTimerState(
           durationSec,
           type: 'pomodoro',
           pomodoroCycles: currentCycle,
+          notes: state.pendingNotes ?? '',
         });
       }
     }
@@ -182,7 +218,7 @@ function advanceTimerState(
 export const useTimerStore = create<TimerStore>((set, get) => ({
   ...initialTimerState,
 
-  startTimer: (type, projectId, taskId) => {
+  startTimer: (type, projectId, taskId, notes) => {
     const currentState = get();
     const pomodoroSettings = useAppStore.getState().pomodoroSettings;
     const nowIso = new Date().toISOString();
@@ -210,6 +246,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         sessionStart: nowIso,
         lastTickAt: nowIso,
         elapsedInCycle: elapsed,
+        pendingNotes: notes,
       });
 
       get().saveState();
@@ -219,6 +256,13 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       }
 
       return;
+    }
+
+    // A different session may already be running (e.g. user starts a new
+    // focus session without clicking "stop" first) — close and persist it
+    // before overwriting the timer state, otherwise it's silently lost.
+    if (currentState.isRunning && currentState.selectedProjectId) {
+      closeCurrentSession(currentState, nowIso, currentState.pendingNotes);
     }
 
     const totalTime = type === 'pomodoro' ? pomodoroSettings.workMin * 60 : 25 * 60;
@@ -235,6 +279,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       sessionStart: nowIso,
       lastTickAt: nowIso,
       elapsedInCycle: 0,
+      pendingNotes: notes,
     });
 
     get().saveState();
@@ -244,33 +289,13 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     }
   },
 
-  switchTask: (projectId, taskId) => {
+  switchTask: (projectId, taskId, notes) => {
     const state = get();
+    const nowIso = new Date().toISOString();
+
+    closeCurrentSession(state, nowIso, state.pendingNotes);
 
     const elapsed = state.totalTime - state.timeRemaining;
-    const durationSec = elapsed - state.elapsedInCycle;
-
-    if (state.sessionStart && state.selectedProjectId && durationSec > 0) {
-      const newSession = {
-        projectId: state.selectedProjectId,
-        taskId: state.selectedTaskId,
-        start: state.sessionStart,
-        end: new Date().toISOString(),
-        durationSec,
-        type: state.currentPhase === 'manual' ? ('manual' as const) : ('pomodoro' as const),
-        pomodoroCycles: state.currentPhase === 'manual' ? undefined : state.currentCycle,
-      };
-      if (useAppStore.getState().pomodoroSettings.soundOn) {
-        playSessionSound('end');
-      }
-      storage.addSession(newSession).then((created) => {
-        try {
-          useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
-        } catch {}
-      });
-    }
-
-    const nowIso = new Date().toISOString();
 
     set({
       selectedProjectId: projectId,
@@ -278,6 +303,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       sessionStart: nowIso,
       lastTickAt: nowIso,
       elapsedInCycle: elapsed,
+      pendingNotes: notes,
     });
 
     get().saveState();
@@ -300,30 +326,9 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
   stopTimer: () => {
     const state = get();
+    const nowIso = new Date().toISOString();
 
-    if (state.sessionStart && state.selectedProjectId) {
-      const elapsed = state.totalTime - state.timeRemaining;
-      const durationSec = elapsed - state.elapsedInCycle;
-      if (durationSec > 0) {
-        const newSession = {
-          projectId: state.selectedProjectId,
-          taskId: state.selectedTaskId,
-          start: state.sessionStart,
-          end: new Date().toISOString(),
-          durationSec,
-          type: state.currentPhase === 'manual' ? ('manual' as const) : ('pomodoro' as const),
-          pomodoroCycles: state.currentPhase === 'manual' ? undefined : state.currentCycle,
-        };
-        if (useAppStore.getState().pomodoroSettings.soundOn) {
-          playSessionSound('end');
-        }
-        storage.addSession(newSession).then((created) => {
-          try {
-            useAppStore.setState((prev) => ({ sessions: [...prev.sessions, created] }));
-          } catch {}
-        });
-      }
-    }
+    closeCurrentSession(state, nowIso, state.pendingNotes);
 
     if (state.currentPhase === 'manual') {
       set({ ...initialTimerState });
@@ -341,6 +346,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       selectedProjectId: undefined,
       selectedTaskId: undefined,
       elapsedInCycle: elapsed,
+      pendingNotes: undefined,
     });
 
     get().saveState();
@@ -503,6 +509,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         sessionStart: state.sessionStart,
         lastTickAt: state.lastTickAt,
         elapsedInCycle: state.elapsedInCycle,
+        pendingNotes: state.pendingNotes,
       });
     }
   },

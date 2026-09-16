@@ -7,7 +7,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { useAppStore } from '@/stores/useAppStore';
-import { formatDuration, exportToCsv, exportToPdf, getTotalWorkSecondsForDate } from '@/lib/utils';
+import { formatDuration, exportToCsv, getTotalWorkSecondsForDate } from '@/lib/utils';
+import { exportSessionsReportToPdf, DailyHoursPoint } from '@/lib/report-pdf';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { format, startOfDay, endOfDay, addDays, differenceInCalendarDays, startOfWeek } from 'date-fns';
 import { Download, Filter, FileDown, Trash2, Loader2, RefreshCcw, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
@@ -37,6 +38,8 @@ export default function ReportsPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [syncingSessionId, setSyncingSessionId] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [draftRange, setDraftRange] = useState<{ from: Date | undefined; to?: Date } | undefined>(undefined);
   const { toast } = useToast();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
   const allowedProjectIds = useMemo(
@@ -116,15 +119,18 @@ export default function ReportsPage() {
     setEndDate(format(addDays(pickerEnd, shift), 'yyyy-MM-dd'));
   };
 
-  const handleRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    if (!range) return;
-    if (range.from) setStartDate(format(range.from, 'yyyy-MM-dd'));
-    if (range.to) {
-      setEndDate(format(range.to, 'yyyy-MM-dd'));
-      setIsCalendarOpen(false);
-    } else {
-      setEndDate(format(range.from ?? pickerStart, 'yyyy-MM-dd'));
+  const handleCalendarOpenChange = (open: boolean) => {
+    if (open) {
+      setDraftRange({ from: pickerStart, to: pickerEnd });
     }
+    setIsCalendarOpen(open);
+  };
+
+  const handleApplyDateRange = () => {
+    if (!draftRange?.from) return;
+    setStartDate(format(draftRange.from, 'yyyy-MM-dd'));
+    setEndDate(format(draftRange.to ?? draftRange.from, 'yyyy-MM-dd'));
+    setIsCalendarOpen(false);
   };
 
   const dateRangeLabel =
@@ -167,7 +173,7 @@ export default function ReportsPage() {
   ).length;
 
   // Prepare chart data
-  const dailyData = [];
+  const dailyData: DailyHoursPoint[] = [];
   for (let current = new Date(normalizedStartDate); current <= normalizedEndDate; current = addDays(current, 1)) {
     const currentDay = new Date(current);
     const dayStart = startOfDay(currentDay);
@@ -218,20 +224,28 @@ export default function ReportsPage() {
     exportToCsv(exportData, `focusforge-sessoes-${startDate}-${endDate}.csv`);
   };
 
-  const handleExportPdf = () => {
-    const exportData = filteredSessions.map(session => {
-      const project = projects.find(p => p.id === session.projectId);
-
-      return {
-        'Data': format(new Date(session.start), 'dd/MM/yyyy'),
-        'Início': format(new Date(session.start), 'HH:mm'),
-        'Fim': session.end ? format(new Date(session.end), 'HH:mm') : 'Em andamento',
-        'Projeto': project?.name || 'N/A',
-        'Duração': formatDuration(session.durationSec),
-      };
-    });
-
-    exportToPdf(exportData, `focusforge-sessoes-${startDate}-${endDate}.pdf`);
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      await exportSessionsReportToPdf({
+        sessions: filteredSessions,
+        projects: activeProjects,
+        tasks,
+        startDate: format(pickerStart, 'dd/MM/yyyy'),
+        endDate: format(pickerEnd, 'dd/MM/yyyy'),
+        dailyData,
+        filename: `focusforge-sessoes-${startDate}-${endDate}.pdf`,
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: 'Erro ao exportar PDF',
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   return (
@@ -253,8 +267,12 @@ export default function ReportsPage() {
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
           </Button>
-          <Button onClick={handleExportPdf} variant="outline">
-            <FileDown className="h-4 w-4 mr-2" />
+          <Button onClick={handleExportPdf} variant="outline" disabled={isExportingPdf}>
+            {isExportingPdf ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4 mr-2" />
+            )}
             Exportar PDF
           </Button>
         </div>
@@ -283,7 +301,7 @@ export default function ReportsPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <Popover open={isCalendarOpen} onOpenChange={handleCalendarOpenChange}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -296,12 +314,39 @@ export default function ReportsPage() {
                 <PopoverContent className="w-auto p-0 border-gray-700 bg-gray-900" align="start">
                   <Calendar
                     mode="range"
-                    selected={{ from: pickerStart, to: pickerEnd }}
-                    onSelect={handleRangeSelect}
+                    selected={draftRange}
+                    onSelect={setDraftRange}
                     numberOfMonths={2}
                     locale={ptBR}
                     className="text-white"
                   />
+                  <div className="flex items-center justify-between gap-2 border-t border-gray-800 p-3">
+                    <span className="text-xs text-gray-400">
+                      {draftRange?.from
+                        ? draftRange.to
+                          ? `${format(draftRange.from, 'dd/MM/yyyy')} – ${format(draftRange.to, 'dd/MM/yyyy')}`
+                          : format(draftRange.from, 'dd/MM/yyyy')
+                        : 'Selecione o período'}
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-700 text-gray-200 hover:bg-gray-800"
+                        onClick={() => setIsCalendarOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={handleApplyDateRange}
+                        disabled={!draftRange?.from}
+                      >
+                        Filtrar
+                      </Button>
+                    </div>
+                  </div>
                 </PopoverContent>
               </Popover>
 
