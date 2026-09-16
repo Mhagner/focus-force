@@ -257,17 +257,7 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [isBoardStateHydrated, setIsBoardStateHydrated] = useState(false);
-  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set();
-    try {
-      const saved = window.localStorage.getItem(BOARD_COLLAPSED_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return new Set<string>(parsed as string[]);
-      }
-    } catch {}
-    return new Set<string>();
-  });
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(() => new Set());
 
   const showOnlyToday = tasksFilters.showOnlyToday;
 
@@ -276,6 +266,14 @@ export default function TasksPage() {
     const params = new URLSearchParams(window.location.search);
     setSearchQuery(params.get('search') ?? '');
     setFocusId(params.get('focusId') ?? null);
+
+    try {
+      const saved = window.localStorage.getItem(BOARD_COLLAPSED_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setCollapsedColumns(new Set<string>(parsed as string[]));
+      }
+    } catch {}
 
     const onPop = () => {
       const p = new URLSearchParams(window.location.search);

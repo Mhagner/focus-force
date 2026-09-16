@@ -31,14 +31,18 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem('focusforge/sidebar/collapsed') === 'true';
-  });
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    setIsCollapsed(window.localStorage.getItem('focusforge/sidebar/collapsed') === 'true');
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
     window.localStorage.setItem('focusforge/sidebar/collapsed', String(isCollapsed));
-  }, [isCollapsed]);
+  }, [isCollapsed, isHydrated]);
 
   return (
     <div className={cn(
