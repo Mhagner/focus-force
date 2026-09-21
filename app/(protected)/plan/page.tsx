@@ -174,8 +174,8 @@ export default function PlanPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Planejamento Diário</h1>
-          <p className="text-gray-400">
+          <h1 className="font-display text-3xl font-bold text-ink mb-2">Planejamento Diário</h1>
+          <p className="text-ink-muted">
             {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
@@ -184,7 +184,7 @@ export default function PlanPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-300 hover:text-white"
+            className="text-ink-muted hover:text-ink"
             onClick={() => setSelectedDate(prev => addDays(prev, -1))}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -194,13 +194,13 @@ export default function PlanPage() {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="bg-gray-900/60 border-gray-700 text-white flex items-center gap-2"
+                className="flex items-center gap-2"
               >
                 <CalendarIcon className="h-4 w-4" />
                 {format(selectedDate, "dd/MM/yyyy")}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-gray-900 border border-gray-800" align="end">
+            <PopoverContent className="w-auto p-0" align="end">
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -214,7 +214,7 @@ export default function PlanPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-300 hover:text-white"
+            className="text-ink-muted hover:text-ink"
             onClick={() => setSelectedDate(prev => addDays(prev, 1))}
           >
             <ChevronRight className="h-5 w-5" />
@@ -222,7 +222,7 @@ export default function PlanPage() {
 
           <Button
             variant="ghost"
-            className="text-gray-300 hover:text-white"
+            className="text-ink-muted hover:text-ink"
             onClick={() => setSelectedDate(new Date())}
             disabled={isToday(selectedDate)}
           >
@@ -233,7 +233,6 @@ export default function PlanPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="bg-gray-900/60 border-gray-700 text-white hover:text-white"
             onClick={handleLoadTodayTasks}
             disabled={isSaving}
             title={plannedTasksForDate.length === 0 ? 'Nenhuma tarefa planejada para este dia' : undefined}
@@ -241,7 +240,7 @@ export default function PlanPage() {
             <ListChecks className="h-4 w-4 mr-2" />
             Carregar tarefas do dia
             {plannedTasksForDate.length > 0 && (
-              <span className="ml-2 rounded-full bg-blue-500/20 px-1.5 py-0.5 text-xs text-blue-300">
+              <span className="ml-2 rounded-full bg-accent-blue/[0.14] px-1.5 py-0.5 text-xs text-accent-blue">
                 {plannedTasksForDate.length}
               </span>
             )}
@@ -249,7 +248,6 @@ export default function PlanPage() {
 
           <Button
             variant="outline"
-            className="bg-gray-900/60 border-gray-700 text-white hover:text-white"
             onClick={handleCopyPreviousDay}
             disabled={isSaving}
           >
@@ -259,7 +257,6 @@ export default function PlanPage() {
 
           <Button
             onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700"
             disabled={isSaving}
           >
             {isSaving ? (
@@ -278,16 +275,16 @@ export default function PlanPage() {
       </div>
 
       {/* Progress Overview */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800 mb-6">
+      <Card className="p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <CalendarIcon className="h-5 w-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-white">Progresso do Dia</h2>
+          <CalendarIcon className="h-5 w-5 text-ink-muted" />
+          <h2 className="text-lg font-semibold text-ink">Progresso do Dia</h2>
         </div>
 
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-400">Tempo trabalhado vs planejado</span>
-            <span className="text-white">
+            <span className="text-ink-muted">Tempo trabalhado vs planejado</span>
+            <span className="text-ink">
               {formatDuration(Math.round(totalWorkedMinutes * 60))} / {formatDuration(totalPlanned * 60)}
             </span>
           </div>
@@ -299,12 +296,12 @@ export default function PlanPage() {
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-gray-400">Total planejado: </span>
-            <span className="text-white font-medium">{formatDuration(totalPlanned * 60)}</span>
+            <span className="text-ink-muted">Total planejado: </span>
+            <span className="text-ink font-medium">{formatDuration(totalPlanned * 60)}</span>
           </div>
           <div>
-            <span className="text-gray-400">Eficiência: </span>
-            <span className="text-white font-medium">
+            <span className="text-ink-muted">Eficiência: </span>
+            <span className="text-ink font-medium">
               {totalPlanned > 0 ? Math.round((totalWorkedMinutes / totalPlanned) * 100) : 0}%
             </span>
           </div>
@@ -312,8 +309,8 @@ export default function PlanPage() {
       </Card>
 
       {/* Time Blocks */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Blocos de Tempo</h2>
+      <Card className="p-6 mb-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">Blocos de Tempo</h2>
 
         <div className="flex items-center gap-2 mb-6">
           <Select value={newProjectId} onValueChange={setNewProjectId}>
@@ -326,7 +323,7 @@ export default function PlanPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={handleAddBlock} disabled={!newProjectId} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={handleAddBlock} disabled={!newProjectId} variant="outline" className="text-success border-success/40 hover:bg-success/[0.1]">
             <Plus className="h-4 w-4 mr-2" />
             Adicionar
           </Button>
@@ -346,10 +343,10 @@ export default function PlanPage() {
                   <ProjectBadge name={project.name} color={project.color} />
                   <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <p className="text-white font-medium">
+                      <p className="text-ink font-medium">
                         {formatDuration(block.targetMinutes * 60)}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-ink-muted">
                         {formatDuration(Math.round(workedMinutes * 60))} trabalhados
                       </p>
                     </div>
@@ -362,7 +359,7 @@ export default function PlanPage() {
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="px-3">
                   <Slider
                     value={[block.targetMinutes]}
@@ -381,13 +378,13 @@ export default function PlanPage() {
       </Card>
 
       {/* Notes */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800">
-        <h2 className="text-lg font-semibold text-white mb-4">Notas do Dia</h2>
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">Notas do Dia</h2>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Adicione observações sobre o dia, objetivos ou comentários..."
-          className="bg-gray-800 border-gray-700 text-white min-h-24"
+          className="min-h-24"
         />
       </Card>
     </div>

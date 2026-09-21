@@ -46,28 +46,28 @@ export function TaskOverrunCommentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-400" />
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-accent-orange" />
             Tarefa com tempo acima do esperado
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <p className="text-sm text-gray-300">
-            <span className="font-semibold text-white">{taskTitle}</span> acumulou{' '}
-            <span className="font-semibold text-amber-400">{formatDuration(trackedSeconds)}</span> de trabalho.
+          <p className="text-sm text-ink-muted">
+            <span className="font-semibold text-ink">{taskTitle}</span> acumulou{' '}
+            <span className="font-semibold text-accent-orange">{formatDuration(trackedSeconds)}</span> de trabalho.
             Antes de concluir, explique o motivo do tempo extra para registro no Clockfy.
           </p>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Comentário *</label>
+            <label className="block text-sm text-ink-muted mb-2">Comentário *</label>
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Ex: Retrabalho por mudança de escopo do cliente"
-              className="bg-gray-800 border-gray-700 text-white resize-none"
+              className="resize-none"
               rows={3}
               autoFocus
             />
@@ -78,7 +78,7 @@ export function TaskOverrunCommentDialog({
               Cancelar
             </Button>
             <Button
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1"
               onClick={handleConfirm}
               disabled={!comment.trim() || isSubmitting}
             >

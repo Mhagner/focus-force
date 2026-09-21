@@ -18,16 +18,16 @@ export function TodayPlan() {
 
   if (!todayPlan || todayPlan.blocks.length === 0) {
     return (
-      <Card className="p-6 bg-gray-900/50 border-gray-800">
+      <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">
+          <h3 className="text-lg font-semibold text-ink">
             Plano de Hoje
           </h3>
-          <Calendar className="h-5 w-5 text-gray-400" />
+          <Calendar className="h-5 w-5 text-ink-muted" />
         </div>
-        
+
         <div className="text-center py-8">
-          <p className="text-gray-400 mb-4">Nenhum plano definido para hoje</p>
+          <p className="text-ink-muted mb-4">Nenhum plano definido para hoje</p>
           <Button asChild variant="outline">
             <Link href="/plan">Criar Plano Diário</Link>
           </Button>
@@ -43,23 +43,23 @@ export function TodayPlan() {
   }, 0);
 
   return (
-    <Card className="p-6 bg-gray-900/50 border-gray-800">
+    <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white">
+        <h3 className="text-lg font-semibold text-ink">
           Plano de Hoje
         </h3>
-        <Calendar className="h-5 w-5 text-gray-400" />
+        <Calendar className="h-5 w-5 text-ink-muted" />
       </div>
 
       <div className="mb-6">
         <div className="flex justify-between text-sm mb-2">
-          <span className="text-gray-400">Progresso do Dia</span>
-          <span className="text-white">
+          <span className="text-ink-muted">Progresso do Dia</span>
+          <span className="text-ink">
             {Math.round(totalWorked)}m / {totalPlanned}m
           </span>
         </div>
-        <Progress 
-          value={(totalWorked / totalPlanned) * 100} 
+        <Progress
+          value={(totalWorked / totalPlanned) * 100}
           className="h-2"
         />
       </div>
@@ -73,31 +73,31 @@ export function TodayPlan() {
           const progress = (workedMinutes / block.targetMinutes) * 100;
           
           return (
-            <div 
+            <div
               key={block.projectId}
-              className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30 border border-gray-700/50"
+              className="flex items-center justify-between p-3 rounded-lg bg-background border border-border"
             >
               <div className="flex items-center gap-3 flex-1">
-                <ProjectBadge 
-                  name={project.name} 
-                  color={project.color} 
-                  size="sm" 
+                <ProjectBadge
+                  name={project.name}
+                  color={project.color}
+                  size="sm"
                 />
                 <div className="flex-1">
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-400">Meta: {block.targetMinutes}m</span>
-                    <span className="text-white">
+                    <span className="text-ink-muted">Meta: {block.targetMinutes}m</span>
+                    <span className="text-ink">
                       {Math.round(workedMinutes)}m trabalhados
                     </span>
                   </div>
                   <Progress value={Math.min(progress, 100)} className="h-1.5" />
                 </div>
               </div>
-              
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="ml-3 text-gray-400 hover:text-white"
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-3 text-ink-muted hover:text-ink"
               >
                 <Play className="h-4 w-4" />
               </Button>
@@ -107,8 +107,8 @@ export function TodayPlan() {
       </div>
 
       {todayPlan.notes && (
-        <div className="mt-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700/50">
-          <p className="text-sm text-gray-300">{todayPlan.notes}</p>
+        <div className="mt-4 p-3 bg-background rounded-lg border border-border">
+          <p className="text-sm text-ink-muted">{todayPlan.notes}</p>
         </div>
       )}
     </Card>

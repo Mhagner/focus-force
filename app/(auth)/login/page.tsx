@@ -58,18 +58,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white px-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-background text-ink px-4">
+      <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-surface p-8 shadow-sm">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Bem-vindo ao FocusForge</h1>
-          <p className="text-gray-400">
+          <h1 className="font-display text-3xl font-bold text-primary">Bem-vindo ao FocusForge</h1>
+          <p className="text-ink-muted">
             Digite o código de acesso de 6 dígitos para entrar no painel.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="access-code" className="text-gray-300">
+            <Label htmlFor="access-code" className="text-ink">
               Código de acesso
             </Label>
             <InputOTP
@@ -91,12 +91,12 @@ export default function LoginPage() {
                 <InputOTPSlot index={5} />
               </InputOTPGroup>
             </InputOTP>
-            {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+            {error && <p className="text-sm text-danger text-center">{error}</p>}
           </div>
 
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700"
+            className="w-full"
             disabled={isSubmitting}
           >
             {isSubmitting ? 'Entrando...' : 'Entrar'}

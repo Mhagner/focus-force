@@ -228,23 +228,23 @@ export default function SettingsPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Configurações</h1>
-        <p className="text-gray-400">
+        <h1 className="font-display text-3xl font-bold text-ink mb-2">Configurações</h1>
+        <p className="text-ink-muted">
           Personalize sua experiência de foco
         </p>
       </div>
 
       <div className="space-y-6">
         {/* Pomodoro Settings */}
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Settings className="h-5 w-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-white">Configurações do Pomodoro</h2>
+            <Settings className="h-5 w-5 text-ink-muted" />
+            <h2 className="text-lg font-semibold text-ink">Configurações do Pomodoro</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-gray-300 mb-3 block">
+              <Label className="mb-3 block">
                 Tempo de Trabalho: {settings.workMin} minutos
               </Label>
               <Slider
@@ -258,7 +258,7 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <Label className="text-gray-300 mb-3 block">
+              <Label className="mb-3 block">
                 Pausa Curta: {settings.shortBreakMin} minutos
               </Label>
               <Slider
@@ -272,7 +272,7 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <Label className="text-gray-300 mb-3 block">
+              <Label className="mb-3 block">
                 Pausa Longa: {settings.longBreakMin} minutos
               </Label>
               <Slider
@@ -286,7 +286,7 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <Label className="text-gray-300 mb-3 block">
+              <Label className="mb-3 block">
                 Ciclos até pausa longa: {settings.cyclesToLongBreak}
               </Label>
               <Slider
@@ -302,7 +302,7 @@ export default function SettingsPage() {
 
           <div className="space-y-4 mt-6">
             <div className="flex items-center justify-between">
-              <Label htmlFor="auto-start" className="text-gray-300">
+              <Label htmlFor="auto-start">
                 Iniciar próxima fase automaticamente
               </Label>
               <Switch
@@ -313,7 +313,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="sound-on" className="text-gray-300">
+              <Label htmlFor="sound-on">
                 Notificações sonoras
               </Label>
               <Switch
@@ -326,7 +326,7 @@ export default function SettingsPage() {
 
           <Button
             onClick={handleSaveSettings}
-            className="mt-6 bg-blue-600 hover:bg-blue-700"
+            className="mt-6"
             disabled={isSavingSettings}
           >
             {isSavingSettings ? (
@@ -340,12 +340,12 @@ export default function SettingsPage() {
           </Button>
         </Card>
 
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Settings className="h-5 w-5 text-gray-400" />
+            <Settings className="h-5 w-5 text-ink-muted" />
             <div>
-              <h2 className="text-lg font-semibold text-white">Checklist padrão das tarefas</h2>
-              <p className="text-xs text-gray-400 mt-1">
+              <h2 className="text-lg font-semibold text-ink">Checklist padrão das tarefas</h2>
+              <p className="text-xs text-ink-muted mt-1">
                 Itens adicionados aqui serão incluídos automaticamente em novas tarefas.
               </p>
             </div>
@@ -354,19 +354,17 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-end">
               <div className="flex-1">
-                <Label htmlFor="new-checklist-item" className="text-gray-300">Novo item</Label>
+                <Label htmlFor="new-checklist-item">Novo item</Label>
                 <Input
                   id="new-checklist-item"
                   value={newChecklistItem}
                   onChange={(e) => setNewChecklistItem(e.target.value)}
                   placeholder="Ex: Revisar requisitos"
-                  className="bg-gray-800 border-gray-700 text-white"
                 />
               </div>
               <Button
                 type="button"
                 onClick={handleAddChecklistItem}
-                className="bg-blue-600 hover:bg-blue-700"
                 disabled={!newChecklistItem.trim()}
               >
                 Adicionar
@@ -374,21 +372,21 @@ export default function SettingsPage() {
             </div>
 
             {(settings.defaultChecklist?.length ?? 0) === 0 ? (
-              <p className="text-sm text-gray-400">Nenhum item padrão definido.</p>
+              <p className="text-sm text-ink-muted">Nenhum item padrão definido.</p>
             ) : (
               <div className="space-y-2">
                 {settings.defaultChecklist?.map((item, index) => (
                   <div
                     key={`${item}-${index}`}
-                    className="flex items-center justify-between rounded-md border border-gray-800 bg-gray-900/60 px-3 py-2"
+                    className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
                   >
-                    <span className="text-sm text-gray-200">{item}</span>
+                    <span className="text-sm text-ink">{item}</span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveChecklistItem(index)}
-                      className="text-gray-400 hover:text-white"
+                      className="text-ink-muted hover:text-ink"
                     >
                       Remover
                     </Button>
@@ -400,7 +398,7 @@ export default function SettingsPage() {
 
           <Button
             onClick={handleSaveSettings}
-            className="mt-6 bg-blue-600 hover:bg-blue-700"
+            className="mt-6"
             disabled={isSavingSettings}
           >
             {isSavingSettings ? (
@@ -414,12 +412,12 @@ export default function SettingsPage() {
           </Button>
         </Card>
 
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Settings className="h-5 w-5 text-gray-400" />
+            <Settings className="h-5 w-5 text-ink-muted" />
             <div>
-              <h2 className="text-lg font-semibold text-white">Descrições de sessão</h2>
-              <p className="text-xs text-gray-400 mt-1">
+              <h2 className="text-lg font-semibold text-ink">Descrições de sessão</h2>
+              <p className="text-xs text-ink-muted mt-1">
                 Sugestões rápidas exibidas ao iniciar uma sessão de foco. A descrição é obrigatória em toda sessão.
               </p>
             </div>
@@ -428,19 +426,17 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-end">
               <div className="flex-1">
-                <Label htmlFor="new-description-preset" className="text-gray-300">Nova descrição padrão</Label>
+                <Label htmlFor="new-description-preset">Nova descrição padrão</Label>
                 <Input
                   id="new-description-preset"
                   value={newDescriptionPreset}
                   onChange={(e) => setNewDescriptionPreset(e.target.value)}
                   placeholder="Ex: Reunião com o cliente"
-                  className="bg-gray-800 border-gray-700 text-white"
                 />
               </div>
               <Button
                 type="button"
                 onClick={handleAddDescriptionPreset}
-                className="bg-blue-600 hover:bg-blue-700"
                 disabled={!newDescriptionPreset.trim() || isSavingPreset}
               >
                 {isSavingPreset ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Adicionar'}
@@ -448,21 +444,21 @@ export default function SettingsPage() {
             </div>
 
             {sessionDescriptionPresets.length === 0 ? (
-              <p className="text-sm text-gray-400">Nenhuma descrição padrão definida.</p>
+              <p className="text-sm text-ink-muted">Nenhuma descrição padrão definida.</p>
             ) : (
               <div className="space-y-2">
                 {sessionDescriptionPresets.map((preset) => (
                   <div
                     key={preset.id}
-                    className="flex items-center justify-between rounded-md border border-gray-800 bg-gray-900/60 px-3 py-2"
+                    className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
                   >
-                    <span className="text-sm text-gray-200">{preset.label}</span>
+                    <span className="text-sm text-ink">{preset.label}</span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemoveDescriptionPreset(preset.id)}
-                      className="text-gray-400 hover:text-white"
+                      className="text-ink-muted hover:text-ink"
                     >
                       Remover
                     </Button>
@@ -474,12 +470,12 @@ export default function SettingsPage() {
         </Card>
 
         {/* Default Project Settings */}
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">
-            <FolderKanban className="h-5 w-5 text-gray-400" />
+            <FolderKanban className="h-5 w-5 text-ink-muted" />
             <div>
-              <h2 className="text-lg font-semibold text-white">Configurações de Projetos</h2>
-              <p className="text-xs text-gray-400 mt-1">
+              <h2 className="text-lg font-semibold text-ink">Configurações de Projetos</h2>
+              <p className="text-xs text-ink-muted mt-1">
                 Valores padrão aplicados automaticamente ao criar novos projetos.
               </p>
             </div>
@@ -487,10 +483,10 @@ export default function SettingsPage() {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="default-hourly-rate" className="text-gray-300">
+              <Label htmlFor="default-hourly-rate">
                 Valor/hora padrão (R$)
               </Label>
-              <p className="text-xs text-gray-500 mb-2">
+              <p className="text-xs text-ink-muted mb-2">
                 Preenchido automaticamente no campo de taxa ao criar um novo projeto.
               </p>
               <Input
@@ -506,14 +502,14 @@ export default function SettingsPage() {
                   })
                 }
                 placeholder="Ex: 150.00"
-                className="bg-gray-800 border-gray-700 text-white max-w-xs"
+                className="max-w-xs"
               />
             </div>
           </div>
 
           <Button
             onClick={handleSaveSettings}
-            className="mt-6 bg-blue-600 hover:bg-blue-700"
+            className="mt-6"
             disabled={isSavingSettings}
           >
             {isSavingSettings ? (
@@ -527,12 +523,12 @@ export default function SettingsPage() {
           </Button>
         </Card>
 
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">
-            <PlugZap className="h-5 w-5 text-gray-400" />
+            <PlugZap className="h-5 w-5 text-ink-muted" />
             <div>
-              <h2 className="text-lg font-semibold text-white">Integração com Clockfy</h2>
-              <p className="text-xs text-gray-400 mt-1">
+              <h2 className="text-lg font-semibold text-ink">Integração com Clockfy</h2>
+              <p className="text-xs text-ink-muted mt-1">
                 Conecte-se ao Clockfy para sincronizar projetos e sessões automaticamente.
               </p>
             </div>
@@ -540,48 +536,46 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="clockfy-api" className="text-gray-300">API Key</Label>
+              <Label htmlFor="clockfy-api">API Key</Label>
               <Input
                 id="clockfy-api"
                 type="password"
                 value={clockfyForm.apiKey}
                 onChange={(e) => setClockfyForm({ ...clockfyForm, apiKey: e.target.value })}
                 placeholder="ckey_xxxxx"
-                className="bg-gray-800 border-gray-700 text-white"
                 autoComplete="off"
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-gray-300">Workspaces</Label>
-                <Button variant="outline" size="sm" onClick={handleAddWorkspace} className="border-gray-700 text-gray-200">
+                <Label>Workspaces</Label>
+                <Button variant="outline" size="sm" onClick={handleAddWorkspace}>
                   Adicionar
                 </Button>
               </div>
 
               {(clockfyForm.workspaces?.length ?? 0) === 0 && (
-                <p className="text-sm text-gray-400">Cadastre ao menos um workspace para sincronizar.</p>
+                <p className="text-sm text-ink-muted">Cadastre ao menos um workspace para sincronizar.</p>
               )}
 
               <div className="space-y-3">
                 {clockfyForm.workspaces?.map((workspace, index) => (
-                  <div key={index} className="rounded-md border border-gray-800 p-3 bg-gray-900/60 space-y-2">
+                  <div key={index} className="rounded-md border border-border p-3 bg-background space-y-2">
                     <div className="flex gap-2">
                       <div className="flex-1">
-                        <Label className="text-gray-400 text-xs">Workspace ID</Label>
+                        <Label className="text-ink-muted text-xs">Workspace ID</Label>
                         <Input
                           value={workspace.id ?? ''}
                           onChange={(e) => handleWorkspaceChange(index, 'id', e.target.value)}
                           placeholder="workspace_id"
-                          className="bg-gray-800 border-gray-700 text-white"
                           autoComplete="off"
                         />
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="self-start text-gray-400 hover:text-white"
+                        className="self-start text-ink-muted hover:text-ink"
                         onClick={() => handleRemoveWorkspace(index)}
                         disabled={(clockfyForm.workspaces?.length ?? 0) <= 1}
                         title="Remover workspace"
@@ -590,12 +584,11 @@ export default function SettingsPage() {
                       </Button>
                     </div>
                     <div>
-                      <Label className="text-gray-400 text-xs">Descrição</Label>
+                      <Label className="text-ink-muted text-xs">Descrição</Label>
                       <Input
                         value={workspace.description ?? ''}
                         onChange={(e) => handleWorkspaceChange(index, 'description', e.target.value)}
                         placeholder="Ex: Equipe Produto"
-                        className="bg-gray-800 border-gray-700 text-white"
                         autoComplete="off"
                       />
                     </div>
@@ -606,14 +599,14 @@ export default function SettingsPage() {
           </div>
 
           {lastClockfyUpdate && (
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-ink-muted mt-2">
               Última atualização: {lastClockfyUpdate}
             </p>
           )}
 
           <Button
             onClick={handleSaveClockfy}
-            className="mt-6 bg-blue-600 hover:bg-blue-700"
+            className="mt-6"
             disabled={isSavingClockfy}
           >
             {isSavingClockfy ? (
@@ -629,22 +622,22 @@ export default function SettingsPage() {
           <div className="mt-8">
             <div className="flex items-center gap-2 mb-3">
               {clockfyConfigured ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                <CheckCircle2 className="h-4 w-4 text-success" />
               ) : (
-                <AlertCircle className="h-4 w-4 text-yellow-400" />
+                <AlertCircle className="h-4 w-4 text-accent-orange" />
               )}
-              <h3 className="text-sm font-semibold text-white">Status de sincronização de projetos</h3>
+              <h3 className="text-sm font-semibold text-ink">Status de sincronização de projetos</h3>
             </div>
 
             {!clockfyConfigured && (
-              <p className="text-sm text-yellow-300/80 mb-4">
+              <p className="text-sm text-accent-orange mb-4">
                 Informe a API Key e cadastre pelo menos um workspace para ativar a sincronização com o Clockfy.
               </p>
             )}
 
             <div className="space-y-2">
               {activeProjects.length === 0 ? (
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-ink-muted">
                   Nenhum projeto cadastrado ainda.
                 </p>
               ) : (
@@ -660,15 +653,15 @@ export default function SettingsPage() {
                       {clockfyStatus === 'synced' && (
                         <div
                           key={project.id}
-                          className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3"
+                          className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3"
                         >
                           <div>
-                            <p className="text-sm font-medium text-white">{project.name}</p>
+                            <p className="text-sm font-medium text-ink">{project.name}</p>
                             {project.client && (
-                              <p className="text-xs text-gray-400">{project.client}</p>
+                              <p className="text-xs text-ink-muted">{project.client}</p>
                             )}
                           </div>
-                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                          <Badge variant="success">
                             Sincronizado
                           </Badge>
                         </div>
@@ -682,13 +675,13 @@ export default function SettingsPage() {
         </Card>
 
         {/* Data Management */}
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
-          <h2 className="text-lg font-semibold text-white mb-6">Gestão de Dados</h2>
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-ink mb-6">Gestão de Dados</h2>
 
           <div className="space-y-4">
             <div>
-              <h3 className="font-medium text-white mb-2">Backup & Restore</h3>
-              <p className="text-sm text-gray-400 mb-4">
+              <h3 className="font-medium text-ink mb-2">Backup & Restore</h3>
+              <p className="text-sm text-ink-muted mb-4">
                 Exporte seus dados para fazer backup ou importe um arquivo anterior.
               </p>
 
@@ -716,9 +709,9 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="pt-6 border-t border-gray-700">
-              <h3 className="font-medium text-red-400 mb-2">Zona de Perigo</h3>
-              <p className="text-sm text-gray-400 mb-4">
+            <div className="pt-6 border-t border-border">
+              <h3 className="font-medium text-danger mb-2">Zona de Perigo</h3>
+              <p className="text-sm text-ink-muted mb-4">
                 Esta ação irá apagar permanentemente todos os seus dados.
               </p>
 

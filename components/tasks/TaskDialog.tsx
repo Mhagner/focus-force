@@ -88,21 +88,21 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-gray-900 border-gray-800">
+            <DialogContent>
                 <DialogHeader>
-                    <DialogTitle className="text-white">
+                    <DialogTitle>
                         {task ? 'Editar Tarefa' : 'Nova Tarefa'}
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-6">
                     <div>
-                        <Label htmlFor="project" className="text-gray-300">Projeto *</Label>
+                        <Label htmlFor="project">Projeto *</Label>
                         <Select value={projectId} onValueChange={setProjectId}>
-                            <SelectTrigger id="project" className="w-full bg-gray-800 border-gray-700 text-white">
+                            <SelectTrigger id="project" className="w-full">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectContent>
                                 {activeProjects.map((p) => (
                                     <SelectItem value={p.id} key={p.id}>
                                         <div className="flex items-center gap-2">
@@ -116,35 +116,33 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
                     </div>
 
                     <div>
-                        <Label htmlFor="title" className="text-gray-300">Título *</Label>
+                        <Label htmlFor="title">Título *</Label>
                         <Input
                             id="title"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="Defina o título da tarefa"
-                            className="bg-gray-800 border-gray-700 text-white"
                         />
                     </div>
 
                     <div>
-                        <Label htmlFor="description" className="text-gray-300">Descrição</Label>
+                        <Label htmlFor="description">Descrição</Label>
                         <Textarea
                             id="description"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Detalhes da tarefa"
-                            className="bg-gray-800 border-gray-700 text-white"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label className="text-gray-300">Prioridade</Label>
+                            <Label>Prioridade</Label>
                             <Select value={priority} onValueChange={(v) => setPriority(v as any)}>
-                                <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white">
+                                <SelectTrigger className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-gray-800 border-gray-700">
+                                <SelectContent>
                                     <SelectItem value="alta">Alta</SelectItem>
                                     <SelectItem value="media">Média</SelectItem>
                                     <SelectItem value="baixa">Baixa</SelectItem>
@@ -153,7 +151,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
                         </div>
 
                         <div>
-                            <Label htmlFor="estimate" className="text-gray-300">Estimativa (min)</Label>
+                            <Label htmlFor="estimate">Estimativa (min)</Label>
                             <Input
                                 id="estimate"
                                 type="number"
@@ -161,7 +159,6 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
                                 value={estimateMin}
                                 onChange={(e) => setEstimateMin(e.target.value)}
                                 placeholder="30"
-                                className="bg-gray-800 border-gray-700 text-white"
                             />
                         </div>
                     </div>
@@ -177,7 +174,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
                         <Button
                             onClick={handleSubmit}
                             disabled={!canSubmit || isSubmitting}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                            className="flex-1"
                         >
                             {isSubmitting ? (
                                 <>

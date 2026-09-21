@@ -15,8 +15,8 @@ export function Charts() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Pie Chart - Horas por Projeto Hoje */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-ink mb-4">
           Distribuição por Projeto (Hoje)
         </h3>
         <div className="h-64">
@@ -42,7 +42,7 @@ export function Charts() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex items-center justify-center h-full text-ink-muted">
               Nenhuma sessão registrada hoje
             </div>
           )}
@@ -50,25 +50,26 @@ export function Charts() {
       </Card>
 
       {/* Bar Chart - Horas por Dia */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-ink mb-4">
           Horas por Dia (Últimos 7 dias)
         </h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dailyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="date" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
-                  borderRadius: '8px' 
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" stroke="hsl(var(--ink-muted))" />
+              <YAxis stroke="hsl(var(--ink-muted))" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--surface))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  color: 'hsl(var(--ink))',
                 }}
                 formatter={(value: number) => [`${value}h`, 'Horas']}
               />
-              <Bar dataKey="hours" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

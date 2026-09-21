@@ -28,10 +28,10 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
 
   // Estilização de borda e fundo para urgência
   const statusStyles = {
-    overdue: "border-l-4 border-l-red-500 bg-red-500/10 shadow-sm",
-    today: "border-l-4 border-l-amber-500 bg-amber-500/10",
-    upcoming: "border-l-4 border-l-blue-500 bg-blue-500/5",
-    default: "border-l-4 border-l-transparent bg-gray-900/40"
+    overdue: "border-l-4 border-l-danger bg-danger/[0.06] shadow-sm",
+    today: "border-l-4 border-l-accent-orange bg-accent-orange/[0.06]",
+    upcoming: "border-l-4 border-l-accent-blue bg-accent-blue/[0.04]",
+    default: "border-l-4 border-l-transparent"
   };
 
   const currentStyle = statusStyles[highestDueLevel as keyof typeof statusStyles] || statusStyles.default;
@@ -39,10 +39,10 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
   return (
     <Card
       className={clsx(
-        'group relative flex flex-col gap-3 overflow-hidden rounded-xl border border-gray-800/70 p-4 transition-all hover:border-gray-600',
+        'group relative flex flex-col gap-3 overflow-hidden p-4 transition-all hover:border-primary/30',
         currentStyle,
-        isTopFive && "ring-1 ring-blue-500/30",
-        isTimeOverrun && "ring-1 ring-orange-500/40"
+        isTopFive && "ring-1 ring-primary/30",
+        isTimeOverrun && "ring-1 ring-accent-orange/40"
       )}
       onClick={() => !disableCardClick && router.push(`/tasks/${task.id}`)}
     >
@@ -50,26 +50,26 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {isTopFive && (
-            <span className="flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-black text-white uppercase tracking-tight shadow-lg shadow-blue-900/20">
+            <span className="flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-black text-primary-foreground uppercase tracking-tight shadow-sm">
               <Zap className="h-3 w-3 fill-current" /> Priority Focus
             </span>
           )}
 
           {highestDueLevel === 'overdue' && (
-            <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-red-500 animate-pulse">
+            <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-danger animate-pulse">
               <AlertCircle className="h-3 w-3" /> Atrasado
             </span>
           )}
 
           {highestDueLevel === 'today' && (
-            <span className="text-[10px] font-bold uppercase text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-bold uppercase text-accent-orange bg-accent-orange/[0.14] px-1.5 py-0.5 rounded">
               Hoje
             </span>
           )}
 
           {isTimeOverrun && (
             <span
-              className="flex items-center gap-1 text-[10px] font-bold uppercase text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded"
+              className="flex items-center gap-1 text-[10px] font-bold uppercase text-accent-orange bg-accent-orange/[0.14] px-1.5 py-0.5 rounded"
               title={`${formatDuration(trackedSeconds)} acumuladas — acima de 2h`}
             >
               <TimerReset className="h-3 w-3" /> +2h
@@ -79,9 +79,9 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
 
         <div className="flex items-center gap-2">
           {priorityScore && (
-            <span className="font-mono text-xs font-bold text-blue-400/70">{priorityScore}pts</span>
+            <span className="font-mono text-xs font-bold text-primary/70">{priorityScore}pts</span>
           )}
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-white transition-colors">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-ink-muted hover:text-ink transition-colors">
             <MoreVertical className="h-4 w-4" />
           </Button>
         </div>
@@ -91,13 +91,13 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
       <div className="space-y-1">
         <h4 className={clsx(
           "line-clamp-1 text-base font-bold transition-colors leading-tight",
-          highestDueLevel === 'overdue' ? "text-red-200" : "text-white group-hover:text-blue-400"
+          highestDueLevel === 'overdue' ? "text-danger" : "text-ink group-hover:text-primary"
         )}>
           {task.title}
         </h4>
         {task.description && (
           <p
-            className="line-clamp-1 text-xs text-gray-500 hover:text-gray-300 hover:underline cursor-pointer"
+            className="line-clamp-1 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer"
             title={`Ir para o projeto ${project.name}`}
             onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`); }}
           >
@@ -107,17 +107,17 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
       </div>
 
       {/* 3. Metadados */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs border-y border-gray-800/40 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs border-y border-border py-2.5">
         <div onClick={(e) => e.stopPropagation()}>
           <ProjectBadge name={project.name} color={project.color} size="sm" href={`/projects/${project.id}`} />
         </div>
 
-        <div className={clsx("flex items-center gap-1.5", highestDueLevel === 'overdue' ? "text-red-400 font-bold" : "text-gray-400")}>
+        <div className={clsx("flex items-center gap-1.5", highestDueLevel === 'overdue' ? "text-danger font-bold" : "text-ink-muted")}>
           <Calendar className="h-3.5 w-3.5" />
           <span>{formatFriendlyDate(task.estimatedDeliveryDate)}</span>
         </div>
 
-        <div className="flex items-center gap-1.5 text-gray-500">
+        <div className="flex items-center gap-1.5 text-ink-muted">
           <Clock className="h-3.5 w-3.5" />
           <span>{task.estimateMin || '--'} min</span>
         </div>
@@ -130,7 +130,7 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
           <Button
             variant="outline"
             size="sm"
-            className="h-9 gap-2 border-gray-800 bg-gray-800/20 px-3 text-xs text-gray-400 hover:bg-gray-800 hover:text-white"
+            className="h-9 gap-2 px-3 text-xs"
             onClick={(e) => { e.stopPropagation(); router.push(`/tasks/${task.id}`); }}
           >
             <MessageSquare className="h-4 w-4" />
@@ -138,7 +138,7 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
           </Button>
 
           {task.salesforceOppUrl && (
-            <a href={task.salesforceOppUrl} target="_blank" className="p-2.5 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
+            <a href={task.salesforceOppUrl} target="_blank" className="p-2.5 rounded-md bg-accent-blue/[0.1] text-accent-blue hover:bg-accent-blue/[0.18] transition-colors">
               <ExternalLink className="h-4 w-4" />
             </a>
           )}
@@ -148,20 +148,20 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
           {/* Botão de Start Maior e com Destaque */}
           <Button
             size="icon"
-            className="h-9 w-9 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 hover:scale-105 transition-all"
+            className="h-9 w-9 rounded-full bg-primary text-primary-foreground shadow-sm hover:opacity-90 hover:scale-105 transition-all"
             onClick={(e) => { e.stopPropagation(); setIsFocusDialogOpen(true); }}
           >
             <Play className="h-4 w-4 fill-current ml-0.5" />
           </Button>
 
-          {/* Botão de Concluir Verde */}
+          {/* Botão de Concluir */}
           <Button
             size="sm"
             className={clsx(
               "h-9 px-4 text-xs font-bold transition-all",
               task.status === 'done'
-                ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30"
-                : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
+                ? "bg-success/[0.14] text-success border border-success/30"
+                : "bg-success text-white hover:opacity-90 shadow-sm"
             )}
             onClick={(e) => { e.stopPropagation(); requestStatusChange(task, 'done'); }}
           >

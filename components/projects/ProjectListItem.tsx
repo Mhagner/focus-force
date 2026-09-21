@@ -37,12 +37,8 @@ export function ProjectListItem({
 
   const isArchived = !project.active;
 
-  const badgeClassName =
-    clockfyStatus === 'linked'
-      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-      : clockfyStatus === 'pending'
-        ? 'border-yellow-500/60 text-yellow-300'
-        : 'border-gray-600 text-gray-300';
+  const badgeVariant =
+    clockfyStatus === 'linked' ? 'success' : clockfyStatus === 'pending' ? 'accent-orange' : 'secondary';
 
   const badgeLabel =
     clockfyStatus === 'linked'
@@ -55,7 +51,7 @@ export function ProjectListItem({
   const dateIsEmpty = plannedDateLabel === '—';
 
   return (
-    <div className="grid gap-3 rounded-lg border border-gray-800 bg-gray-900/50 p-4 transition-colors hover:bg-gray-900 md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] md:items-center">
+    <div className="grid gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-secondary/40 md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] md:items-center">
       <div className="flex items-start gap-3">
         <div
           className="mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full"
@@ -63,24 +59,21 @@ export function ProjectListItem({
         />
         <div>
           <div className="flex items-center gap-2">
-            <p className="font-medium text-white">{project.name}</p>
+            <p className="font-medium text-ink">{project.name}</p>
             {isArchived && (
-              <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-400/60 bg-amber-500/10">
+              <Badge variant="accent-orange" className="text-[10px]">
                 Arquivado
               </Badge>
             )}
           </div>
-          <Badge
-            variant={clockfyStatus === 'linked' ? 'secondary' : 'outline'}
-            className={`mt-2 h-5 px-2 text-xs ${badgeClassName}`}
-          >
+          <Badge variant={badgeVariant} className="mt-2 h-5 px-2 text-xs">
             {badgeLabel}
           </Badge>
           <Button
             variant="outline"
             size="sm"
             onClick={() => router.push(`/projects/${project.id}`)}
-            className="mt-3 border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+            className="mt-3"
           >
             <MessageSquare className="mr-2 h-4 w-4" />
             {commentCount} {commentCount === 1 ? 'atualização' : 'atualizações'}
@@ -88,27 +81,27 @@ export function ProjectListItem({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-gray-300">
-        <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-gray-500">
+      <div className="flex items-center gap-2 text-sm text-ink-muted">
+        <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-ink-muted">
           Cliente
         </span>
-        <span className={project.client ? 'text-white' : 'text-gray-500'}>
+        <span className={project.client ? 'text-ink' : 'text-ink-muted'}>
           {project.client || '—'}
         </span>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-gray-300">
-        <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-gray-500">
+      <div className="flex items-center gap-2 text-sm text-ink-muted">
+        <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-ink-muted">
           Novas URLs
         </span>
-        <Link2 className="h-4 w-4 text-gray-500" />
+        <Link2 className="h-4 w-4 text-ink-muted" />
         <div className="flex flex-col">
           {salesforceUrl ? (
             <a
               href={salesforceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white font-medium hover:underline"
+              className="text-ink font-medium hover:underline"
             >
               Acessar oportunidade
             </a>
@@ -119,26 +112,26 @@ export function ProjectListItem({
               href={sharepointUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white font-medium hover:underline"
+              className="text-ink font-medium hover:underline"
             >
               Acessar repositório
             </a>
           ) : null}
 
           {!salesforceUrl && !sharepointUrl && (
-            <span className={newUrlsIsEmpty ? 'text-gray-400' : 'text-white font-medium'}>
+            <span className={newUrlsIsEmpty ? 'text-ink-muted' : 'text-ink font-medium'}>
               {newUrlsLabel}
             </span>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-sm text-gray-300">
-        <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-gray-500">
+      <div className="flex items-center gap-2 text-sm text-ink-muted">
+        <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-ink-muted">
           Data prevista
         </span>
-        <Calendar className="h-4 w-4 text-gray-500" />
-        <span className={dateIsEmpty ? 'text-gray-400' : 'text-white font-medium'}>
+        <Calendar className="h-4 w-4 text-ink-muted" />
+        <span className={dateIsEmpty ? 'text-ink-muted' : 'text-ink font-medium'}>
           {plannedDateLabel}
         </span>
       </div>
@@ -148,7 +141,6 @@ export function ProjectListItem({
           variant="outline"
           size="sm"
           onClick={() => onEdit(project)}
-          className="border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
         >
           <Edit className="mr-2 h-4 w-4" />
           Editar
@@ -157,7 +149,7 @@ export function ProjectListItem({
           variant="outline"
           size="sm"
           onClick={() => onToggleActive(project)}
-          className={`border-gray-700 hover:bg-gray-800 ${isArchived ? 'text-emerald-300' : 'text-red-300'}`}
+          className={isArchived ? 'text-success' : 'text-danger'}
         >
           {isArchived ? (
             <ArchiveRestore className="mr-2 h-4 w-4" />

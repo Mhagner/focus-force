@@ -91,17 +91,17 @@ export function TimelineBlock({
       )}
 
       {!block.isCompact && (
-        <div className="flex items-center justify-between text-[10px] text-gray-300">
+        <div className="flex items-center justify-between text-[10px] text-ink-muted">
           <span>{block.timeRange}</span>
           <span>{block.durationLabel}</span>
         </div>
       )}
       <div className="flex items-center justify-between gap-1">
-        <span className="truncate text-xs font-semibold text-white">{block.taskTitle}</span>
+        <span className="truncate text-xs font-semibold text-ink">{block.taskTitle}</span>
         <button
           type="button"
           title="Duplicar sessão"
-          className="invisible shrink-0 rounded p-0.5 text-gray-300 hover:bg-white/10 hover:text-white group-hover:visible"
+          className="invisible shrink-0 rounded p-0.5 text-ink-muted hover:bg-ink/10 hover:text-ink group-hover:visible"
           onClick={(e) => {
             e.stopPropagation();
             onDuplicate(block.id);
@@ -111,7 +111,7 @@ export function TimelineBlock({
         </button>
       </div>
       {!block.isCompact && block.projectName && (
-        <div className="truncate text-[10px] text-gray-400">{block.projectName}</div>
+        <div className="truncate text-[10px] text-ink-muted">{block.projectName}</div>
       )}
 
       {interactive && (

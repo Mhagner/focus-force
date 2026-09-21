@@ -77,9 +77,9 @@ export function SessionDetailDialog({
 
   return (
     <Dialog open={Boolean(session)} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-white">Detalhe da sessão</DialogTitle>
+          <DialogTitle>Detalhe da sessão</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -88,42 +88,40 @@ export function SessionDetailDialog({
               {project && (
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: project.color }} />
               )}
-              <span className="font-medium text-white">{task?.title ?? 'Sessão sem tarefa'}</span>
+              <span className="font-medium text-ink">{task?.title ?? 'Sessão sem tarefa'}</span>
             </div>
-            {project && <div className="mt-0.5 text-xs text-gray-500">{project.name}</div>}
+            {project && <div className="mt-0.5 text-xs text-ink-muted">{project.name}</div>}
           </div>
 
-          <div className="text-sm text-gray-400">{dateLabel}</div>
+          <div className="text-sm text-ink-muted">{dateLabel}</div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Início</label>
+              <label className="block text-sm text-ink-muted mb-2">Início</label>
               <Input
                 type="time"
                 value={startTime}
                 onChange={e => setStartTime(e.target.value)}
-                className="bg-gray-800 border-gray-700"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Fim</label>
+              <label className="block text-sm text-ink-muted mb-2">Fim</label>
               <Input
                 type="time"
                 value={endTime}
                 onChange={e => setEndTime(e.target.value)}
-                className="bg-gray-800 border-gray-700"
               />
             </div>
           </div>
 
-          <div className="text-sm text-gray-300">
-            Duração: <span className="font-semibold text-white">{formatDuration(durationSec)}</span>
+          <div className="text-sm text-ink-muted">
+            Duração: <span className="font-semibold text-ink">{formatDuration(durationSec)}</span>
           </div>
 
           <div className="flex items-center gap-2 pt-2">
             <Button
               variant="outline"
-              className="flex-1 gap-2 border-gray-700 text-gray-300 hover:text-white"
+              className="flex-1 gap-2"
               onClick={() => {
                 onDuplicate(session);
                 onOpenChange(false);
@@ -133,7 +131,7 @@ export function SessionDetailDialog({
               Duplicar sessão
             </Button>
             <Button
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1"
               disabled={!hasChanges || durationSec <= 0}
               onClick={handleSave}
             >

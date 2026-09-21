@@ -244,21 +244,21 @@ export function exportToPdf(data: any[], filename: string) {
 
 export function getPriorityColor(priority: 'alta' | 'media' | 'baixa'): string {
   switch (priority) {
-    case 'alta': return 'text-red-400 bg-red-950/50';
-    case 'media': return 'text-yellow-400 bg-yellow-950/50';
-    case 'baixa': return 'text-green-400 bg-green-950/50';
-    default: return 'text-gray-400 bg-gray-950/50';
+    case 'alta': return 'text-accent-orange bg-accent-orange/[0.14]';
+    case 'media': return 'text-accent-brown bg-accent-brown/[0.14]';
+    case 'baixa': return 'text-ink-muted bg-ink-muted/[0.14]';
+    default: return 'text-ink-muted bg-ink-muted/[0.14]';
   }
 }
 
 export function getStatusColor(status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done'): string {
   switch (status) {
-    case 'todo': return 'text-gray-400 bg-gray-950/50';
-    case 'call_agendada': return 'text-amber-400 bg-amber-950/50';
-    case 'pronta_elaboracao': return 'text-purple-400 bg-purple-950/50';
-    case 'doing': return 'text-blue-400 bg-blue-950/50';
-    case 'done': return 'text-green-400 bg-green-950/50';
-    default: return 'text-gray-400 bg-gray-950/50';
+    case 'todo': return 'text-accent-blue bg-accent-blue/[0.14]';
+    case 'call_agendada': return 'text-accent-orange bg-accent-orange/[0.14]';
+    case 'pronta_elaboracao': return 'text-brand-secondary bg-brand-secondary/[0.14]';
+    case 'doing': return 'text-accent-orange bg-accent-orange/[0.14]';
+    case 'done': return 'text-success bg-success/[0.14]';
+    default: return 'text-ink-muted bg-ink-muted/[0.14]';
   }
 }
 

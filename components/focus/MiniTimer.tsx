@@ -62,19 +62,19 @@ export function MiniTimer() {
     : undefined;
 
   return (
-    <div className="w-full max-w-xs rounded-2xl border border-gray-800 bg-gray-900/80 p-4 shadow-xl">
-      <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-gray-400">
+    <div className="w-full max-w-xs rounded-2xl border border-border bg-surface p-4 shadow-xl">
+      <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-ink-muted">
         <span>{phaseLabels[currentPhase] ?? 'Sessão'}</span>
         <span>{isRunning ? (isPaused ? 'Pausado' : 'Em andamento') : 'Parado'}</span>
       </div>
 
       <div className="mt-4 text-center">
-        <div className="text-5xl font-mono font-bold text-white">
+        <div className="text-5xl font-mono font-bold text-ink">
           {formatTime(Math.max(timeRemaining, 0))}
         </div>
 
         {project && (
-          <div className="mt-3 flex items-center justify-center gap-2 text-sm text-gray-200">
+          <div className="mt-3 flex items-center justify-center gap-2 text-sm text-ink">
             <span
               className="h-2.5 w-2.5 rounded-full"
               style={{ backgroundColor: project.color }}
@@ -84,7 +84,7 @@ export function MiniTimer() {
         )}
 
         {task && (
-          <p className="mt-1 text-xs text-gray-500 truncate max-w-[220px] mx-auto">
+          <p className="mt-1 text-xs text-ink-muted truncate max-w-[220px] mx-auto">
             {task.title}
           </p>
         )}

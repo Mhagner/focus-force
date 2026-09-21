@@ -160,14 +160,14 @@ export default function CalendarPage() {
       {/* ── Header ─────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         {/* View toggle */}
-        <div className="flex gap-0.5 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+        <div className="flex gap-0.5 rounded-lg border border-border bg-card p-1">
           {viewTabs.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               onClick={() => setView(value)}
               className={clsx(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                view === value ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white',
+                view === value ? 'bg-primary text-primary-foreground shadow-sm' : 'text-ink-muted hover:text-ink',
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -178,31 +178,31 @@ export default function CalendarPage() {
 
         {/* Prev / Next / Today */}
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-ink-muted hover:text-ink" onClick={() => navigate(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white" onClick={() => navigate(1)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-ink-muted hover:text-ink" onClick={() => navigate(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 border-gray-700 bg-gray-900/60 px-3 text-sm text-gray-300 hover:text-white"
+            className="h-8 px-3 text-sm"
             onClick={() => setSelectedDate(new Date())}
           >
             Hoje
           </Button>
         </div>
 
-        <h2 className="text-lg font-semibold capitalize text-white">{periodLabel}</h2>
+        <h2 className="text-lg font-semibold capitalize text-ink">{periodLabel}</h2>
 
         {/* Zoom controls (Week / Day) */}
         {(view === ViewType.Week || view === ViewType.Day) && (
-          <div className="ml-auto flex items-center gap-1 rounded-lg border border-gray-800 bg-gray-900/60 p-1">
+          <div className="ml-auto flex items-center gap-1 rounded-lg border border-border bg-card p-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-gray-400 hover:text-white disabled:opacity-30"
+              className="h-7 w-7 text-ink-muted hover:text-ink disabled:opacity-30"
               disabled={zoomIndex === 0}
               onClick={() => setZoomIndex(i => Math.max(0, i - 1))}
             >
@@ -211,7 +211,7 @@ export default function CalendarPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-gray-400 hover:text-white disabled:opacity-30"
+              className="h-7 w-7 text-ink-muted hover:text-ink disabled:opacity-30"
               disabled={zoomIndex === ZOOM_LEVELS_PX.length - 1}
               onClick={() => setZoomIndex(i => Math.min(ZOOM_LEVELS_PX.length - 1, i + 1))}
             >
@@ -223,16 +223,16 @@ export default function CalendarPage() {
 
       {/* ── Month view ─────────────────────────────────────── */}
       {view === ViewType.Month && (
-        <Card className="border-gray-800 bg-gray-900/50 p-4">
+        <Card className="p-4">
           {/* Weekday labels */}
           <div className="mb-1 grid grid-cols-7 text-center">
             {WEEK_LABELS.map(d => (
-              <div key={d} className="py-1.5 text-[10px] font-semibold uppercase tracking-widest text-gray-600">{d}</div>
+              <div key={d} className="py-1.5 text-[10px] font-semibold uppercase tracking-widest text-ink-muted">{d}</div>
             ))}
           </div>
 
           {/* Day cells */}
-          <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden border border-gray-800/60">
+          <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden border border-border">
             {monthDays.map(day => {
               const daySessions = getSessionsForDay(day);
               const totalSec = daySessions.reduce((s, sess) => s + sess.durationSec, 0);
@@ -250,15 +250,15 @@ export default function CalendarPage() {
                   key={day.toISOString()}
                   onClick={() => selectDay(day)}
                   className={clsx(
-                    'flex min-h-[80px] flex-col bg-gray-950/40 p-2 text-left transition-colors hover:bg-gray-800/40 focus:outline-none focus:ring-inset focus:ring-1 focus:ring-blue-500',
-                    isSelected && 'ring-inset ring-2 ring-blue-500',
-                    isCurrentDay && !isSelected && 'bg-blue-900/20',
-                    !isCurrentMonth && 'opacity-25',
+                    'flex min-h-[80px] flex-col bg-background p-2 text-left transition-colors hover:bg-secondary/60 focus:outline-none focus:ring-inset focus:ring-1 focus:ring-primary',
+                    isSelected && 'ring-inset ring-2 ring-primary',
+                    isCurrentDay && !isSelected && 'bg-primary/[0.08]',
+                    !isCurrentMonth && 'opacity-40',
                   )}
                 >
                   <span className={clsx(
                     'self-start rounded-full px-1.5 py-0.5 text-xs font-bold leading-none',
-                    isCurrentDay ? 'bg-blue-600 text-white' : 'text-gray-400',
+                    isCurrentDay ? 'bg-primary text-primary-foreground' : 'text-ink-muted',
                   )}>
                     {format(day, 'd')}
                   </span>
@@ -270,7 +270,7 @@ export default function CalendarPage() {
                           <span key={i} className="h-1 flex-1 rounded-full" style={{ backgroundColor: color }} />
                         ))}
                       </div>
-                      <span className="text-[10px] text-gray-500">{formatDuration(totalSec)}</span>
+                      <span className="text-[10px] text-ink-muted">{formatDuration(totalSec)}</span>
                     </div>
                   )}
                 </button>
@@ -287,13 +287,13 @@ export default function CalendarPage() {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 border-gray-700 bg-gray-900/60 px-3 text-xs text-gray-300 hover:text-white"
+              className="h-8 px-3 text-xs"
               onClick={() => selectDay(selectedDate)}
             >
               Ver dia selecionado
             </Button>
           </div>
-          <Card className="border-gray-800 bg-gray-900/50 p-4">
+          <Card className="p-4">
             <div className="overflow-x-auto">
               <div className="min-w-[760px]">
                 <TimelineGrid
@@ -323,20 +323,20 @@ export default function CalendarPage() {
               { label: 'Sessões', value: sessionsForDate.length > 0 ? String(sessionsForDate.length) : '—' },
               { label: 'Tarefas', value: taskSummaries.length > 0 ? String(taskSummaries.length) : '—' },
             ].map(({ label, value }) => (
-              <Card key={label} className="border-gray-800 bg-gray-900/50 px-4 py-3 text-center">
-                <div className="text-2xl font-bold text-white">{value}</div>
-                <div className="mt-0.5 text-xs text-gray-500">{label}</div>
+              <Card key={label} className="px-4 py-3 text-center">
+                <div className="text-2xl font-bold text-ink">{value}</div>
+                <div className="mt-0.5 text-xs text-ink-muted">{label}</div>
               </Card>
             ))}
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
             {/* Timeline */}
-            <Card className="border-gray-800 bg-gray-900/50 p-4">
-              <h3 className="mb-3 text-sm font-semibold text-white">Linha do tempo</h3>
+            <Card className="p-4">
+              <h3 className="mb-3 text-sm font-semibold text-ink">Linha do tempo</h3>
 
               {sessionsForDate.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-gray-800 py-16 text-center text-sm text-gray-500">
+                <div className="rounded-lg border border-dashed border-border py-16 text-center text-sm text-ink-muted">
                   Nenhuma sessão registrada para este dia
                 </div>
               ) : (
@@ -356,28 +356,28 @@ export default function CalendarPage() {
             </Card>
 
             {/* Task summary */}
-            <Card className="border-gray-800 bg-gray-900/50 p-4">
-              <h3 className="mb-3 text-sm font-semibold text-white">Tarefas trabalhadas</h3>
+            <Card className="p-4">
+              <h3 className="mb-3 text-sm font-semibold text-ink">Tarefas trabalhadas</h3>
               {taskSummaries.length === 0 ? (
-                <div className="py-10 text-center text-sm text-gray-500">—</div>
+                <div className="py-10 text-center text-sm text-ink-muted">—</div>
               ) : (
                 <div className="space-y-2">
                   {taskSummaries.map(summary => (
                     <div
                       key={summary.key}
-                      className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-2.5"
+                      className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5"
                     >
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: summary.color ?? '#3b82f6' }}
+                        style={{ backgroundColor: summary.color ?? '#035578' }}
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-white">{summary.title}</div>
+                        <div className="truncate text-sm font-medium text-ink">{summary.title}</div>
                         {summary.projectName && (
-                          <div className="text-xs text-gray-500">{summary.projectName}</div>
+                          <div className="text-xs text-ink-muted">{summary.projectName}</div>
                         )}
                       </div>
-                      <div className="shrink-0 text-sm tabular-nums text-gray-300">
+                      <div className="shrink-0 text-sm tabular-nums text-ink-muted">
                         {formatDuration(summary.totalSeconds)}
                       </div>
                     </div>

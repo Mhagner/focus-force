@@ -75,29 +75,29 @@ export function PomodoroTimer() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <Card className="p-8 bg-gray-900/50 border-gray-800">
+      <Card className="p-8">
         {/* Phase and Project Info */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">
+          <h2 className="font-display text-3xl font-bold text-ink mb-2">
             {phaseLabels[currentPhase]}
           </h2>
-          
+
           {selectedProject && (
             <div className="flex justify-center mb-4">
-              <ProjectBadge 
-                name={selectedProject.name} 
-                color={selectedProject.color} 
-                size="lg" 
+              <ProjectBadge
+                name={selectedProject.name}
+                color={selectedProject.color}
+                size="lg"
               />
             </div>
           )}
-          
+
           {selectedTask && (
-            <p className="text-gray-400 mb-2">{selectedTask.title}</p>
+            <p className="text-ink-muted mb-2">{selectedTask.title}</p>
           )}
-          
+
           {currentPhase !== 'manual' && cycles > 0 && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-ink-muted">
               Ciclo {currentCycle} de {cycles}
             </p>
           )}
@@ -105,16 +105,16 @@ export function PomodoroTimer() {
 
         {/* Timer Display */}
         <div className="text-center mb-8">
-          <div className="text-6xl font-mono font-bold text-white mb-4">
+          <div className="text-6xl font-mono font-bold text-ink mb-4">
             {formatTime(timeRemaining)}
           </div>
-          
-          <Progress 
+
+          <Progress
             value={progress}
             className="h-3 mb-4"
           />
-          
-          <p className="text-gray-400">
+
+          <p className="text-ink-muted">
             {isRunning ? (isPaused ? 'Pausado' : 'Em execução') : 'Parado'}
           </p>
         </div>
@@ -166,12 +166,12 @@ export function PomodoroTimer() {
 
         {/* Keyboard Shortcuts */}
         <div className="text-center">
-          <p className="text-xs text-gray-500 mb-2">Atalhos do teclado:</p>
-          <div className="flex justify-center gap-4 text-xs text-gray-600">
-            <span><kbd className="bg-gray-800 px-1 rounded">Espaço</kbd> Pausar/Retomar</span>
-            <span><kbd className="bg-gray-800 px-1 rounded">R</kbd> Reset</span>
+          <p className="text-xs text-ink-muted mb-2">Atalhos do teclado:</p>
+          <div className="flex justify-center gap-4 text-xs text-ink-muted">
+            <span><kbd className="bg-secondary px-1 rounded">Espaço</kbd> Pausar/Retomar</span>
+            <span><kbd className="bg-secondary px-1 rounded">R</kbd> Reset</span>
             {currentPhase !== 'manual' && (
-              <span><kbd className="bg-gray-800 px-1 rounded">N</kbd> Próxima Fase</span>
+              <span><kbd className="bg-secondary px-1 rounded">N</kbd> Próxima Fase</span>
             )}
           </div>
         </div>
