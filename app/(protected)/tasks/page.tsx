@@ -21,6 +21,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { calculateTaskPriorityInsight, getTodayTasks } from '@/lib/utils';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
+import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
+import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
 import clsx from 'clsx';
 import { storage } from '@/lib/storage';
 
@@ -247,7 +249,8 @@ export default function TasksPage() {
       board.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isPanning]);
-  const { tasks, projects, sessions, updateTask, tasksFilters, setTasksFilters, isDataInitialized } = useAppStore();
+  const { tasks, projects, sessions, tasksFilters, setTasksFilters, isDataInitialized } = useAppStore();
+  const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -484,7 +487,7 @@ export default function TasksPage() {
       if (!moved) return;
 
       if ((moved.status ?? 'todo') !== status) {
-        updateTask(taskId, { status });
+        requestStatusChange(moved, status);
       }
 
       if (taskCustomColumnMap[taskId]) {
@@ -728,6 +731,17 @@ export default function TasksPage() {
         }}
         task={editingTask}
       />
+
+      {pendingTask && (
+        <TaskOverrunCommentDialog
+          open={Boolean(pendingTask)}
+          onOpenChange={(open) => !open && cancelPendingCompletion()}
+          taskId={pendingTask.id}
+          taskTitle={pendingTask.title}
+          trackedSeconds={pendingTaskTrackedSeconds}
+          onConfirmed={confirmPendingCompletion}
+        />
+      )}
     </>
   );
 }

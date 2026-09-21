@@ -4,22 +4,27 @@ import { Card } from '@/components/ui/card';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProjectBadge } from '@/components/ui/project-badge';
-import { formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel } from '@/lib/utils';
-import { Play, Calendar, Clock, MoreVertical, ExternalLink, MessageSquare, CheckCircle2, AlertCircle, Zap, Check } from 'lucide-react';
+import { formatDuration, formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel, getTaskTrackedSeconds, isTaskTimeOverrun } from '@/lib/utils';
+import { Play, Calendar, Clock, MoreVertical, ExternalLink, MessageSquare, CheckCircle2, AlertCircle, Zap, Check, TimerReset } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { useAppStore } from '@/stores/useAppStore';
 import { FocusDialog } from '@/components/focus/FocusDialog';
+import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
+import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
 
 export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopFive }: any) {
-  const { projects, updateTask, deleteTask } = useAppStore();
+  const { projects, deleteTask, sessions } = useAppStore();
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   const router = useRouter();
+  const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
 
   const project = useMemo(() => projects.find(p => p.id === task.projectId), [projects, task.projectId]);
   if (!project) return null;
 
   const highestDueLevel = getTaskHighestDueLevel(getTaskDueSignals(task, project));
+  const trackedSeconds = getTaskTrackedSeconds(task.id, sessions);
+  const isTimeOverrun = isTaskTimeOverrun(task.id, sessions);
 
   // Estilização de borda e fundo para urgência
   const statusStyles = {
@@ -36,7 +41,8 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
       className={clsx(
         'group relative flex flex-col gap-3 overflow-hidden rounded-xl border border-gray-800/70 p-4 transition-all hover:border-gray-600',
         currentStyle,
-        isTopFive && "ring-1 ring-blue-500/30"
+        isTopFive && "ring-1 ring-blue-500/30",
+        isTimeOverrun && "ring-1 ring-orange-500/40"
       )}
       onClick={() => !disableCardClick && router.push(`/tasks/${task.id}`)}
     >
@@ -58,6 +64,15 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
           {highestDueLevel === 'today' && (
             <span className="text-[10px] font-bold uppercase text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
               Hoje
+            </span>
+          )}
+
+          {isTimeOverrun && (
+            <span
+              className="flex items-center gap-1 text-[10px] font-bold uppercase text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded"
+              title={`${formatDuration(trackedSeconds)} acumuladas — acima de 2h`}
+            >
+              <TimerReset className="h-3 w-3" /> +2h
             </span>
           )}
         </div>
@@ -148,7 +163,7 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
                 ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30"
                 : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
             )}
-            onClick={(e) => { e.stopPropagation(); updateTask(task.id, { status: 'done' }); }}
+            onClick={(e) => { e.stopPropagation(); requestStatusChange(task, 'done'); }}
           >
             {task.status === 'done' ? (
               <div className="flex items-center gap-1.5">
@@ -169,6 +184,17 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
         initialProjectId={project.id}
         initialTaskId={task.id}
       />
+
+      {pendingTask && (
+        <TaskOverrunCommentDialog
+          open={Boolean(pendingTask)}
+          onOpenChange={(open) => !open && cancelPendingCompletion()}
+          taskId={pendingTask.id}
+          taskTitle={pendingTask.title}
+          trackedSeconds={pendingTaskTrackedSeconds}
+          onConfirmed={confirmPendingCompletion}
+        />
+      )}
     </Card>
   );
 }

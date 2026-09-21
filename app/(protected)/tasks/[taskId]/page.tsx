@@ -10,9 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
-import { formatDateTime, formatDuration, formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel } from '@/lib/utils';
-import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus, Check, X, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
+import { formatDateTime, formatDuration, formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel, getTaskTrackedSeconds, isTaskTimeOverrun } from '@/lib/utils';
+import { ArrowLeft, Calendar, Clock, ExternalLink, Play, MessageSquare, Edit, Trash2, Loader2, CheckSquare, Square, Plus, Check, X, AlertTriangle, CalendarClock, Clock3, TimerReset } from 'lucide-react';
 import { FocusDialog } from '@/components/focus/FocusDialog';
+import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
+import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
 
 type Params = { taskId?: string | string[] };
 
@@ -33,10 +35,13 @@ export default function TaskDetailPage() {
   const router = useRouter();
   const taskId = resolveParam(params?.taskId);
 
-  const { tasks, projects, updateTask, addTaskComment, updateTaskComment, deleteTaskComment, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask } = useAppStore();
+  const { tasks, projects, sessions, updateTask, addTaskComment, updateTaskComment, deleteTaskComment, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask } = useAppStore();
+  const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
 
   const task = tasks.find((current) => current.id === taskId);
   const project = task ? projects.find((current) => current.id === task.projectId) : undefined;
+  const trackedSeconds = task ? getTaskTrackedSeconds(task.id, sessions) : 0;
+  const isTimeOverrun = task ? isTaskTimeOverrun(task.id, sessions) : false;
 
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -77,7 +82,7 @@ export default function TaskDetailPage() {
 
   const handleStatusChange = (status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done') => {
     if (!task) return;
-    updateTask(task.id, { status: status as any });
+    requestStatusChange(task, status);
   };
 
   const handlePlanForToday = () => {
@@ -307,10 +312,30 @@ export default function TaskDetailPage() {
             initialTaskId={task.id}
             onStarted={() => router.push('/focus')}
           />
+          {pendingTask && (
+            <TaskOverrunCommentDialog
+              open={Boolean(pendingTask)}
+              onOpenChange={(open) => !open && cancelPendingCompletion()}
+              taskId={pendingTask.id}
+              taskTitle={pendingTask.title}
+              trackedSeconds={pendingTaskTrackedSeconds}
+              onConfirmed={confirmPendingCompletion}
+            />
+          )}
         </div>
       </div>
 
       <Card className="p-6 bg-gray-900/60 border border-gray-800 space-y-6">
+        {isTimeOverrun && (
+          <div className="flex items-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 p-3 text-sm text-orange-200">
+            <TimerReset className="h-4 w-4 shrink-0" />
+            <span>
+              Esta tarefa acumulou <span className="font-semibold">{formatDuration(trackedSeconds)}</span> de trabalho, acima de 2h.
+              Ao concluir, será exigido um comentário explicando o motivo para registro no Clockfy.
+            </span>
+          </div>
+        )}
+
         {highestDueLevel && (
           <div className="rounded-lg border border-gray-700 bg-gray-950/60 p-3 text-sm text-gray-100">
             <div className="mb-2 flex items-center gap-2 font-semibold">

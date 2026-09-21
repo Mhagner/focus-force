@@ -127,6 +127,18 @@ export function getProjectHoursForDate(
   return projectSessions.reduce((total, session) => total + session.durationSec, 0);
 }
 
+export const TASK_TIME_OVERRUN_THRESHOLD_SEC = 2 * 60 * 60; // 2 horas
+
+export function getTaskTrackedSeconds(taskId: string, sessions: FocusSession[]): number {
+  return sessions
+    .filter(session => session.taskId === taskId)
+    .reduce((total, session) => total + session.durationSec, 0);
+}
+
+export function isTaskTimeOverrun(taskId: string, sessions: FocusSession[]): boolean {
+  return getTaskTrackedSeconds(taskId, sessions) > TASK_TIME_OVERRUN_THRESHOLD_SEC;
+}
+
 export function getTotalWorkSecondsForDate(sessions: FocusSession[], date: Date): number {
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
@@ -411,8 +423,7 @@ export function calculateTaskPriorityInsight(
     reasons.push('Planejada para hoje');
   }
 
-  const taskSessions = sessions.filter(session => session.taskId === task.id);
-  const trackedSeconds = taskSessions.reduce((sum, session) => sum + session.durationSec, 0);
+  const trackedSeconds = getTaskTrackedSeconds(task.id, sessions);
   if (task.estimateMin && trackedSeconds > 0) {
     const progressRatio = trackedSeconds / (task.estimateMin * 60);
     if (progressRatio >= 0.9) {

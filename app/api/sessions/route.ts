@@ -37,7 +37,10 @@ export async function POST(req: Request) {
 
     const session = await prisma.focusSession.create({
       data,
-      include: { project: true, task: true },
+      include: {
+        project: true,
+        task: { include: { comments: { orderBy: { createdAt: 'desc' } } } },
+      },
     });
 
     const settings = await prisma.clockfySettings.findFirst();

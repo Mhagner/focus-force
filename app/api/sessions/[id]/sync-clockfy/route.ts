@@ -13,7 +13,10 @@ export async function POST(
   try {
     const session = await prisma.focusSession.findUnique({
       where: { id },
-      include: { project: true, task: true },
+      include: {
+        project: true,
+        task: { include: { comments: { orderBy: { createdAt: 'desc' } } } },
+      },
     });
 
     if (!session) {

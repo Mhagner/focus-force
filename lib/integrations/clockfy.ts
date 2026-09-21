@@ -49,24 +49,36 @@ export interface ClockfyTimeEntryUpdateInput {
 
 export interface ClockfyDescriptionInput {
   type: 'manual' | 'pomodoro';
-  notes?: string | null;
+  end?: Date | string | null;
   project?: { name: string | null } | null;
-  task?: { title: string | null } | null;
+  task?: { title: string | null; comments?: { message: string; createdAt: Date | string }[] | null } | null;
+}
+
+/**
+ * Picks the task comment to surface in the Clockify description: the most
+ * recent comment that existed by the time this session ended (comments added
+ * later, e.g. after the entry already synced, don't retroactively attach).
+ */
+function findRelevantTaskComment(
+  comments: { message: string; createdAt: Date | string }[] | null | undefined,
+  sessionEnd?: Date | string | null
+): string | undefined {
+  if (!comments?.length) return undefined;
+
+  const sessionEndMs = sessionEnd ? new Date(sessionEnd).getTime() : Date.now();
+  const eligible = comments
+    .filter((comment) => new Date(comment.createdAt).getTime() <= sessionEndMs)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return eligible[0]?.message.trim() || undefined;
 }
 
 export function buildClockfyDescription(session: ClockfyDescriptionInput): string {
-  const segments: string[] = [];
-
   if (session.task?.title) {
-    segments.push(`Tarefa: ${session.task.title}`);
-  }
-
-  if (session.notes?.trim()) {
-    segments.push(`Sessão: ${session.notes.trim()}`);
-  }
-
-  if (segments.length > 0) {
-    return segments.join(' - ');
+    const relevantComment = findRelevantTaskComment(session.task.comments, session.end);
+    return relevantComment
+      ? `Tarefa: ${session.task.title} - Comentário: ${relevantComment}`
+      : `Tarefa: ${session.task.title}`;
   }
 
   const sessionLabel = session.type === 'pomodoro' ? 'Pomodoro' : 'Manual';

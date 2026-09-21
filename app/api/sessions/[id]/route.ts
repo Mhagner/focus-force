@@ -12,7 +12,10 @@ export async function PATCH(
   const session = await prisma.focusSession.update({
     where: { id },
     data,
-    include: { project: true, task: true },
+    include: {
+      project: true,
+      task: { include: { comments: { orderBy: { createdAt: 'desc' } } } },
+    },
   });
 
   const timeChanged = 'start' in data || 'end' in data;
