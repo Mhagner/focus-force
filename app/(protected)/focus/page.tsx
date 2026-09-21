@@ -24,20 +24,20 @@ export default function FocusPage() {
       <div className="w-full">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-4 mb-4">
-            <h1 className="text-3xl font-bold text-white">Sessão de Foco</h1>
+            <h1 className="font-display text-3xl font-bold text-ink">Sessão de Foco</h1>
             {isRunning && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsFullscreenView(true)}
-                className="gap-2 border-neutral-700 bg-neutral-800/50 text-neutral-200 hover:bg-neutral-700"
+                className="gap-2"
               >
                 <Expand className="h-4 w-4" />
                 Tela Cheia
               </Button>
             )}
           </div>
-          <p className="text-gray-400">
+          <p className="text-ink-muted">
             Concentre-se no que importa com timer Pomodoro ou manual
           </p>
         </div>

@@ -10,14 +10,14 @@ export default function ProtectedLayout({
 }) {
   return (
     <AppProvider>
-      <div className="flex h-screen bg-gray-950 text-white">
+      <div className="flex h-screen bg-primary text-foreground">
         <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden rounded-l-2xl bg-background">
           <TopNav />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>
-      <Toaster theme="dark" />
+      <Toaster theme="light" />
     </AppProvider>
   );
 }

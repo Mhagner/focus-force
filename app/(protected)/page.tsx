@@ -7,10 +7,10 @@ import { TodayPlan } from '@/components/dashboard/TodayPlan';
 
 export default function Dashboard() {
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-        <p className="text-gray-400">
+        <h1 className="font-display text-3xl font-bold text-ink mb-2">Dashboard</h1>
+        <p className="text-ink-muted">
           Visão geral da sua produtividade e foco
         </p>
       </div>

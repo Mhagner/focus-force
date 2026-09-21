@@ -25,7 +25,7 @@ export function PriorityRadar({ priorityQueue, projects, handleEdit }: any) {
 
     return (
         <div className={clsx(
-            "mb-5 rounded-xl border border-gray-800 bg-gray-900/40 transition-all duration-300",
+            "mb-5 rounded-xl border border-border bg-card transition-all duration-300",
             !isExpanded ? "p-2" : "p-3"
         )}>
             {/* Header clicável para Toggle */}
@@ -34,13 +34,13 @@ export function PriorityRadar({ priorityQueue, projects, handleEdit }: any) {
                 onClick={toggleExpand}
             >
                 <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/[0.14] text-primary">
                         <Target className="h-4 w-4" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold text-white leading-none">Radar de Prioridade</h2>
+                        <h2 className="text-sm font-bold text-ink leading-none">Radar de Prioridade</h2>
                         {!isExpanded && (
-                            <p className="text-[10px] text-gray-500 mt-1">
+                            <p className="text-[10px] text-ink-muted mt-1">
                                 {priorityQueue.length} tarefas sugeridas agora
                             </p>
                         )}
@@ -49,11 +49,11 @@ export function PriorityRadar({ priorityQueue, projects, handleEdit }: any) {
 
                 <div className="flex items-center gap-2">
                     {isExpanded && (
-                        <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
+                        <span className="rounded-full bg-primary/[0.1] px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
                             Auto-Focus
                         </span>
                     )}
-                    <button className="text-gray-500 hover:text-white">
+                    <button className="text-ink-muted hover:text-ink">
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
                 </div>
@@ -72,34 +72,34 @@ export function PriorityRadar({ priorityQueue, projects, handleEdit }: any) {
                             <button
                                 key={task.id}
                                 type="button"
-                                className="group relative flex items-center gap-3 rounded-lg border border-transparent bg-gray-800/40 p-2 pl-3 transition-all hover:border-gray-700 hover:bg-gray-800/60"
+                                className="group relative flex items-center gap-3 rounded-lg border border-transparent bg-background p-2 pl-3 transition-all hover:border-border hover:bg-secondary/60"
                                 onClick={() => handleEdit(task)}
                             >
                                 {/* Indicador Lateral de Cor */}
                                 <div
                                     className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full opacity-70"
-                                    style={{ backgroundColor: project?.color || '#4B5563' }}
+                                    style={{ backgroundColor: project?.color || '#627381' }}
                                 />
 
-                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-black text-gray-500 group-hover:text-blue-400">
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-black text-ink-muted group-hover:text-primary">
                                     {index + 1}
                                 </span>
 
                                 <div className="flex min-w-0 flex-1 flex-col items-start text-left">
                                     <div className="flex w-full items-center justify-between gap-2">
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <p className="truncate text-sm font-medium text-gray-200 group-hover:text-white">
+                                            <p className="truncate text-sm font-medium text-ink group-hover:text-primary">
                                                 {task.title}
                                             </p>
-                                            <span className="truncate text-[10px] font-medium text-gray-500 border-l border-gray-700 pl-2">
+                                            <span className="truncate text-[10px] font-medium text-ink-muted border-l border-border pl-2">
                                                 {project?.name}
                                             </span>
                                         </div>
-                                        <span className="shrink-0 font-mono text-[10px] font-bold text-blue-300">
+                                        <span className="shrink-0 font-mono text-[10px] font-bold text-primary">
                                             {insight.score}pt
                                         </span>
                                     </div>
-                                    <p className="truncate text-[11px] text-gray-500">
+                                    <p className="truncate text-[11px] text-ink-muted">
                                         {insight.reasons.join(' • ') || 'Estável'}
                                     </p>
                                 </div>

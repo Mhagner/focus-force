@@ -51,8 +51,8 @@ export function RecentSessions() {
     .slice(0, 8);
 
   return (
-    <Card className="p-6 bg-gray-900/50 border-gray-800">
-      <h3 className="text-lg font-semibold text-white mb-4">
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold text-ink mb-4">
         Sessões Recentes
       </h3>
       
@@ -72,15 +72,15 @@ export function RecentSessions() {
             return (
               <div
                 key={session.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30 border border-gray-700/50 hover:bg-gray-800/50 transition-colors"
+                className="flex items-center justify-between p-3 rounded-lg bg-background border border-border hover:bg-secondary/60 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <ProjectBadge name={project.name} color={project.color} size="sm" />
                   <div>
                     {task && (
-                      <p className="text-sm font-medium text-white">{task.title}</p>
+                      <p className="text-sm font-medium text-ink">{task.title}</p>
                     )}
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-ink-muted">
                       {startTime} - {endTime}
                     </p>
                   </div>
@@ -88,10 +88,10 @@ export function RecentSessions() {
 
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-white">
+                    <p className="text-sm font-medium text-ink">
                       {formatDuration(session.durationSec)}
                     </p>
-                    <p className="text-xs text-gray-500 capitalize">
+                    <p className="text-xs text-ink-muted/80 capitalize">
                       {session.type}
                     </p>
                   </div>
@@ -104,7 +104,7 @@ export function RecentSessions() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-gray-400 hover:text-red-400"
+                        className="text-ink-muted hover:text-danger"
                         aria-label="Excluir sessão"
                         onClick={() => setPendingDeleteId(session.id)}
                       >
@@ -115,19 +115,19 @@ export function RecentSessions() {
                         )}
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-gray-900 border border-gray-700 text-white">
+                    <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir sessão</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-300">
+                        <AlertDialogDescription>
                           Tem certeza que deseja remover esta sessão? Esta ação não pode ser desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-gray-800 border border-gray-700 text-white">
+                        <AlertDialogCancel>
                           Cancelar
                         </AlertDialogCancel>
                         <AlertDialogAction
-                          className="bg-red-600 hover:bg-red-700"
+                          className="bg-danger hover:opacity-90"
                           onClick={() => handleDelete(session.id)}
                           disabled={isDeleting}
                         >
@@ -145,7 +145,7 @@ export function RecentSessions() {
           })}
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-ink-muted">
           Nenhuma sessão registrada ainda
         </div>
       )}

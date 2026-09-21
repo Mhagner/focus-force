@@ -250,17 +250,17 @@ export default function ReportsPage() {
 
   return (
     <>
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Relatórios</h1>
-          <p className="text-gray-400">
+          <h1 className="font-display text-3xl font-bold text-ink mb-2">Relatórios</h1>
+          <p className="text-ink-muted">
             Análise detalhada da sua produtividade
           </p>
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={() => setManualOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => setManualOpen(true)}>
             Adicionar Sessão
           </Button>
           <Button onClick={handleExportSessions} variant="outline">
@@ -279,22 +279,21 @@ export default function ReportsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800 mb-6">
+      <Card className="p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5 text-gray-400" />
-          <h2 className="text-lg font-semibold text-white">Filtros</h2>
+          <Filter className="h-5 w-5 text-ink-muted" />
+          <h2 className="text-lg font-semibold text-ink">Filtros</h2>
         </div>
 
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-ink-muted mb-2">
               Período
             </label>
             <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="icon"
-                className="border-gray-700 bg-gray-800 hover:bg-gray-700"
                 onClick={() => shiftRange(-1)}
                 aria-label="Período anterior"
               >
@@ -305,23 +304,22 @@ export default function ReportsPage() {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="min-w-[220px] justify-start gap-2 border-gray-700 bg-gray-800 font-normal hover:bg-gray-700"
+                    className="min-w-[220px] justify-start gap-2 font-normal"
                   >
-                    <CalendarDays className="h-4 w-4 text-gray-400" />
+                    <CalendarDays className="h-4 w-4 text-ink-muted" />
                     {dateRangeLabel}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 border-gray-700 bg-gray-900" align="start">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="range"
                     selected={draftRange}
                     onSelect={setDraftRange}
                     numberOfMonths={2}
                     locale={ptBR}
-                    className="text-white"
                   />
-                  <div className="flex items-center justify-between gap-2 border-t border-gray-800 p-3">
-                    <span className="text-xs text-gray-400">
+                  <div className="flex items-center justify-between gap-2 border-t border-border p-3">
+                    <span className="text-xs text-ink-muted">
                       {draftRange?.from
                         ? draftRange.to
                           ? `${format(draftRange.from, 'dd/MM/yyyy')} – ${format(draftRange.to, 'dd/MM/yyyy')}`
@@ -332,14 +330,12 @@ export default function ReportsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-gray-700 text-gray-200 hover:bg-gray-800"
                         onClick={() => setIsCalendarOpen(false)}
                       >
                         Cancelar
                       </Button>
                       <Button
                         size="sm"
-                        className="bg-blue-600 hover:bg-blue-700"
                         onClick={handleApplyDateRange}
                         disabled={!draftRange?.from}
                       >
@@ -353,7 +349,6 @@ export default function ReportsPage() {
               <Button
                 variant="outline"
                 size="icon"
-                className="border-gray-700 bg-gray-800 hover:bg-gray-700"
                 onClick={() => shiftRange(1)}
                 aria-label="Próximo período"
               >
@@ -363,14 +358,14 @@ export default function ReportsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-ink-muted mb-2">
               Projeto
             </label>
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="bg-gray-800 border-gray-700 min-w-[200px]">
+              <SelectTrigger className="min-w-[200px]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent>
                 <SelectItem value="all">Todos os projetos</SelectItem>
                 {activeProjects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
@@ -391,70 +386,71 @@ export default function ReportsPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="text-center">
-            <p className="text-3xl font-bold text-white">
+            <p className="text-3xl font-bold text-ink">
               {formatDuration(totalSeconds)}
             </p>
-            <p className="text-sm text-gray-400">Horas Totais</p>
+            <p className="text-sm text-ink-muted">Horas Totais</p>
           </div>
         </Card>
 
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="text-center">
-            <p className="text-3xl font-bold text-white">
+            <p className="text-3xl font-bold text-ink">
               {formatDuration(Math.round(avgHoursPerDay))}
             </p>
-            <p className="text-sm text-gray-400">Média por Dia</p>
+            <p className="text-sm text-ink-muted">Média por Dia</p>
           </div>
         </Card>
 
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="text-center">
-            <p className="text-3xl font-bold text-white">{projectHours.length}</p>
-            <p className="text-sm text-gray-400">Projetos Ativos</p>
+            <p className="text-3xl font-bold text-ink">{projectHours.length}</p>
+            <p className="text-sm text-ink-muted">Projetos Ativos</p>
           </div>
         </Card>
 
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
+        <Card className="p-6">
           <div className="text-center">
-            <p className="text-3xl font-bold text-white">{completedTasks}</p>
-            <p className="text-sm text-gray-400">Tarefas Concluídas</p>
+            <p className="text-3xl font-bold text-ink">{completedTasks}</p>
+            <p className="text-sm text-ink-muted">Tarefas Concluídas</p>
           </div>
         </Card>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
-          <h3 className="text-lg font-semibold text-white mb-4">Horas por Dia</h3>
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-ink mb-4">Horas por Dia</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="date" stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="date" stroke="hsl(var(--ink-muted))" />
+                <YAxis stroke="hsl(var(--ink-muted))" />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
-                    borderRadius: '8px'
+                    backgroundColor: 'hsl(var(--surface))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--ink))',
                   }}
                 />
                 <Line
                   type="monotone"
                   dataKey="hours"
-                  stroke="#3B82F6"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={2}
-                  dot={{ fill: '#3B82F6', strokeWidth: 2 }}
+                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <Card className="p-6 bg-gray-900/50 border-gray-800">
-          <h3 className="text-lg font-semibold text-white mb-4">Distribuição por Projeto</h3>
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-ink mb-4">Distribuição por Projeto</h3>
           <div className="h-64">
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -476,7 +472,7 @@ export default function ReportsPage() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex items-center justify-center h-full text-ink-muted">
                 Nenhum dado encontrado
               </div>
             )}
@@ -484,12 +480,12 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      <Card className="p-6 bg-gray-900/50 border-gray-800 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Resumo do Planejamento da Semana</h2>
+      <Card className="p-6 mb-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">Resumo do Planejamento da Semana</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-400">
+              <tr className="text-left text-ink-muted">
                 <th className="p-2">Dia</th>
                 <th className="p-2">Planejado</th>
                 <th className="p-2">Trabalhado</th>
@@ -498,16 +494,16 @@ export default function ReportsPage() {
             </thead>
             <tbody>
               {weeklyPlanning.map(day => (
-                <tr key={day.date.toISOString()} className="border-t border-gray-800">
+                <tr key={day.date.toISOString()} className="border-t border-border">
                   <td className="p-2">
                     <div className="flex flex-col">
-                      <span className="text-white font-medium">{day.formattedDayName}</span>
-                      <span className="text-xs text-gray-500">{format(day.date, 'dd/MM')}</span>
+                      <span className="text-ink font-medium">{day.formattedDayName}</span>
+                      <span className="text-xs text-ink-muted">{format(day.date, 'dd/MM')}</span>
                     </div>
                   </td>
-                  <td className="p-2 text-white">{formatDuration(day.plannedMinutes * 60)}</td>
-                  <td className="p-2 text-white">{formatDuration(day.workedSeconds)}</td>
-                  <td className="p-2 text-white">
+                  <td className="p-2 text-ink">{formatDuration(day.plannedMinutes * 60)}</td>
+                  <td className="p-2 text-ink">{formatDuration(day.workedSeconds)}</td>
+                  <td className="p-2 text-ink">
                     {day.efficiency !== null ? `${day.efficiency}%` : '—'}
                   </td>
                 </tr>
@@ -518,15 +514,15 @@ export default function ReportsPage() {
       </Card>
 
       {/* Top Projects */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800">
-        <h2 className="text-lg font-semibold text-white mb-4">Top 3 Projetos</h2>
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">Top 3 Projetos</h2>
 
         {projectHours.length > 0 ? (
           <div className="space-y-3">
             {projectHours.map((item, index) => (
               <div key={item.project.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="text-lg font-bold text-gray-400 w-6">
+                  <div className="text-lg font-bold text-ink-muted w-6">
                     #{index + 1}
                   </div>
                   <ProjectBadge
@@ -535,11 +531,11 @@ export default function ReportsPage() {
                   />
                 </div>
                 <div className="text-right">
-                  <p className="text-white font-medium">
+                  <p className="text-ink font-medium">
                     {formatDuration(item.totalSeconds)}
                   </p>
                   {item.project.hourlyRate && (
-                    <p className="text-sm text-green-400">
+                    <p className="text-sm text-success">
                       R$ {(((item.totalSeconds / 3600) * Number(item.project.hourlyRate)).toFixed(2))}
                     </p>
                   )}
@@ -548,20 +544,20 @@ export default function ReportsPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-ink-muted">
             Nenhuma sessão encontrada no período selecionado
           </div>
         )}
       </Card>
 
       {/* Session Details */}
-      <Card className="p-6 bg-gray-900/50 border-gray-800 mt-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Sessões</h2>
+      <Card className="p-6 mt-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">Sessões</h2>
         {filteredSessions.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400">
+                <tr className="text-left text-ink-muted">
                   <th className="p-2">Data</th>
                   <th className="p-2">Início</th>
                   <th className="p-2">Fim</th>
@@ -585,20 +581,19 @@ export default function ReportsPage() {
                   const isSyncing = syncingSessionId === session.id;
 
                   return (
-                    <tr key={session.id} className="border-t border-gray-800">
-                      <td className="p-2">{format(new Date(session.start), 'dd/MM/yyyy')}</td>
-                      <td className="p-2">{format(new Date(session.start), 'HH:mm')}</td>
-                      <td className="p-2">{session.end ? format(new Date(session.end), 'HH:mm') : '-'}</td>
-                      <td className="p-2">{project?.name || 'N/A'}</td>
-                      <td className="p-2">{task?.title || 'Sem tarefa'}</td>
-                      <td className="p-2">{formatDuration(session.durationSec)}</td>
+                    <tr key={session.id} className="border-t border-border">
+                      <td className="p-2 text-ink">{format(new Date(session.start), 'dd/MM/yyyy')}</td>
+                      <td className="p-2 text-ink">{format(new Date(session.start), 'HH:mm')}</td>
+                      <td className="p-2 text-ink">{session.end ? format(new Date(session.end), 'HH:mm') : '-'}</td>
+                      <td className="p-2 text-ink">{project?.name || 'N/A'}</td>
+                      <td className="p-2 text-ink">{task?.title || 'Sem tarefa'}</td>
+                      <td className="p-2 text-ink">{formatDuration(session.durationSec)}</td>
                       <td className="p-2">
                         <div className="flex items-center justify-end gap-2">
                           {canSyncWithClockfy ? (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-gray-700 text-gray-200 hover:text-white"
                               onClick={() => handleSyncSession(session.id)}
                               disabled={isSyncing}
                             >
@@ -619,7 +614,7 @@ export default function ReportsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="text-gray-400 hover:text-red-400"
+                                className="text-ink-muted hover:text-danger"
                                 aria-label="Excluir sessão"
                                 onClick={() => setPendingDeleteId(session.id)}
                               >
@@ -630,19 +625,19 @@ export default function ReportsPage() {
                                 )}
                               </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-gray-900 border border-gray-700 text-white">
+                            <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Excluir sessão</AlertDialogTitle>
-                                <AlertDialogDescription className="text-gray-300">
+                                <AlertDialogDescription>
                                   Tem certeza que deseja remover esta sessão? Esta ação não pode ser desfeita.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel className="bg-gray-800 border border-gray-700 text-white">
+                                <AlertDialogCancel>
                                   Cancelar
                                 </AlertDialogCancel>
                                 <AlertDialogAction
-                                  className="bg-red-600 hover:bg-red-700"
+                                  className="bg-danger hover:opacity-90"
                                   onClick={() => handleDelete(session.id)}
                                   disabled={isDeleting}
                                 >
@@ -663,7 +658,7 @@ export default function ReportsPage() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-ink-muted">
             Nenhuma sessão encontrada no período selecionado
           </div>
         )}

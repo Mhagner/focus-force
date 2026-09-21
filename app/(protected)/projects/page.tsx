@@ -228,11 +228,11 @@ export default function ProjectsPage() {
   const isActiveFilter = statusFilter === 'active';
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Projetos</h1>
-          <p className="text-gray-400">
+          <h1 className="font-display text-3xl font-bold text-ink mb-2">Projetos</h1>
+          <p className="text-ink-muted">
             Gerencie seus projetos e acompanhe o progresso
           </p>
         </div>
@@ -247,18 +247,18 @@ export default function ProjectsPage() {
                   setStatusFilter(value);
                 }
               }}
-              className="self-start rounded-lg border border-gray-800 bg-gray-900/60 p-1 text-gray-300"
+              className="self-start rounded-lg border border-border bg-card p-1 text-ink-muted"
               aria-label="Filtrar por status do projeto"
             >
               <ToggleGroupItem
                 value="active"
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
               >
                 Ativos
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="archived"
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
               >
                 Arquivados
               </ToggleGroupItem>
@@ -272,12 +272,12 @@ export default function ProjectsPage() {
                   setViewMode(value);
                 }
               }}
-              className="self-start rounded-lg border border-gray-800 bg-gray-900/60 p-1 text-gray-300"
+              className="self-start rounded-lg border border-border bg-card p-1 text-ink-muted"
               aria-label="Alternar visualização"
             >
               <ToggleGroupItem
                 value="list"
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                 aria-label="Visualização em lista"
               >
                 <List className="h-4 w-4" />
@@ -285,7 +285,7 @@ export default function ProjectsPage() {
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="grid"
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-blue-600 data-[state=on]:text-white"
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                 aria-label="Visualização em cards"
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -294,10 +294,7 @@ export default function ProjectsPage() {
             </ToggleGroup>
           </div>
 
-          <Button
-            onClick={handleNewProject}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
+          <Button onClick={handleNewProject}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Projeto
           </Button>
@@ -307,7 +304,7 @@ export default function ProjectsPage() {
       {sortedProjects.length > 0 ? (
         viewMode === 'list' ? (
           <div className="space-y-3">
-            <div className="hidden md:grid md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] px-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <div className="hidden md:grid md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] px-4 text-xs font-semibold uppercase tracking-wide text-ink-muted">
               <span>Projeto</span>
               <span>Cliente</span>
               <span>Novas URLs</span>
@@ -342,7 +339,7 @@ export default function ProjectsPage() {
         )
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-400 mb-4">
+          <p className="text-ink-muted mb-4">
             Nenhum projeto {isActiveFilter ? 'ativo' : 'arquivado'} encontrado
           </p>
           {isActiveFilter && (

@@ -20,7 +20,7 @@ function withAlpha(color: string, alpha: number): string {
       return `#${base}${alphaHex}`;
     }
   }
-  return `rgba(59,130,246,${alpha})`;
+  return `rgba(3,85,120,${alpha})`;
 }
 
 interface TimelineGridProps {
@@ -83,7 +83,7 @@ export function TimelineGrid({
 
         const project = projects.find(p => p.id === session.projectId);
         const task = session.taskId ? tasks.find(t => t.id === session.taskId) : undefined;
-        const color = project?.color ?? '#3b82f6';
+        const color = project?.color ?? '#035578';
         const top = (startM / totalMinutes) * containerHeightPx;
         const height = Math.min(((endM - startM) / totalMinutes) * containerHeightPx, containerHeightPx - top);
 
@@ -131,7 +131,7 @@ export function TimelineGrid({
         {showWeekdayHeader && <div className="h-10" />}
         {HOURS.map(h => (
           <div key={h} className="flex flex-1 items-start justify-end pr-1.5 pt-0.5">
-            <span className="text-[10px] leading-none text-gray-600">{String(h).padStart(2, '0')}h</span>
+            <span className="text-[10px] leading-none text-ink-muted">{String(h).padStart(2, '0')}h</span>
           </div>
         ))}
       </div>
@@ -141,10 +141,10 @@ export function TimelineGrid({
           <div className="mb-2 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
             {days.map(day => (
               <div key={day.toISOString()} className="text-center">
-                <div className="text-[10px] uppercase tracking-widest text-gray-500">
+                <div className="text-[10px] uppercase tracking-widest text-ink-muted">
                   {format(day, 'EEE', { locale: ptBR })}
                 </div>
-                <div className={clsx('text-sm font-bold', isToday(day) ? 'text-blue-400' : 'text-white')}>
+                <div className={clsx('text-sm font-bold', isToday(day) ? 'text-primary' : 'text-ink')}>
                   {format(day, 'd')}
                 </div>
               </div>
@@ -154,13 +154,13 @@ export function TimelineGrid({
 
         <div
           ref={gridRef}
-          className="relative grid overflow-hidden rounded-lg border border-gray-800 bg-gray-950/50"
+          className="relative grid overflow-hidden rounded-lg border border-border bg-background"
           style={{ height: `${containerHeightPx}px`, gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
         >
           {/* Hour lines */}
           <div className="pointer-events-none absolute inset-0 flex flex-col">
             {HOURS.map(h => (
-              <div key={h} className="flex-1 border-t border-gray-800/40" />
+              <div key={h} className="flex-1 border-t border-border/60" />
             ))}
           </div>
 
@@ -170,13 +170,13 @@ export function TimelineGrid({
               key={day.toISOString()}
               className={clsx(
                 'relative',
-                columnIndex > 0 && 'border-l border-gray-800/40',
+                columnIndex > 0 && 'border-l border-border/60',
               )}
             >
               {isToday(day) && (
                 <div className="pointer-events-none absolute left-0 right-0 z-10" style={{ top: `${currentTimeTop}px` }}>
-                  <div className="border-t-2 border-red-500/70" />
-                  <span className="absolute -top-2.5 left-1 rounded bg-red-600 px-1 py-0.5 text-[8px] leading-none text-white">
+                  <div className="border-t-2 border-danger/70" />
+                  <span className="absolute -top-2.5 left-1 rounded bg-danger px-1 py-0.5 text-[8px] leading-none text-white">
                     {format(now, 'HH:mm')}
                   </span>
                 </div>

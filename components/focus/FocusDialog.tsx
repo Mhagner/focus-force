@@ -79,9 +79,9 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800 max-w-2xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2">
             <Timer className="h-5 w-5" />
             Iniciar Sessão de Foco
           </DialogTitle>
@@ -90,7 +90,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
         <div className="space-y-6">
           {/* Timer Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-ink-muted mb-2">
               Tipo de Timer
             </label>
             <div className="flex gap-2">
@@ -113,7 +113,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
 
           {/* Project Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-ink-muted mb-2">
               Projeto *
             </label>
             <Popover open={isProjectOpen} onOpenChange={setIsProjectOpen}>
@@ -122,7 +122,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                   variant="outline"
                   role="combobox"
                   aria-expanded={isProjectOpen}
-                  className="w-full justify-between bg-gray-800 border-gray-700 text-left text-gray-200"
+                  className="w-full justify-between text-left"
                 >
                   {selectedProject ? (
                     <span className="flex items-center gap-2 truncate">
@@ -133,19 +133,19 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                       <span className="truncate">{selectedProject.name}</span>
                     </span>
                   ) : (
-                    <span className="text-gray-500">Selecione um projeto</span>
+                    <span className="text-ink-muted">Selecione um projeto</span>
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-[320px] p-0 bg-gray-900 border border-gray-800"
+                className="w-[320px] p-0"
                 align="start"
               >
                 <Command>
-                  <CommandInput placeholder="Buscar projeto..." className="text-gray-200" />
+                  <CommandInput placeholder="Buscar projeto..." />
                   <CommandList>
-                    <CommandEmpty className="text-gray-400 py-6">
+                    <CommandEmpty className="py-6">
                       Nenhum projeto encontrado.
                     </CommandEmpty>
                     <CommandGroup>
@@ -159,7 +159,6 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                             setIsProjectOpen(false);
                             setIsTaskOpen(false);
                           }}
-                          className="text-gray-200"
                         >
                           <div className="flex items-center gap-2 flex-1 overflow-hidden">
                             <span
@@ -186,7 +185,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
           {/* Task Selection (optional) */}
           {projectTasks.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-muted mb-2">
                 Tarefa (opcional)
               </label>
               <Popover open={isTaskOpen} onOpenChange={setIsTaskOpen}>
@@ -195,7 +194,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                     variant="outline"
                     role="combobox"
                     aria-expanded={isTaskOpen}
-                    className="w-full justify-between bg-gray-800 border-gray-700 text-left text-gray-200"
+                    className="w-full justify-between text-left"
                   >
                     {selectedTaskId ? (
                       <span className="flex items-center gap-2 truncate">
@@ -209,19 +208,19 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                         )}
                       </span>
                     ) : (
-                      <span className="text-gray-500">Selecione uma tarefa</span>
+                      <span className="text-ink-muted">Selecione uma tarefa</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-[320px] p-0 bg-gray-900 border border-gray-800"
+                  className="w-[320px] p-0"
                   align="start"
                 >
                   <Command>
-                    <CommandInput placeholder="Buscar tarefa..." className="text-gray-200" />
+                    <CommandInput placeholder="Buscar tarefa..." />
                     <CommandList>
-                      <CommandEmpty className="text-gray-400 py-6">
+                      <CommandEmpty className="py-6">
                         Nenhuma tarefa encontrada.
                       </CommandEmpty>
                       <CommandGroup>
@@ -231,7 +230,6 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                             setSelectedTaskId('none');
                             setIsTaskOpen(false);
                           }}
-                          className="text-gray-200"
                         >
                           <span className="flex-1 truncate">Sem tarefa específica</span>
                           <Check
@@ -249,7 +247,6 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                               setSelectedTaskId(task.id);
                               setIsTaskOpen(false);
                             }}
-                            className="text-gray-200"
                           >
                             <div className="flex items-center gap-2 flex-1 overflow-hidden">
                               <PriorityTag priority={task.priority || 'media'} />
@@ -273,7 +270,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
 
           {/* Session Description (required) */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-ink-muted mb-2">
               Descrição da sessão *
             </label>
             {sessionDescriptionPresets.length > 0 && (
@@ -286,8 +283,8 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                     className={cn(
                       'px-3 py-1 rounded-full text-xs border transition-colors',
                       description === preset.label
-                        ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border text-ink-muted hover:bg-secondary'
                     )}
                   >
                     {preset.label}
@@ -299,7 +296,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="O que você vai fazer nesta sessão?"
-              className="bg-gray-800 border-gray-700 text-white resize-none"
+              className="resize-none"
               rows={2}
             />
           </div>
@@ -307,7 +304,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
           {/* Today's Tasks Preview */}
           {todayTasks.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-ink-muted mb-2">
                 Tarefas de Hoje
               </label>
               <div className="max-h-32 overflow-y-auto space-y-1">
@@ -318,14 +315,14 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                   return (
                     <div
                       key={task.id}
-                      className="flex items-center gap-2 p-2 rounded bg-gray-800/30 text-sm cursor-pointer hover:bg-gray-800/50"
+                      className="flex items-center gap-2 p-2 rounded bg-background text-sm cursor-pointer hover:bg-secondary"
                       onClick={() => {
                         setSelectedProjectId(task.projectId);
                         setSelectedTaskId(task.id);
                       }}
                     >
                       <PriorityTag priority={task.priority || 'media'} />
-                      <span className="text-gray-300 truncate">{task.title}</span>
+                      <span className="text-ink-muted truncate">{task.title}</span>
                     </div>
                   );
                 })}
@@ -345,7 +342,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
             <Button
               onClick={handleStart}
               disabled={!selectedProjectId || !description.trim()}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1"
             >
               <Play className="h-4 w-4 mr-2" />
               Iniciar

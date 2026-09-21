@@ -9,7 +9,7 @@ export default function MiniTimerLayout({
   return (
     <AppProvider>
       {children}
-      <Toaster theme="dark" />
+      <Toaster theme="light" />
     </AppProvider>
   );
 }

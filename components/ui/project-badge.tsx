@@ -23,8 +23,8 @@ export function ProjectBadge({
 
   const badgeClassName = cn(
     'inline-flex items-center gap-2 rounded-full px-3 py-1',
-    'bg-gray-900/50 border border-gray-700',
-    clickable && 'cursor-pointer transition-colors hover:bg-gray-900/70 focus:outline-none focus:ring-2 focus:ring-blue-600/40',
+    'bg-secondary border border-border',
+    clickable && 'cursor-pointer transition-colors hover:bg-primary/[0.08] focus:outline-none focus:ring-2 focus:ring-ring/40',
     size === 'sm' && 'px-2 py-0.5 text-xs',
     size === 'md' && 'px-3 py-1 text-sm',
     size === 'lg' && 'px-4 py-2 text-base',
@@ -42,7 +42,7 @@ export function ProjectBadge({
         )}
         style={{ backgroundColor: color }}
       />
-      <span className="font-medium text-white" title={name}>
+      <span className="font-medium text-ink" title={name}>
         {name}
       </span>
     </>

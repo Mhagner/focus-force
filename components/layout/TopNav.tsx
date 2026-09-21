@@ -150,12 +150,12 @@ export function TopNav() {
 
   const levelVisual = (level: 'overdue' | 'today' | 'upcoming') => {
     if (level === 'overdue') {
-      return { icon: AlertTriangle, className: 'text-red-300', tag: 'Atrasada' };
+      return { icon: AlertTriangle, className: 'text-danger', tag: 'Atrasada' };
     }
     if (level === 'today') {
-      return { icon: CalendarClock, className: 'text-amber-300', tag: 'Hoje' };
+      return { icon: CalendarClock, className: 'text-accent-orange', tag: 'Hoje' };
     }
-    return { icon: Clock3, className: 'text-blue-300', tag: 'Próxima' };
+    return { icon: Clock3, className: 'text-accent-blue', tag: 'Próxima' };
   };
 
   useEffect(() => {
@@ -184,18 +184,18 @@ export function TopNav() {
 
   return (
     <>
-      <header className="bg-gray-950/80 backdrop-blur border-b border-gray-800 px-6 py-4">
+      <header className="bg-surface/90 backdrop-blur border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsSearchOpen(true)}
-              className="w-80 justify-start bg-gray-900/50 border-gray-700 text-gray-400 hover:text-white"
+              className="w-80 justify-start bg-background border-border text-ink-muted hover:text-ink"
             >
               <Search className="mr-2 h-4 w-4" />
               <span className="flex-1 text-left">Buscar projetos, tarefas...</span>
-              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-gray-700 px-1.5 font-sans text-[10px] font-medium text-gray-400">
+              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border px-1.5 font-sans text-[10px] font-medium text-ink-muted">
                 ⌘K
               </kbd>
             </Button>
@@ -207,25 +207,25 @@ export function TopNav() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="relative text-gray-300 hover:text-white"
+                  className="relative text-ink-muted hover:text-ink"
                   aria-label="Notificações de prazo"
                 >
                   <Bell className="h-5 w-5" />
                   {notifications.length > 0 && (
                     <span className={cn(
                       'absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold',
-                      hasDailyAlert ? 'bg-red-500 text-white' : 'bg-blue-600 text-white',
+                      hasDailyAlert ? 'bg-danger text-white' : 'bg-primary text-white',
                     )}>
                       {notifications.length > 9 ? '9+' : notifications.length}
                     </span>
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[360px] border-gray-700 bg-gray-900 text-gray-100">
-                <DropdownMenuLabel className="text-gray-200">Notificações de prazo</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-gray-700" />
+              <DropdownMenuContent align="end" className="w-[360px] border-border bg-surface text-ink">
+                <DropdownMenuLabel className="text-ink">Notificações de prazo</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-border" />
                 {notifications.length === 0 && (
-                  <div className="px-2 py-3 text-sm text-gray-400">Nenhum prazo crítico no momento.</div>
+                  <div className="px-2 py-3 text-sm text-ink-muted">Nenhum prazo crítico no momento.</div>
                 )}
                 {notifications.length > 0 && (
                   <div className="max-h-80 overflow-y-auto">
@@ -240,8 +240,8 @@ export function TopNav() {
                         >
                           <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', visual.className)} />
                           <div className="flex min-w-0 flex-col">
-                            <span className="text-xs font-semibold text-gray-200">{visual.tag} · {item.projectName}</span>
-                            <span className="line-clamp-2 text-xs text-gray-300">{item.message}</span>
+                            <span className="text-xs font-semibold text-ink">{visual.tag} · {item.projectName}</span>
+                            <span className="line-clamp-2 text-xs text-ink-muted">{item.message}</span>
                           </div>
                         </DropdownMenuItem>
                       );
@@ -253,19 +253,19 @@ export function TopNav() {
 
             {/* Timer Status */}
             {isRunning && (
-              <div className="flex items-center gap-3 bg-gray-900/50 px-4 py-2 rounded-lg border border-gray-700">
+              <div className="flex items-center gap-3 bg-background px-4 py-2 rounded-md border border-border">
                 <div className="flex items-center gap-2">
                   <div className={cn(
                     "w-2 h-2 rounded-full",
-                    currentPhase === 'work' ? "bg-green-500" : "bg-orange-500"
+                    currentPhase === 'work' ? "bg-success" : "bg-accent-orange"
                   )} />
-                  <span className="text-sm font-medium text-white">
+                  <span className="text-sm font-medium text-ink">
                     {formatTime(timeRemaining)}
                   </span>
                 </div>
 
                 {selectedProject && (
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <div className="flex items-center gap-2 text-sm text-ink-muted">
                     <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: selectedProject.color }}
@@ -279,7 +279,7 @@ export function TopNav() {
                     variant="ghost"
                     size="sm"
                     onClick={() => router.push('/focus')}
-                    className="h-8 w-8 p-0 hover:bg-gray-700"
+                    className="h-8 w-8 p-0 hover:bg-secondary"
                     title="Ir para página de foco"
                   >
                     <SquareArrowOutUpRight className="h-4 w-4" />
@@ -288,7 +288,7 @@ export function TopNav() {
                     variant="ghost"
                     size="sm"
                     onClick={isPaused ? resumeTimer : pauseTimer}
-                    className="h-8 w-8 p-0 hover:bg-gray-700"
+                    className="h-8 w-8 p-0 hover:bg-secondary"
                   >
                     {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                   </Button>
@@ -296,7 +296,7 @@ export function TopNav() {
                     variant="ghost"
                     size="sm"
                     onClick={resetTimer}
-                    className="h-8 w-8 p-0 hover:bg-gray-700"
+                    className="h-8 w-8 p-0 hover:bg-secondary"
                   >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
@@ -306,14 +306,14 @@ export function TopNav() {
 
             <Button
               onClick={() => setIsFocusDialogOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+              className="bg-primary hover:opacity-90 text-white font-medium"
             >
               <Play className="h-4 w-4 mr-2" />
               Iniciar Foco
             </Button>
             <Button
               variant="ghost"
-              className="text-gray-300 hover:text-white"
+              className="text-ink-muted hover:text-ink"
               onClick={handleLogout}
               disabled={isLoggingOut}
             >
@@ -358,9 +358,9 @@ export function TopNav() {
                     style={{ backgroundColor: project.color }}
                   />
                   <div className="flex flex-col">
-                    <span className="text-sm text-white">{project.name}</span>
+                    <span className="text-sm text-ink">{project.name}</span>
                     {project.client && (
-                      <span className="text-xs text-gray-400">{project.client}</span>
+                      <span className="text-xs text-ink-muted">{project.client}</span>
                     )}
                   </div>
                 </CommandItem>
@@ -378,8 +378,8 @@ export function TopNav() {
                     onSelect={() => handleSelect('/tasks', searchQuery, task.id)}
                   >
                     <div className="flex flex-col">
-                      <span className="text-sm text-white">{task.title}</span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-sm text-ink">{task.title}</span>
+                      <span className="text-xs text-ink-muted">
                         {project ? project.name : 'Projeto sem nome'}
                       </span>
                     </div>

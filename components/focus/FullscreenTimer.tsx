@@ -117,14 +117,14 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
       className={cn(
         'flex min-h-screen w-full flex-col text-white transition-colors duration-500',
         isBreakPhase
-          ? 'bg-gradient-to-br from-amber-950 via-red-950 to-neutral-950'
-          : 'bg-neutral-950'
+          ? 'bg-gradient-to-br from-accent-brown via-accent-orange/80 to-ink'
+          : 'bg-primary'
       )}
     >
-      <header className="flex items-center justify-between px-6 py-5 text-xs uppercase tracking-[0.3em] text-neutral-400">
+      <header className="flex items-center justify-between px-6 py-5 text-xs uppercase tracking-[0.3em] text-white/60">
         <div className="flex flex-col gap-1">
           <span>{phaseLabels[currentPhase] ?? 'Sessão'}</span>
-          <span className="text-[10px] tracking-[0.35em] text-neutral-500">
+          <span className="text-[10px] tracking-[0.35em] text-white/45">
             {isRunning ? (isPaused ? 'Pausado' : 'Em andamento') : 'Parado'}
           </span>
         </div>
@@ -133,7 +133,7 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-8 gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 text-xs text-neutral-200 hover:bg-neutral-800"
+            className="h-8 gap-2 rounded-full border border-white/20 bg-white/10 text-xs text-white hover:bg-white/20"
           >
             <X className="h-4 w-4" />
             Fechar
@@ -144,8 +144,8 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
       <main className="flex flex-1 items-center justify-center px-6">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
           {isBreakPhase && (
-            <div className="animate-pulse rounded-xl border-2 border-amber-300/80 bg-amber-300/20 px-6 py-4 text-center shadow-[0_0_50px_rgba(251,191,36,0.45)]">
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-100">
+            <div className="animate-pulse rounded-xl border-2 border-accent-orange/80 bg-accent-orange/20 px-6 py-4 text-center shadow-[0_0_50px_rgba(222,122,0,0.45)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-white">
                 Pausa Obrigatória
               </p>
               <p className="mt-2 text-lg font-bold text-white">
@@ -159,10 +159,10 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
               <div
                 key={`${value}-${index}`}
                 className={cn(
-                  'flex min-h-[50vh] items-center justify-center rounded-lg border bg-gradient-to-b shadow-[0_25px_80px_rgba(0,0,0,0.6)] transition-colors duration-500',
+                  'flex min-h-[50vh] items-center justify-center rounded-lg border bg-gradient-to-b shadow-[0_25px_80px_rgba(0,0,0,0.4)] transition-colors duration-500',
                   isBreakPhase
-                    ? 'border-amber-300/70 from-amber-500/20 via-red-700/25 to-neutral-900 shadow-[0_25px_120px_rgba(251,191,36,0.25)]'
-                    : 'border-neutral-700 from-neutral-800 via-neutral-850 to-neutral-900'
+                    ? 'border-accent-orange/70 from-accent-orange/25 via-accent-brown/30 to-ink shadow-[0_25px_120px_rgba(222,122,0,0.25)]'
+                    : 'border-white/15 from-white/10 via-primary to-ink'
                 )}
               >
                 <span className="font-mono text-[clamp(6rem,22vw,16rem)] font-bold leading-none text-white">
@@ -172,7 +172,7 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
             ))}
           </div>
 
-          <div className="text-center text-xs uppercase tracking-[0.4em] text-neutral-500">
+          <div className="text-center text-xs uppercase tracking-[0.4em] text-white/50">
             {currentPhase === 'manual'
               ? 'Cronômetro Manual'
               : `Ciclo ${currentCycle} de ${cycles}`}
@@ -184,7 +184,7 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
                 variant="outline"
                 size="lg"
                 onClick={isPaused ? resumeTimer : pauseTimer}
-                className="h-14 gap-2 rounded-lg border-neutral-700 bg-neutral-800/50 px-8 text-base text-neutral-200 hover:bg-neutral-700"
+                className="h-14 gap-2 rounded-lg border-white/20 bg-white/10 px-8 text-base text-white hover:bg-white/20"
               >
                 {isPaused ? (
                   <>
@@ -204,7 +204,7 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
                   variant="outline"
                   size="lg"
                   onClick={nextPhase}
-                  className="h-14 gap-2 rounded-lg border-neutral-700 bg-neutral-800/50 px-8 text-base text-neutral-200 hover:bg-neutral-700"
+                  className="h-14 gap-2 rounded-lg border-white/20 bg-white/10 px-8 text-base text-white hover:bg-white/20"
                 >
                   <SkipForward className="h-5 w-5" />
                   Próxima Fase
@@ -215,7 +215,7 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
                 variant="outline"
                 size="lg"
                 onClick={stopTimer}
-                className="h-14 gap-2 rounded-lg border-red-900/50 bg-red-950/30 px-8 text-base text-red-400 hover:bg-red-900/40"
+                className="h-14 gap-2 rounded-lg border-danger/50 bg-danger/20 px-8 text-base text-white hover:bg-danger/30"
               >
                 <StopCircle className="h-5 w-5" />
                 Concluir
@@ -225,14 +225,14 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
         </div>
       </main>
 
-      <footer className="flex flex-col items-center gap-3 px-6 pb-8 text-lg text-neutral-300">
+      <footer className="flex flex-col items-center gap-3 px-6 pb-8 text-lg text-white/80">
         {project && (
           <div className="flex items-center gap-3">
             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: project.color }} />
             <span className="max-w-[400px] truncate font-medium">{project.name}</span>
           </div>
         )}
-        {task && <span className="max-w-[500px] truncate text-base text-neutral-400">{task.title}</span>}
+        {task && <span className="max-w-[500px] truncate text-base text-white/60">{task.title}</span>}
       </footer>
     </div>
   );

@@ -49,35 +49,28 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   };
 
   return (
-    <Card className="p-6 bg-gray-900/50 border-gray-800 hover:bg-gray-900/70 transition-colors">
+    <Card className="p-6 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div 
-            className="w-4 h-4 rounded-full flex-shrink-0" 
-            style={{ backgroundColor: project.color }} 
+          <div
+            className="w-4 h-4 rounded-full flex-shrink-0"
+            style={{ backgroundColor: project.color }}
           />
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-white">{project.name}</h3>
+              <h3 className="font-semibold text-ink">{project.name}</h3>
               {isArchived && (
-                <Badge variant="outline" className="text-xs text-amber-300 border-amber-400/60 bg-amber-500/10">
+                <Badge variant="accent-orange">
                   Arquivado
                 </Badge>
               )}
             </div>
             <div className="flex items-center gap-2 mt-1">
               {project.client && (
-                <p className="text-sm text-gray-400">{project.client}</p>
+                <p className="text-sm text-ink-muted">{project.client}</p>
               )}
               <Badge
-                variant={clockfyStatus === 'linked' ? 'secondary' : 'outline'}
-                className={
-                  clockfyStatus === 'linked'
-                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                    : clockfyStatus === 'pending'
-                      ? 'border-yellow-500/60 text-yellow-300'
-                      : 'border-gray-600 text-gray-300'
-                }
+                variant={clockfyStatus === 'linked' ? 'success' : clockfyStatus === 'pending' ? 'accent-orange' : 'secondary'}
               >
                 {clockfyStatus === 'linked'
                   ? 'Clockfy conectado'
@@ -88,21 +81,21 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
             </div>
           </div>
         </div>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <Button variant="ghost" size="sm" className="text-ink-muted hover:text-ink">
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-gray-800 border-gray-700">
+          <DropdownMenuContent>
             <DropdownMenuItem onClick={() => onEdit(project)} className="cursor-pointer">
               <Edit className="h-4 w-4 mr-2" />
               Editar
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleToggleArchive}
-              className={`cursor-pointer ${isArchived ? 'text-emerald-300' : 'text-red-400'}`}
+              className={`cursor-pointer ${isArchived ? 'text-success' : 'text-danger'}`}
             >
               {isArchived ? (
                 <ArchiveRestore className="h-4 w-4 mr-2" />
@@ -117,43 +110,43 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
 
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-400">Hoje</span>
-          <span className="text-white font-medium">
+          <span className="text-sm text-ink-muted">Hoje</span>
+          <span className="text-ink font-medium">
             {formatDuration(todayHours)}
           </span>
         </div>
-        
+
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-400">Esta semana</span>
-          <span className="text-white font-medium">
+          <span className="text-sm text-ink-muted">Esta semana</span>
+          <span className="text-ink font-medium">
             {formatDuration(weekHours)}
           </span>
         </div>
-        
+
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-400">Tarefas pendentes</span>
-          <span className="text-white font-medium">{pendingTasks}</span>
+          <span className="text-sm text-ink-muted">Tarefas pendentes</span>
+          <span className="text-ink font-medium">{pendingTasks}</span>
         </div>
 
         {project.hourlyRate && (
-          <div className="flex justify-between items-center pt-2 border-t border-gray-700">
-            <span className="text-sm text-gray-400">Taxa/hora</span>
-            <span className="text-green-400 font-medium">R$ {project.hourlyRate}</span>
+          <div className="flex justify-between items-center pt-2 border-t border-border">
+            <span className="text-sm text-ink-muted">Taxa/hora</span>
+            <span className="text-success font-medium">R$ {project.hourlyRate}</span>
           </div>
         )}
       </div>
 
       {(project.salesforceOppUrl || project.sharepointRepoUrl || estimatedDelivery) && (
-        <div className="mt-4 space-y-2 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-400">Metadados</p>
+        <div className="mt-4 space-y-2 rounded-lg border border-border bg-background p-4">
+          <p className="text-xs uppercase tracking-wide text-ink-muted">Metadados</p>
           {project.salesforceOppUrl && (
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-gray-400">Salesforce</span>
+              <span className="text-ink-muted">Salesforce</span>
               <a
                 href={project.salesforceOppUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 underline"
+                className="text-accent-blue hover:opacity-80 underline"
               >
                 Abrir oportunidade
               </a>
@@ -161,12 +154,12 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
           )}
           {project.sharepointRepoUrl && (
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-gray-400">SharePoint</span>
+              <span className="text-ink-muted">SharePoint</span>
               <a
                 href={project.sharepointRepoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 underline"
+                className="text-accent-blue hover:opacity-80 underline"
               >
                 Abrir repositório
               </a>
@@ -174,8 +167,8 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
           )}
           {estimatedDelivery && (
             <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-gray-400">Entrega prevista</span>
-              <span className="text-white font-medium">{estimatedDelivery}</span>
+              <span className="text-ink-muted">Entrega prevista</span>
+              <span className="text-ink font-medium">{estimatedDelivery}</span>
             </div>
           )}
         </div>
@@ -183,7 +176,7 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <Button
-          className="flex-1 bg-blue-600 hover:bg-blue-700"
+          className="flex-1"
           onClick={() => router.push('/focus')}
           disabled={isArchived}
         >
@@ -192,7 +185,7 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
         </Button>
         <Button
           variant="outline"
-          className="flex-1 border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+          className="flex-1"
           onClick={() => router.push(`/projects/${project.id}`)}
         >
           <MessageSquare className="h-4 w-4 mr-2" />

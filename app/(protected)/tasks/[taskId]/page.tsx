@@ -261,11 +261,11 @@ export default function TaskDetailPage() {
   if (!task || !project) {
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => router.push('/tasks')} className="text-gray-300 hover:text-white">
+        <Button variant="ghost" onClick={() => router.push('/tasks')} className="text-ink-muted hover:text-ink">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar para tarefas
         </Button>
-        <Card className="p-6 bg-gray-900/60 border border-gray-800 text-gray-300">
+        <Card className="p-6 text-ink-muted">
           <p>Tarefa não encontrada.</p>
         </Card>
       </div>
@@ -286,20 +286,18 @@ export default function TaskDetailPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => router.push('/tasks')} className="text-gray-300 hover:text-white">
+        <Button variant="ghost" onClick={() => router.push('/tasks')} className="text-ink-muted hover:text-ink">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar para tarefas
         </Button>
         <div className="flex gap-2">
           <Button
             variant="outline"
-            className="border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
             onClick={handlePlanForToday}
           >
             {isPlannedForToday ? 'Remover de hoje' : 'Planejar para hoje'}
           </Button>
           <Button
-            className="bg-blue-600 hover:bg-blue-700"
             onClick={() => setIsFocusDialogOpen(true)}
           >
             <Play className="mr-2 h-4 w-4" />
@@ -325,9 +323,9 @@ export default function TaskDetailPage() {
         </div>
       </div>
 
-      <Card className="p-6 bg-gray-900/60 border border-gray-800 space-y-6">
+      <Card className="p-6 space-y-6">
         {isTimeOverrun && (
-          <div className="flex items-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 p-3 text-sm text-orange-200">
+          <div className="flex items-center gap-2 rounded-lg border border-accent-orange/40 bg-accent-orange/[0.1] p-3 text-sm text-accent-orange">
             <TimerReset className="h-4 w-4 shrink-0" />
             <span>
               Esta tarefa acumulou <span className="font-semibold">{formatDuration(trackedSeconds)}</span> de trabalho, acima de 2h.
@@ -337,14 +335,14 @@ export default function TaskDetailPage() {
         )}
 
         {highestDueLevel && (
-          <div className="rounded-lg border border-gray-700 bg-gray-950/60 p-3 text-sm text-gray-100">
+          <div className="rounded-lg border border-border bg-background p-3 text-sm text-ink">
             <div className="mb-2 flex items-center gap-2 font-semibold">
-              {highestDueLevel === 'overdue' && <AlertTriangle className="h-4 w-4 text-red-300" />}
-              {highestDueLevel === 'today' && <CalendarClock className="h-4 w-4 text-amber-300" />}
-              {highestDueLevel === 'upcoming' && <Clock3 className="h-4 w-4 text-blue-300" />}
+              {highestDueLevel === 'overdue' && <AlertTriangle className="h-4 w-4 text-danger" />}
+              {highestDueLevel === 'today' && <CalendarClock className="h-4 w-4 text-accent-orange" />}
+              {highestDueLevel === 'upcoming' && <Clock3 className="h-4 w-4 text-accent-blue" />}
               {highestDueLevel === 'overdue' ? 'Tarefa com atraso de prazo' : highestDueLevel === 'today' ? 'Tarefa com entrega para hoje' : 'Tarefa com entrega próxima'}
             </div>
-            <ul className="space-y-1 text-xs text-gray-300">
+            <ul className="space-y-1 text-xs text-ink-muted">
               {dueSignals.slice(0, 4).map((signal) => (
                 <li key={`${signal.source}-${signal.date.toISOString()}`}>
                   • {signal.source === 'task' ? 'Entrega da tarefa' : 'Entrega do projeto'} ({signal.level === 'overdue' ? 'atrasada' : signal.level === 'today' ? 'vence hoje' : 'próxima do prazo'})
@@ -358,13 +356,13 @@ export default function TaskDetailPage() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <PriorityTag priority={task.priority || 'media'} />
-              <h1 className="text-2xl font-semibold text-white">{task.title}</h1>
+              <h1 className="text-2xl font-semibold text-ink">{task.title}</h1>
             </div>
             <ProjectBadge name={project.name} color={project.color} size="md" />
           </div>
 
           {task.description && (
-            <p className="text-gray-300 leading-relaxed">{task.description}</p>
+            <p className="text-ink-muted leading-relaxed">{task.description}</p>
           )}
 
           <div className="flex flex-wrap gap-3">
@@ -383,78 +381,77 @@ export default function TaskDetailPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800/70">
-              <Calendar className="h-5 w-5 text-gray-400" />
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+              <Calendar className="h-5 w-5 text-ink-muted" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Entrega prevista</p>
-              <p className="text-sm text-white">{estimatedDelivery}</p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Entrega prevista</p>
+              <p className="text-sm text-ink">{estimatedDelivery}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800/70">
-              <Clock className="h-5 w-5 text-gray-400" />
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+              <Clock className="h-5 w-5 text-ink-muted" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Estimativa</p>
-              <p className="text-sm text-white">{estimateLabel}</p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Estimativa</p>
+              <p className="text-sm text-ink">{estimateLabel}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800/70">
-              <ExternalLink className="h-5 w-5 text-gray-400" />
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+              <ExternalLink className="h-5 w-5 text-ink-muted" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Oportunidade Salesforce</p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Oportunidade Salesforce</p>
               {salesforceLink ? (
                 <a
                   href={salesforceLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 text-sm"
+                  className="text-accent-blue hover:opacity-80 text-sm"
                 >
                   Abrir oportunidade
                 </a>
               ) : (
-                <p className="text-sm text-gray-500">Não informado</p>
+                <p className="text-sm text-ink-muted">Não informado</p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-800/70">
-              <ExternalLink className="h-5 w-5 text-gray-400" />
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
+              <ExternalLink className="h-5 w-5 text-ink-muted" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Repositório</p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Repositório</p>
               {repoLink ? (
                 <a
                   href={repoLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 text-sm"
+                  className="text-accent-blue hover:opacity-80 text-sm"
                 >
                   Abrir repositório
                 </a>
               ) : (
-                <p className="text-sm text-gray-500">Não informado</p>
+                <p className="text-sm text-ink-muted">Não informado</p>
               )}
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-4 space-y-4">
+        <div className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-white">Editar metadados</h3>
-              <p className="text-xs text-gray-400">Atualize entrega, Salesforce e repositório desta tarefa.</p>
+              <h3 className="text-sm font-semibold text-ink">Editar metadados</h3>
+              <p className="text-xs text-ink-muted">Atualize entrega, Salesforce e repositório desta tarefa.</p>
             </div>
             <Button
               variant="outline"
-              className="border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
               onClick={handleSaveMetadata}
               disabled={isSavingMetadata}
             >
@@ -471,55 +468,52 @@ export default function TaskDetailPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Entrega prevista</label>
+              <label className="block text-sm text-ink-muted mb-2">Entrega prevista</label>
               <Input
                 type="date"
                 value={estimatedDeliveryDateInput}
                 onChange={(event) => setEstimatedDeliveryDateInput(event.target.value)}
-                className="bg-gray-900/70 border-gray-800 text-white"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-gray-300 mb-2">URL da oportunidade no Salesforce</label>
+              <label className="block text-sm text-ink-muted mb-2">URL da oportunidade no Salesforce</label>
               <Input
                 type="url"
                 value={salesforceOppUrlInput}
                 onChange={(event) => setSalesforceOppUrlInput(event.target.value)}
                 placeholder="https://..."
-                className="bg-gray-900/70 border-gray-800 text-white"
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm text-gray-300 mb-2">URL do repositório</label>
+              <label className="block text-sm text-ink-muted mb-2">URL do repositório</label>
               <Input
                 type="url"
                 value={repoUrlInput}
                 onChange={(event) => setRepoUrlInput(event.target.value)}
                 placeholder="https://..."
-                className="bg-gray-900/70 border-gray-800 text-white"
               />
             </div>
           </div>
         </div>
       </Card>
 
-      <Card className="p-6 bg-gray-900/60 border border-gray-800 space-y-4">
+      <Card className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white">Checklist</h2>
-            <p className="text-sm text-gray-400">Acompanhe o andamento das subtarefas desta atividade.</p>
+            <h2 className="text-lg font-semibold text-ink">Checklist</h2>
+            <p className="text-sm text-ink-muted">Acompanhe o andamento das subtarefas desta atividade.</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <span className="text-2xl font-bold text-white">{completionPercent}%</span>
-              <p className="text-xs uppercase tracking-wide text-gray-400">Concluído</p>
+              <span className="text-2xl font-bold text-ink">{completionPercent}%</span>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Concluído</p>
             </div>
-            <div className="h-12 w-1 rounded bg-gray-800" />
-            <div className="w-32 rounded-full bg-gray-800">
+            <div className="h-12 w-1 rounded bg-secondary" />
+            <div className="w-32 rounded-full bg-secondary">
               <div
-                className="h-2 rounded-full bg-blue-600 transition-all"
+                className="h-2 rounded-full bg-primary transition-all"
                 style={{ width: `${completionPercent}%` }}
               />
             </div>
@@ -528,7 +522,7 @@ export default function TaskDetailPage() {
 
         <div className="space-y-3">
           {subtasks.length === 0 ? (
-            <p className="text-sm text-gray-500">Nenhuma subtarefa adicionada ainda.</p>
+            <p className="text-sm text-ink-muted">Nenhuma subtarefa adicionada ainda.</p>
           ) : (
             subtasks.map((subtask) => {
               const isProcessing = processingSubtaskId === subtask.id;
@@ -538,7 +532,7 @@ export default function TaskDetailPage() {
               return (
                 <div
                   key={subtask.id}
-                  className="flex items-start justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-3"
+                  className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background p-3"
                 >
                   <div className="flex flex-1 items-start gap-3">
                     <button
@@ -552,8 +546,8 @@ export default function TaskDetailPage() {
                         className={
                           'flex h-5 w-5 items-center justify-center rounded border ' +
                           (subtask.completed
-                            ? 'border-blue-500 bg-blue-600/20 text-blue-400'
-                            : 'border-gray-700 bg-gray-900 text-gray-400')
+                            ? 'border-primary bg-primary/[0.14] text-primary'
+                            : 'border-border bg-surface text-ink-muted')
                         }
                       >
                         {subtask.completed ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
@@ -565,34 +559,33 @@ export default function TaskDetailPage() {
                         <Input
                           value={editingSubtaskTitle}
                           onChange={(event) => setEditingSubtaskTitle(event.target.value)}
-                          className="bg-gray-900/70 border-gray-800 text-white"
                           disabled={isProcessing}
                         />
                       ) : (
-                        <p className={subtask.completed ? 'text-sm text-gray-400 line-through' : 'text-sm text-gray-200'}>
+                        <p className={subtask.completed ? 'text-sm text-ink-muted line-through' : 'text-sm text-ink'}>
                           {subtask.title}
                         </p>
                       )}
 
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-gray-500">Entrega prevista</span>
+                        <span className="text-xs text-ink-muted">Entrega prevista</span>
                         <Input
                           type="date"
                           value={subtaskEstimatedDeliveryDateValue}
                           onChange={(event) => handleUpdateSubtaskEstimatedDeliveryDate(subtask.id, event.target.value)}
-                          className="h-8 w-40 bg-gray-900/70 border-gray-800 text-white"
+                          className="h-8 w-40"
                           disabled={isProcessing}
                         />
                       </div>
 
                       {subtask.completed && (
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <span className="text-xs text-gray-500">Concluída em</span>
+                          <span className="text-xs text-ink-muted">Concluída em</span>
                           <Input
                             type="date"
                             value={completedAtValue}
                             onChange={(event) => handleUpdateSubtaskCompletedAt(subtask.id, event.target.value)}
-                            className="h-8 w-40 bg-gray-900/70 border-gray-800 text-white"
+                            className="h-8 w-40"
                             disabled={isProcessing}
                           />
                         </div>
@@ -606,7 +599,7 @@ export default function TaskDetailPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-emerald-300 hover:text-emerald-200 hover:bg-emerald-950/30"
+                          className="h-8 w-8 text-success hover:text-success hover:bg-success/[0.1]"
                           onClick={() => handleSaveSubtaskTitle(subtask.id, subtask.title)}
                           disabled={isProcessing}
                           aria-label="Salvar"
@@ -616,7 +609,7 @@ export default function TaskDetailPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                          className="h-8 w-8 text-ink-muted hover:text-ink hover:bg-secondary"
                           onClick={handleCancelEditSubtask}
                           disabled={isProcessing}
                           aria-label="Cancelar"
@@ -628,7 +621,7 @@ export default function TaskDetailPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                        className="h-8 w-8 text-ink-muted hover:text-ink hover:bg-secondary"
                         onClick={() => handleStartEditSubtask(subtask.id, subtask.title)}
                         disabled={isProcessing}
                         aria-label="Editar subtarefa"
@@ -640,7 +633,7 @@ export default function TaskDetailPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-red-400 hover:text-red-200 hover:bg-red-950/40"
+                      className="h-8 w-8 text-danger hover:text-danger hover:bg-danger/[0.1]"
                       onClick={() => handleDeleteSubtask(subtask.id)}
                       disabled={isProcessing}
                       aria-label="Excluir subtarefa"
@@ -654,17 +647,16 @@ export default function TaskDetailPage() {
           )}
         </div>
 
-        <form onSubmit={handleAddSubtask} className="flex flex-col gap-3 rounded-lg border border-gray-800 bg-gray-900/40 p-4 md:flex-row md:items-center">
+        <form onSubmit={handleAddSubtask} className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4 md:flex-row md:items-center">
           <Input
             placeholder="Adicionar subtarefa..."
             value={newSubtaskTitle}
             onChange={(event) => setNewSubtaskTitle(event.target.value)}
-            className="flex-1 bg-gray-900/70 border-gray-800 text-white"
+            className="flex-1"
           />
           <Button
             type="submit"
             disabled={newSubtaskTitle.trim().length === 0 || isAddingSubtask}
-            className="bg-blue-600 hover:bg-blue-700"
           >
             {isAddingSubtask ? (
               <>
@@ -681,10 +673,10 @@ export default function TaskDetailPage() {
         </form>
       </Card>
 
-      <Card className="p-6 bg-gray-900/60 border border-gray-800 space-y-4">
+      <Card className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Atualizações</h2>
-          <span className="text-sm text-gray-400">
+          <h2 className="text-lg font-semibold text-ink">Atualizações</h2>
+          <span className="text-sm text-ink-muted">
             <MessageSquare className="mr-1 inline h-4 w-4" />
             {sortedComments.length} {sortedComments.length === 1 ? 'comentário' : 'comentários'}
           </span>
@@ -692,7 +684,7 @@ export default function TaskDetailPage() {
 
         <div className="space-y-3">
           {sortedComments.length === 0 ? (
-            <p className="text-sm text-gray-500">Nenhum comentário registrado ainda.</p>
+            <p className="text-sm text-ink-muted">Nenhum comentário registrado ainda.</p>
           ) : (
             sortedComments.map((comment) => {
               const isEditing = editingCommentId === comment.id;
@@ -702,15 +694,14 @@ export default function TaskDetailPage() {
               return (
                 <div
                   key={comment.id}
-                  className="rounded-lg border border-gray-800 bg-gray-900/40 p-3 space-y-2"
+                  className="rounded-lg border border-border bg-background p-3 space-y-2"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs text-gray-500">{formatDateTime(comment.createdAt)}</p>
+                    <p className="text-xs text-ink-muted">{formatDateTime(comment.createdAt)}</p>
                     {isEditing ? (
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          className="bg-blue-600 hover:bg-blue-700"
                           onClick={() => handleSaveComment(comment.id, comment.message)}
                           disabled={isSaving || editingCommentText.trim().length === 0}
                         >
@@ -719,7 +710,6 @@ export default function TaskDetailPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-gray-300 hover:text-white"
                           onClick={handleCancelEditComment}
                           disabled={isSaving}
                         >
@@ -731,7 +721,7 @@ export default function TaskDetailPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-white hover:bg-gray-800/60"
+                          className="h-8 w-8 text-ink-muted hover:text-ink hover:bg-secondary"
                           onClick={() => handleStartEditComment(comment.id, comment.message)}
                           disabled={Boolean(savingCommentId) || Boolean(deletingCommentId)}
                           aria-label="Editar comentário"
@@ -741,7 +731,7 @@ export default function TaskDetailPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-red-400 hover:text-red-200 hover:bg-red-950/40"
+                          className="h-8 w-8 text-danger hover:text-danger hover:bg-danger/[0.1]"
                           onClick={() => handleDeleteComment(comment.id)}
                           disabled={isDeleting || Boolean(savingCommentId)}
                           aria-label="Excluir comentário"
@@ -759,11 +749,11 @@ export default function TaskDetailPage() {
                     <Textarea
                       value={editingCommentText}
                       onChange={(event) => setEditingCommentText(event.target.value)}
-                      className="min-h-[100px] bg-gray-900/70 border-gray-800 text-white"
+                      className="min-h-[100px]"
                       autoFocus
                     />
                   ) : (
-                    <p className="text-sm text-gray-200 whitespace-pre-wrap">{comment.message}</p>
+                    <p className="text-sm text-ink whitespace-pre-wrap">{comment.message}</p>
                   )}
                 </div>
               );
@@ -776,13 +766,12 @@ export default function TaskDetailPage() {
             value={commentText}
             onChange={(event) => setCommentText(event.target.value)}
             placeholder="Adicione uma atualização com data, hora e detalhes..."
-            className="min-h-[120px] bg-gray-900/70 border-gray-800 text-white"
+            className="min-h-[120px]"
           />
           <div className="flex justify-end">
             <Button
               type="submit"
               disabled={commentText.trim().length === 0 || isSubmittingComment}
-              className="bg-blue-600 hover:bg-blue-700"
             >
               {isSubmittingComment ? 'Salvando...' : 'Adicionar comentário'}
             </Button>

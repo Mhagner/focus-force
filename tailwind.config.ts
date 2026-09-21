@@ -18,6 +18,12 @@ const config: Config = {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        xl: '1.25rem',
+        '2xl': '1.75rem',
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['var(--font-quicksand)', 'system-ui', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -60,6 +66,18 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        /* Monu semantic accents — reserved for their documented meaning only */
+        'brand-secondary': 'hsl(var(--brand-secondary))',
+        'accent-blue': 'hsl(var(--accent-blue))',
+        'accent-orange': 'hsl(var(--accent-orange))',
+        'accent-brown': 'hsl(var(--accent-brown))',
+        success: 'hsl(var(--success))',
+        danger: 'hsl(var(--danger))',
+        ink: {
+          DEFAULT: 'hsl(var(--ink))',
+          muted: 'hsl(var(--ink-muted))',
+        },
+        surface: 'hsl(var(--surface))',
       },
       keyframes: {
         'accordion-down': {

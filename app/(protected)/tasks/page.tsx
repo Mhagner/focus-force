@@ -56,11 +56,11 @@ const BOARD_TASK_MAP_KEY = 'focusforge/tasks/custom-column-task-map/v1';
 const BOARD_COLLAPSED_KEY = 'focusforge/tasks/collapsed-columns/v1';
 
 const BASE_COLUMNS: BoardColumn[] = [
-  { id: 'status:todo', title: 'Todo', colorClass: 'bg-gray-500', status: 'todo' },
-  { id: 'status:call_agendada', title: 'Call agendada', colorClass: 'bg-amber-500', status: 'call_agendada' },
-  { id: 'status:pronta_elaboracao', title: 'Pronta para elaboracao', colorClass: 'bg-violet-500', status: 'pronta_elaboracao' },
-  { id: 'status:doing', title: 'Fazendo', colorClass: 'bg-sky-500', status: 'doing' },
-  { id: 'status:done', title: 'Feito', colorClass: 'bg-emerald-500', status: 'done' },
+  { id: 'status:todo', title: 'Todo', colorClass: 'bg-accent-blue', status: 'todo' },
+  { id: 'status:call_agendada', title: 'Call agendada', colorClass: 'bg-accent-orange', status: 'call_agendada' },
+  { id: 'status:pronta_elaboracao', title: 'Pronta para elaboracao', colorClass: 'bg-brand-secondary', status: 'pronta_elaboracao' },
+  { id: 'status:doing', title: 'Fazendo', colorClass: 'bg-accent-orange', status: 'doing' },
+  { id: 'status:done', title: 'Feito', colorClass: 'bg-success', status: 'done' },
 ];
 
 function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task: Task; onEdit: (t: Task) => void; priorityScore?: number; priorityReasons?: string[] }) {
@@ -107,12 +107,12 @@ function DroppableColumn({
     return (
       <div
         ref={setNodeRef}
-        className="w-12 shrink-0 min-h-[58vh] flex flex-col items-center rounded-xl border border-gray-800/70 bg-gray-950/45 p-2 gap-3 cursor-pointer transition hover:border-gray-600"
+        className="w-12 shrink-0 min-h-[58vh] flex flex-col items-center rounded-xl border border-border bg-card p-2 gap-3 cursor-pointer transition hover:border-primary/30"
         onClick={onToggleCollapse}
         title={`Expandir ${title}`}
       >
         <button
-          className="text-gray-500 hover:text-white transition"
+          className="text-ink-muted hover:text-ink transition"
           onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
           aria-label={`Expandir coluna ${title}`}
         >
@@ -123,7 +123,7 @@ function DroppableColumn({
           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
         >
           <div className={clsx('h-2 w-2 rounded-full shrink-0', colorClass)} />
-          <span className="text-xs font-semibold text-white truncate">{title}</span>
+          <span className="text-xs font-semibold text-ink truncate">{title}</span>
         </div>
       </div>
     );
@@ -132,7 +132,7 @@ function DroppableColumn({
   return (
     <div className="w-[310px] shrink-0">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
           <div className={clsx('h-2.5 w-2.5 rounded-full', colorClass)} />
           {title}
         </h2>
@@ -141,7 +141,7 @@ function DroppableColumn({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-gray-500 hover:text-white"
+              className="h-7 w-7 text-ink-muted hover:text-ink"
               onClick={onToggleCollapse}
               aria-label={`Recolher coluna ${title}`}
             >
@@ -152,7 +152,7 @@ function DroppableColumn({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-gray-500 hover:text-red-300"
+              className="h-7 w-7 text-ink-muted hover:text-danger"
               onClick={onRemove}
               aria-label={`Remover coluna ${title}`}
             >
@@ -164,11 +164,11 @@ function DroppableColumn({
       <div
         ref={setNodeRef}
         className={clsx(
-          'min-h-[58vh] space-y-3 rounded-xl border border-gray-800/70 bg-gray-950/45 p-3 transition',
+          'min-h-[58vh] space-y-3 rounded-xl border border-border bg-card p-3 transition',
           isOver
-            ? 'border-blue-500/50 bg-blue-500/10'
+            ? 'border-primary/50 bg-primary/[0.06]'
             : active
-              ? 'border-gray-700 bg-gray-900/60'
+              ? 'border-primary/30 bg-secondary/40'
               : ''
         )}
       >
@@ -553,15 +553,14 @@ export default function TasksPage() {
 
   return (
     <>
-      <div className="mx-auto max-w-9xl p-4">
+      <div className="p-4">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="mb-1 text-2xl font-bold text-white">Tarefas</h1>
-            <p className="text-sm text-gray-400">Organize suas tarefas em um kanban simples</p>
+            <h1 className="mb-1 font-display text-2xl font-bold text-ink">Tarefas</h1>
+            <p className="text-sm text-ink-muted">Organize suas tarefas em um kanban simples</p>
           </div>
 
           <Button
-            className="bg-blue-600 hover:bg-blue-700"
             onClick={() => {
               setEditingTask(undefined);
               setIsDialogOpen(true);
@@ -574,12 +573,12 @@ export default function TasksPage() {
         {/* Filters */}
         <div className="mb-5 flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-400" />
+            <Filter className="h-4 w-4 text-ink-muted" />
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger className="w-48 border-gray-700 bg-gray-900/50">
+              <SelectTrigger className="w-48">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-gray-700 bg-gray-800">
+              <SelectContent>
                 <SelectItem value="all">Todos os projetos</SelectItem>
                 {projects
                   .filter(p => p.active)
@@ -602,17 +601,17 @@ export default function TasksPage() {
               checked={showOnlyToday}
               onCheckedChange={(value) => setTasksFilters({ showOnlyToday: value })}
             />
-            <Label htmlFor="today-only" className="text-gray-300">Somente de hoje</Label>
+            <Label htmlFor="today-only" className="text-ink-muted">Somente de hoje</Label>
           </div>
         </div>
 
-        <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/40 p-3">
+        <div className="mb-5 rounded-xl border border-border bg-card p-3">
           <div className="mb-3 flex items-center justify-between px-1">
             <div>
-              <h2 className="text-sm font-bold text-white">Radar de Prioridade</h2>
-              <p className="text-[10px] uppercase tracking-wider text-gray-500">Top 5 Sugestões</p>
+              <h2 className="text-sm font-bold text-ink">Radar de Prioridade</h2>
+              <p className="text-[10px] uppercase tracking-wider text-ink-muted">Top 5 Sugestões</p>
             </div>
-            <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
+            <span className="rounded-full bg-primary/[0.1] px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
               Auto-Focus
             </span>
           </div>
@@ -620,20 +619,20 @@ export default function TasksPage() {
           <PriorityRadar priorityQueue={priorityQueue} projects={projects} onEdit={handleEdit} />
         </div>
 
-        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-gray-500">
+        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-ink-muted">
           <Columns3 className="h-3.5 w-3.5" />
           Quadro Kanban arrastavel com scroll lateral
         </div>
 
         <DndContext sensors={sensors} onDragEnd={onDragEnd} collisionDetection={rectIntersection}>
           <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-gray-950 to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-gray-950 to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
 
             {/* Board com scroll e pan */}
             <div
               ref={boardScrollRef}
-              className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+              className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-background"
               style={{ WebkitOverflowScrolling: 'touch', cursor: isPanning ? 'grabbing' : 'grab' }}
             >
               <div className="flex w-max items-start gap-4 px-1 select-none">
@@ -671,9 +670,9 @@ export default function TasksPage() {
                   );
                 })}
 
-                <div className="w-[310px] shrink-0 rounded-xl border border-dashed border-gray-700 bg-gray-900/40 p-4">
-                  <h3 className="text-sm font-semibold text-white">Adicionar coluna</h3>
-                  <p className="mt-1 text-xs text-gray-400">
+                <div className="w-[310px] shrink-0 rounded-xl border border-dashed border-border bg-card p-4">
+                  <h3 className="text-sm font-semibold text-ink">Adicionar coluna</h3>
+                  <p className="mt-1 text-xs text-ink-muted">
                     Crie colunas extras para organizar tarefas temporariamente no board.
                   </p>
 
@@ -683,11 +682,11 @@ export default function TasksPage() {
                       onChange={(event) => setNewColumnTitle(event.target.value)}
                       placeholder="Ex.: Bloqueadas"
                       maxLength={28}
-                      className="border-gray-700 bg-gray-950/60"
                     />
                     <Button
                       type="button"
-                      className="w-full bg-cyan-600 text-white hover:bg-cyan-500"
+                      variant="secondary"
+                      className="w-full"
                       onClick={handleAddCustomColumn}
                       disabled={!newColumnTitle.trim()}
                     >
@@ -698,9 +697,9 @@ export default function TasksPage() {
               </div>
             </div>
             {/* Barra de rolagem fixa */}
-            <div className="sticky left-0 right-0 bottom-0 z-20 h-5 bg-gray-950/80 flex items-end pointer-events-none">
+            <div className="sticky left-0 right-0 bottom-0 z-20 h-5 bg-background/80 flex items-end pointer-events-none">
               <div
-                className="w-full h-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900 pointer-events-auto"
+                className="w-full h-2 overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-background pointer-events-auto"
                 style={{ WebkitOverflowScrolling: 'touch' }}
                 tabIndex={-1}
                 onScroll={e => {

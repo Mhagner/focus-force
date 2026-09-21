@@ -64,18 +64,18 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-white">Adicionar Sessão Manual</DialogTitle>
+          <DialogTitle>Adicionar Sessão Manual</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Projeto *</label>
+            <label className="block text-sm text-ink-muted mb-2">Projeto *</label>
             <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger className="bg-gray-800 border-gray-700">
+              <SelectTrigger>
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent>
                 {activeProjects.map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -84,15 +84,15 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
           </div>
           {projectTasks.length > 0 && (
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Tarefa</label>
+              <label className="block text-sm text-ink-muted mb-2">Tarefa</label>
               <Select
                 value={taskId}
                 onValueChange={value => setTaskId(value === 'none' ? '' : value)}
               >
-                <SelectTrigger className="bg-gray-800 border-gray-700">
+                <SelectTrigger>
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectContent>
                   <SelectItem value="none">Sem tarefa</SelectItem>
                   {projectTasks.map(t => (
                     <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
@@ -103,20 +103,20 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Data *</label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="bg-gray-800 border-gray-700" />
+              <label className="block text-sm text-ink-muted mb-2">Data *</label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Início *</label>
-              <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="bg-gray-800 border-gray-700" />
+              <label className="block text-sm text-ink-muted mb-2">Início *</label>
+              <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-2">Fim *</label>
-              <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="bg-gray-800 border-gray-700" />
+              <label className="block text-sm text-ink-muted mb-2">Fim *</label>
+              <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-300 mb-2">Descrição da sessão *</label>
+            <label className="block text-sm text-ink-muted mb-2">Descrição da sessão *</label>
             {sessionDescriptionPresets.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {sessionDescriptionPresets.map((preset) => (
@@ -127,8 +127,8 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
                     className={cn(
                       'px-3 py-1 rounded-full text-xs border transition-colors',
                       description === preset.label
-                        ? 'bg-blue-600 border-blue-600 text-white'
-                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'bg-background border-border text-ink-muted hover:bg-secondary'
                     )}
                   >
                     {preset.label}
@@ -140,14 +140,14 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="O que foi feito nesta sessão?"
-              className="bg-gray-800 border-gray-700 text-white resize-none"
+              className="resize-none"
               rows={2}
             />
           </div>
           <div className="pt-4 flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1"
               onClick={handleSave}
               disabled={!projectId || !date || !startTime || !endTime || !description.trim() || isSubmitting}
             >
