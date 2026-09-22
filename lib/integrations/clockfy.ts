@@ -55,27 +55,26 @@ export interface ClockfyDescriptionInput {
 }
 
 /**
- * Picks the task comment to surface in the Clockify description: the most
- * recent comment that existed by the time this session ended (comments added
- * later, e.g. after the entry already synced, don't retroactively attach).
+ * Picks the task comment to surface in the Clockify description: always the
+ * most recently created one. Comments (e.g. a mandatory time-overrun
+ * justification) are typically added after the session/time entry already
+ * exists, so there's no meaningful "as of session end" cutoff to apply here.
  */
 function findRelevantTaskComment(
-  comments: { message: string; createdAt: Date | string }[] | null | undefined,
-  sessionEnd?: Date | string | null
+  comments: { message: string; createdAt: Date | string }[] | null | undefined
 ): string | undefined {
   if (!comments?.length) return undefined;
 
-  const sessionEndMs = sessionEnd ? new Date(sessionEnd).getTime() : Date.now();
-  const eligible = comments
-    .filter((comment) => new Date(comment.createdAt).getTime() <= sessionEndMs)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const mostRecent = [...comments].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )[0];
 
-  return eligible[0]?.message.trim() || undefined;
+  return mostRecent?.message.trim() || undefined;
 }
 
 export function buildClockfyDescription(session: ClockfyDescriptionInput): string {
   if (session.task?.title) {
-    const relevantComment = findRelevantTaskComment(session.task.comments, session.end);
+    const relevantComment = findRelevantTaskComment(session.task.comments);
     return relevantComment
       ? `Tarefa: ${session.task.title} - Comentário: ${relevantComment}`
       : `Tarefa: ${session.task.title}`;

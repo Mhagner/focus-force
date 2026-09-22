@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
+import { useToast } from '@/hooks/use-toast';
 import { formatDuration } from '@/lib/utils';
 
 interface TaskOverrunCommentDialogProps {
@@ -25,7 +26,8 @@ export function TaskOverrunCommentDialog({
   trackedSeconds,
   onConfirmed,
 }: TaskOverrunCommentDialogProps) {
-  const { addTaskComment } = useAppStore();
+  const { addTaskComment, syncTaskCommentWithClockfy } = useAppStore();
+  const { toast } = useToast();
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,6 +38,18 @@ export function TaskOverrunCommentDialog({
     setIsSubmitting(true);
     try {
       await addTaskComment(taskId, trimmed);
+
+      try {
+        await syncTaskCommentWithClockfy(taskId);
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: 'Comentário salvo, mas não sincronizado com o Clockfy',
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        });
+      }
+
       setComment('');
       onOpenChange(false);
       onConfirmed();
