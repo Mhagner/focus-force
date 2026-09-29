@@ -87,13 +87,26 @@ export async function PATCH(
       salesforceOppUrl?: string | null;
       repoUrl?: string | null;
       estimatedDeliveryDate?: Date | null;
+      completedAt?: Date | null;
     } = {};
     if (parsed.projectId !== undefined) data.projectId = parsed.projectId;
     if (parsed.title !== undefined) data.title = parsed.title;
     if (parsed.description !== undefined) data.description = parsed.description ?? null;
     if (parsed.priority !== undefined) data.priority = parsed.priority;
     if (parsed.plannedFor !== undefined) data.plannedFor = parsed.plannedFor ?? null;
-    if (parsed.status !== undefined) data.status = parsed.status;
+    if (parsed.status !== undefined) {
+      data.status = parsed.status;
+      if (parsed.status === 'done') {
+        const current = await prisma.task.findUnique({ where: { id }, select: { status: true } });
+        if (current?.status !== 'done') {
+          // Finishing a task stamps the completion time and takes it off "Meu Dia".
+          data.completedAt = new Date();
+          data.plannedFor = null;
+        }
+      } else {
+        data.completedAt = null;
+      }
+    }
     if (parsed.estimateMin !== undefined) data.estimateMin = parsed.estimateMin;
     if (parsed.salesforceOppUrl !== undefined) data.salesforceOppUrl = parsed.salesforceOppUrl;
     if (parsed.repoUrl !== undefined) data.repoUrl = parsed.repoUrl;

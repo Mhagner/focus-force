@@ -405,16 +405,15 @@ export function calculateTaskPriorityInsight(
 
   score += statusWeight[(task.status ?? 'todo') as keyof typeof statusWeight] ?? 10;
 
-  if (task.estimateMin == null) {
-    score += 8;
-    reasons.push('Sem estimativa de esforço');
-  } else if (task.estimateMin <= 60) {
-    score += 10;
-    reasons.push('Curta duração (ganho rápido)');
-  } else if (task.estimateMin <= 180) {
-    score += 6;
-  } else {
-    score += 2;
+  if (task.estimateMin != null) {
+    if (task.estimateMin <= 60) {
+      score += 10;
+      reasons.push('Curta duração (ganho rápido)');
+    } else if (task.estimateMin <= 180) {
+      score += 6;
+    } else {
+      score += 2;
+    }
   }
 
   const todayISO = format(now, 'yyyy-MM-dd');
@@ -432,15 +431,6 @@ export function calculateTaskPriorityInsight(
     } else if (progressRatio <= 0.25) {
       score += 6;
       reasons.push('Baixo avanço até agora');
-    }
-  }
-
-  if ((task.subtasks?.length ?? 0) > 0) {
-    const totalSubtasks = task.subtasks?.length ?? 0;
-    const doneSubtasks = task.subtasks?.filter(subtask => subtask.completed).length ?? 0;
-    if (totalSubtasks > 0 && doneSubtasks / totalSubtasks <= 0.2) {
-      score += 6;
-      reasons.push('Checklist com baixo progresso');
     }
   }
 
