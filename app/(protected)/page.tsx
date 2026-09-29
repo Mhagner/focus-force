@@ -3,7 +3,7 @@
 import { StatsCards } from '@/components/dashboard/StatsCards';
 import { Charts } from '@/components/dashboard/Charts';
 import { RecentSessions } from '@/components/dashboard/RecentSessions';
-import { TodayPlan } from '@/components/dashboard/TodayPlan';
+import { MyDay } from '@/components/my-day/MyDay';
 
 export default function Dashboard() {
   return (
@@ -24,7 +24,7 @@ export default function Dashboard() {
 
         {/* Today Plan and Recent Sessions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TodayPlan />
+          <MyDay />
           <RecentSessions />
         </div>
       </div>

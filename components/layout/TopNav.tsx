@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
+import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Sun, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -53,6 +53,11 @@ export function TopNav() {
   const handleOpenMiniTimer = () => {
     const features = 'width=360,height=260,menubar=no,toolbar=no,location=no,status=no';
     window.open('/mini-timer', 'focusforge-mini-timer', features);
+  };
+
+  const handleOpenMyDay = () => {
+    const features = 'width=420,height=720,menubar=no,toolbar=no,location=no,status=no';
+    window.open('/my-day', 'focusforge-my-day', features);
   };
 
   const handleLogout = async () => {
@@ -202,6 +207,17 @@ export function TopNav() {
           </div>
 
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-ink-muted hover:text-ink"
+              aria-label="Abrir Meu Dia em janela separada"
+              title="Meu Dia"
+              onClick={handleOpenMyDay}
+            >
+              <Sun className="h-5 w-5" />
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

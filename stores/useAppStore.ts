@@ -28,6 +28,7 @@ interface AppStore {
 
   addTask: (task: TaskInput) => Promise<void>;
   updateTask: (id: string, updates: Partial<TaskInput>) => Promise<void>;
+  refreshTasks: () => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addTaskComment: (taskId: string, message: string) => Promise<void>;
   syncTaskCommentWithClockfy: (taskId: string) => Promise<void>;
@@ -63,6 +64,23 @@ interface AppStore {
   clearAllData: () => void;
 
   setTasksFilters: (updates: Partial<TasksFilters>) => void;
+}
+
+const TASKS_CHANNEL = 'focusforge-tasks';
+
+// Lets other windows (e.g. the detached "Meu Dia" popup) know they should refetch tasks.
+function notifyTasksChanged() {
+  if (typeof BroadcastChannel === 'undefined') return;
+  const channel = new BroadcastChannel(TASKS_CHANNEL);
+  channel.postMessage('changed');
+  channel.close();
+}
+
+export function subscribeToTasksChanges(onChange: () => void) {
+  if (typeof BroadcastChannel === 'undefined') return () => {};
+  const channel = new BroadcastChannel(TASKS_CHANNEL);
+  channel.onmessage = onChange;
+  return () => channel.close();
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -148,6 +166,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((state) => ({
       tasks: state.tasks.map(t => (t.id === id ? { ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] } : t)),
     }));
+    notifyTasksChanged();
+  },
+  refreshTasks: async () => {
+    const tasks = await storage.getTasks();
+    set({
+      tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
+    });
   },
   deleteTask: async (id) => {
     await storage.deleteTask(id);

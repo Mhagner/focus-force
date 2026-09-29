@@ -27,6 +27,7 @@ export interface Task {
   salesforceOppUrl?: string | null;
   repoUrl?: string | null;
   estimatedDeliveryDate?: string | Date | null;
+  completedAt?: string | null;
   createdAt: string;
   comments?: TaskComment[];
   subtasks?: TaskSubtask[];

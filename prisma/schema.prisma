@@ -59,6 +59,7 @@ model Task {
   salesforceOppUrl      String?
   repoUrl               String?
   estimatedDeliveryDate DateTime?
+  completedAt DateTime?
   createdAt   DateTime       @default(now())
   sessions    FocusSession[]
   comments    TaskComment[]
