@@ -9,11 +9,13 @@ import { useAppStore, subscribeToTasksChanges } from '@/stores/useAppStore';
 import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
 import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
 import { FocusDialog } from '@/components/focus/FocusDialog';
+import { useTimerStore } from '@/stores/useTimerStore';
 import { calculateTaskPriorityInsight, getTodayTasks, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Task } from '@/types';
 
 const REFRESH_INTERVAL_MS = 30_000;
+const TIMER_STORAGE_KEY = 'focusforge/timer-state';
 
 interface MyDayProps {
   /** Standalone = rendered in the detached popup window (fills the screen). */
@@ -47,6 +49,27 @@ export function MyDay({ standalone = false }: MyDayProps) {
       window.removeEventListener('focus', refresh);
     };
   }, [refreshTasks]);
+
+  // The detached popup has no TopNav, so nothing else restores or ticks the
+  // timer there. Mirror what /mini-timer does so a session started from the
+  // popup actually advances and persists.
+  const { isRunning, isPaused, tick, restoreState } = useTimerStore();
+
+  useEffect(() => {
+    if (!standalone) return;
+    restoreState();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === TIMER_STORAGE_KEY) restoreState();
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [standalone, restoreState]);
+
+  useEffect(() => {
+    if (!standalone || !isRunning || isPaused) return;
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [standalone, isRunning, isPaused, tick]);
 
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 

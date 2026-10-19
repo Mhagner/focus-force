@@ -70,7 +70,9 @@ export async function POST(
     );
 
     const updated = results.filter((r) => r.status === 'fulfilled' && r.value).length;
-    const failed = updatable.length - updated;
+    // Sessions skipped by the `updatable` filter (no Clockify project / no end)
+    // keep their old description, so they count as failed too.
+    const failed = syncedSessions.length - updated;
 
     if (updated === 0) {
       return NextResponse.json({ message: 'Não foi possível atualizar os lançamentos no Clockfy.' }, { status: 502 });
