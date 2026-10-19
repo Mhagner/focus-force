@@ -3,15 +3,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, ChevronDown, ChevronRight, Circle, ExternalLink, Sun, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Check, ChevronDown, ChevronRight, Circle, ExternalLink, Play, Sun, X } from 'lucide-react';
 import { useAppStore, subscribeToTasksChanges } from '@/stores/useAppStore';
 import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
 import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
+import { FocusDialog } from '@/components/focus/FocusDialog';
+import { useTimerStore } from '@/stores/useTimerStore';
 import { calculateTaskPriorityInsight, getTodayTasks, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Task } from '@/types';
 
 const REFRESH_INTERVAL_MS = 30_000;
+const TIMER_STORAGE_KEY = 'focusforge/timer-state';
 
 interface MyDayProps {
   /** Standalone = rendered in the detached popup window (fills the screen). */
@@ -28,6 +32,8 @@ export function MyDay({ standalone = false }: MyDayProps) {
     cancelPendingCompletion,
   } = useTaskCompletionGuard();
   const [showCompleted, setShowCompleted] = useState(true);
+  const [focusTask, setFocusTask] = useState<Task | null>(null);
+  const router = useRouter();
 
   // Keep in sync with edits made in other windows (board <-> popup).
   useEffect(() => {
@@ -43,6 +49,27 @@ export function MyDay({ standalone = false }: MyDayProps) {
       window.removeEventListener('focus', refresh);
     };
   }, [refreshTasks]);
+
+  // The detached popup has no TopNav, so nothing else restores or ticks the
+  // timer there. Mirror what /mini-timer does so a session started from the
+  // popup actually advances and persists.
+  const { isRunning, isPaused, tick, restoreState } = useTimerStore();
+
+  useEffect(() => {
+    if (!standalone) return;
+    restoreState();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === TIMER_STORAGE_KEY) restoreState();
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [standalone, restoreState]);
+
+  useEffect(() => {
+    if (!standalone || !isRunning || isPaused) return;
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [standalone, isRunning, isPaused, tick]);
 
   const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
@@ -121,15 +148,26 @@ export function MyDay({ standalone = false }: MyDayProps) {
         </div>
 
         {!isDone && (
-          <button
-            type="button"
-            aria-label="Remover do Meu Dia"
-            title="Remover do Meu Dia"
-            onClick={() => updateTask(task.id, { plannedFor: null })}
-            className="shrink-0 text-ink-muted opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <>
+            <button
+              type="button"
+              aria-label="Iniciar sessão de foco"
+              title="Iniciar sessão de foco"
+              onClick={() => setFocusTask(task)}
+              className="shrink-0 text-ink-muted transition-colors hover:text-ink"
+            >
+              <Play className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Remover do Meu Dia"
+              title="Remover do Meu Dia"
+              onClick={() => updateTask(task.id, { plannedFor: null })}
+              className="shrink-0 text-ink-muted opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </>
         )}
       </li>
     );
@@ -185,6 +223,16 @@ export function MyDay({ standalone = false }: MyDayProps) {
             </div>
           )}
         </>
+      )}
+
+      {focusTask && (
+        <FocusDialog
+          open
+          onOpenChange={(open) => !open && setFocusTask(null)}
+          initialProjectId={focusTask.projectId}
+          initialTaskId={focusTask.id}
+          onStarted={standalone ? undefined : () => router.push('/focus')}
+        />
       )}
 
       {pendingTask && (

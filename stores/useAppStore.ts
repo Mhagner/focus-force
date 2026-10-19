@@ -31,7 +31,7 @@ interface AppStore {
   refreshTasks: () => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addTaskComment: (taskId: string, message: string) => Promise<void>;
-  syncTaskCommentWithClockfy: (taskId: string) => Promise<void>;
+  syncTaskCommentWithClockfy: (taskId: string) => Promise<{ updated: number; failed: number }>;
   updateTaskComment: (taskId: string, commentId: string, message: string) => Promise<void>;
   deleteTaskComment: (taskId: string, commentId: string) => Promise<void>;
   addTaskSubtask: (taskId: string, title: string) => Promise<void>;
@@ -195,7 +195,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   syncTaskCommentWithClockfy: async (taskId) => {
-    await storage.syncTaskCommentWithClockfy(taskId);
+    return storage.syncTaskCommentWithClockfy(taskId);
   },
 
   updateTaskComment: async (taskId, commentId, message) => {
