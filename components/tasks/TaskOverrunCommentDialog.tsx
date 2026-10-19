@@ -40,7 +40,14 @@ export function TaskOverrunCommentDialog({
       await addTaskComment(taskId, trimmed);
 
       try {
-        await syncTaskCommentWithClockfy(taskId);
+        const { updated, failed } = await syncTaskCommentWithClockfy(taskId);
+        if (failed > 0) {
+          toast({
+            title: 'Comentário sincronizado parcialmente com o Clockfy',
+            description: `${updated} de ${updated + failed} lançamentos atualizados.`,
+            variant: 'destructive',
+          });
+        }
       } catch (error) {
         console.error(error);
         toast({

@@ -29,10 +29,11 @@ import {
 import { ptBR } from 'date-fns/locale';
 
 export default function ReportsPage() {
-  const { sessions, projects, tasks, deleteSession, dailyPlans, syncSessionWithClockfy } = useAppStore();
+  const { sessions, projects, tasks, deleteSession, dailyPlans, syncSessionWithClockfy, clockfySettings } = useAppStore();
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('all');
   const [manualOpen, setManualOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -41,7 +42,28 @@ export default function ReportsPage() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [draftRange, setDraftRange] = useState<{ from: Date | undefined; to?: Date } | undefined>(undefined);
   const { toast } = useToast();
-  const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
+  const workspaces = clockfySettings.workspaces ?? [];
+  const activeProjects = useMemo(
+    () =>
+      projects.filter(project => {
+        if (!project.active) return false;
+        if (selectedWorkspaceId === 'all') return true;
+        return (project.clockfyWorkspaceId ?? clockfySettings.workspaceId) === selectedWorkspaceId;
+      }),
+    [projects, selectedWorkspaceId, clockfySettings.workspaceId]
+  );
+
+  const handleWorkspaceChange = (workspaceId: string) => {
+    setSelectedWorkspaceId(workspaceId);
+    const selectedProject = projects.find(project => project.id === selectedProjectId);
+    if (
+      selectedProject &&
+      workspaceId !== 'all' &&
+      (selectedProject.clockfyWorkspaceId ?? clockfySettings.workspaceId) !== workspaceId
+    ) {
+      setSelectedProjectId('all');
+    }
+  };
   const allowedProjectIds = useMemo(
     () => new Set(activeProjects.map(project => project.id)),
     [activeProjects]
@@ -356,6 +378,27 @@ export default function ReportsPage() {
               </Button>
             </div>
           </div>
+
+          {workspaces.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-ink-muted mb-2">
+                Workspace
+              </label>
+              <Select value={selectedWorkspaceId} onValueChange={handleWorkspaceChange}>
+                <SelectTrigger className="min-w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os workspaces</SelectItem>
+                  {workspaces.map((workspace) => (
+                    <SelectItem key={workspace.id} value={workspace.id}>
+                      {workspace.description || workspace.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-ink-muted mb-2">

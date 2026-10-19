@@ -251,8 +251,8 @@ export const storage = {
     });
   },
 
-  async syncTaskCommentWithClockfy(taskId: string): Promise<void> {
-    await request<unknown>(`/api/tasks/${taskId}/sync-clockfy`, { method: 'POST' });
+  async syncTaskCommentWithClockfy(taskId: string): Promise<{ updated: number; failed: number }> {
+    return request<{ updated: number; failed: number }>(`/api/tasks/${taskId}/sync-clockfy`, { method: 'POST' });
   },
 
   async addTaskSubtask(taskId: string, title: string): Promise<TaskSubtask> {

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Pushes the task's most recent comment (e.g. a mandatory time-overrun
  * justification collected when completing the task) into Clockify by editing
- * the description of the last FocusSession of this task that was already
+ * the description of every FocusSession of this task that was already
  * synced there — rather than waiting for a new session to sync.
  */
 export async function POST(
@@ -26,55 +26,57 @@ export async function POST(
       return NextResponse.json({ message: 'Tarefa não encontrada' }, { status: 404 });
     }
 
-    const lastSyncedSession = await prisma.focusSession.findFirst({
+    const syncedSessions = await prisma.focusSession.findMany({
       where: { taskId: id, clockfyTimeEntryId: { not: null } },
       orderBy: { end: 'desc' },
       include: { project: true },
     });
 
-    if (!lastSyncedSession) {
+    if (syncedSessions.length === 0) {
       return NextResponse.json(
         { message: 'Nenhuma sessão desta tarefa foi sincronizada com o Clockfy ainda.' },
         { status: 400 },
       );
     }
 
-    if (!lastSyncedSession.project?.clockfyProjectId || !lastSyncedSession.end) {
+    const updatable = syncedSessions.filter((session) => session.project?.clockfyProjectId && session.end);
+
+    if (updatable.length === 0) {
       return NextResponse.json(
-        { message: 'A última sessão sincronizada está incompleta para atualização.' },
+        { message: 'As sessões sincronizadas estão incompletas para atualização.' },
         { status: 400 },
       );
     }
 
     const settings = await prisma.clockfySettings.findFirst();
     const workspaces = (settings?.workspaces as any[]) ?? [];
-    const credentials = {
-      apiKey: settings?.apiKey ?? undefined,
-      workspaceId: lastSyncedSession.project?.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id,
-    };
+    const apiKey = settings?.apiKey ?? undefined;
 
-    if (!credentials.workspaceId) {
-      return NextResponse.json({ message: 'Nenhum workspace configurado para sincronização.' }, { status: 400 });
-    }
+    // Same comment on every Clockify entry of the task, so the report matches.
+    const results = await Promise.allSettled(
+      updatable.map(async (session) => {
+        const workspaceId = session.project!.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id;
+        if (!workspaceId) return false;
 
-    const updated = await updateClockfyTimeEntry({
-      timeEntryId: lastSyncedSession.clockfyTimeEntryId!,
-      projectId: lastSyncedSession.project.clockfyProjectId,
-      start: lastSyncedSession.start,
-      end: lastSyncedSession.end,
-      description: buildClockfyDescription({
-        type: lastSyncedSession.type,
-        project: lastSyncedSession.project,
-        task,
+        return updateClockfyTimeEntry({
+          timeEntryId: session.clockfyTimeEntryId!,
+          projectId: session.project!.clockfyProjectId!,
+          start: session.start,
+          end: session.end!,
+          description: buildClockfyDescription({ type: session.type, project: session.project!, task }),
+          credentials: { apiKey, workspaceId },
+        });
       }),
-      credentials,
-    });
+    );
 
-    if (!updated) {
-      return NextResponse.json({ message: 'Não foi possível atualizar o lançamento no Clockfy.' }, { status: 502 });
+    const updated = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+    const failed = updatable.length - updated;
+
+    if (updated === 0) {
+      return NextResponse.json({ message: 'Não foi possível atualizar os lançamentos no Clockfy.' }, { status: 502 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, updated, failed });
   } catch (error: unknown) {
     console.error('Clockfy task comment sync failed', error);
     const message = error instanceof Error ? error.message : undefined;
