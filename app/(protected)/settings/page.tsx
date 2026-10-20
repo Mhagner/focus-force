@@ -11,6 +11,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Settings, Download, Upload, Trash2, PlugZap, CheckCircle2, AlertCircle, Loader2, FolderKanban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { InstallCard } from '@/components/pwa/InstallPrompt';
 
 export default function SettingsPage() {
   const {
@@ -235,6 +236,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        <InstallCard />
+
         {/* Pomodoro Settings */}
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">

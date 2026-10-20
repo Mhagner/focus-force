@@ -1,3 +1,4 @@
+import { MyDaySidebar } from '@/components/my-day/MyDaySidebar';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopNav } from '@/components/layout/TopNav';
 import { AppProvider } from '@/components/providers/AppProvider';
@@ -12,10 +13,11 @@ export default function ProtectedLayout({
     <AppProvider>
       <div className="flex h-screen bg-primary text-foreground">
         <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden rounded-l-2xl bg-background">
+        <div className="relative flex-1 flex flex-col overflow-hidden rounded-l-2xl bg-background">
           <TopNav />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
+        <MyDaySidebar />
       </div>
       <Toaster theme="light" />
     </AppProvider>

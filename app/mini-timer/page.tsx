@@ -1,7 +1,5 @@
-import { FullscreenTimer } from '@/components/focus/FullscreenTimer';
+import { MiniTimerView } from './MiniTimerView';
 
 export default function MiniTimerPage() {
-  return (
-    <FullscreenTimer enableTicker />
-  );
+  return <MiniTimerView />;
 }

@@ -16,6 +16,7 @@ interface TimerStore extends TimerState {
   nextPhase: () => void;
   tick: () => void;
   restoreState: () => void;
+  hydrateFromStorage: () => void;
   saveState: () => void;
 }
 
@@ -116,11 +117,8 @@ function advanceTimerState(
 
   const elapsedSeconds = Math.floor((now.getTime() - referenceMs) / 1000);
   if (elapsedSeconds <= 0) {
-    const updatedFields: Partial<TimerState> = {};
-    if (state.isRunning) {
-      updatedFields.lastTickAt = now.toISOString();
-    }
-    return { updatedFields, sessions: [], manualStop: false };
+    // Keep lastTickAt untouched so the sub-second fraction is not discarded.
+    return { updatedFields: {}, sessions: [], manualStop: false };
   }
 
   const sessions: SessionPayload[] = [];
@@ -413,6 +411,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     const pomodoroSettings = useAppStore.getState().pomodoroSettings;
     const { updatedFields, sessions, manualStop } = advanceTimerState(state, now, pomodoroSettings);
 
+    if (!manualStop && Object.keys(updatedFields).length === 0 && sessions.length === 0) {
+      return;
+    }
+
     if (manualStop) {
       if (Object.keys(updatedFields).length > 0) {
         set(updatedFields);
@@ -487,10 +489,30 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         playSessionSound('end');
       }
 
-      get().saveState();
+      if (
+        sessions.length > 0 ||
+        finalState.currentPhase !== normalized.currentPhase ||
+        finalState.isRunning !== normalized.isRunning
+      ) {
+        get().saveState();
+      }
     } else {
       set(normalized);
     }
+  },
+
+  // Read-only sync: mirrors persisted state without advancing time, creating
+  // sessions or writing back to storage.
+  hydrateFromStorage: () => {
+    const savedState = storage.getTimerState<Partial<TimerState>>();
+    if (!savedState) return;
+
+    set({
+      ...initialTimerState,
+      ...savedState,
+      elapsedInCycle: savedState.elapsedInCycle ?? 0,
+      lastTickAt: savedState.lastTickAt ?? savedState.sessionStart,
+    });
   },
 
   saveState: () => {

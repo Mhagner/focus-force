@@ -14,11 +14,8 @@ const phaseLabels: Record<string, string> = {
   manual: 'Cronômetro',
 };
 
-const TIMER_STORAGE_KEY = 'focusforge/timer-state';
-
 interface FullscreenTimerProps {
   onClose?: () => void;
-  enableTicker?: boolean;
 }
 
 function getTimeBlocks(totalSeconds: number) {
@@ -42,7 +39,7 @@ function getTimeBlocks(totalSeconds: number) {
   };
 }
 
-export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTimerProps) {
+export function FullscreenTimer({ onClose }: FullscreenTimerProps) {
   const {
     isRunning,
     isPaused,
@@ -52,8 +49,6 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
     selectedTaskId,
     currentCycle,
     cycles,
-    tick,
-    restoreState,
     pauseTimer,
     resumeTimer,
     stopTimer,
@@ -72,50 +67,23 @@ export function FullscreenTimer({ onClose, enableTicker = false }: FullscreenTim
     : undefined;
 
   useEffect(() => {
-    restoreState();
-  }, [restoreState]);
-
-  // Importante: só um lugar deve chamar tick() por segundo.
-  // No app normal o TopNav já faz isso. Aqui habilitamos apenas quando necessário (ex: /mini-timer).
-  useEffect(() => {
-    if (!enableTicker) {
-      return;
-    }
-
-    if (isRunning && !isPaused) {
-      const id = setInterval(() => {
-        tick();
-      }, 1000);
-      return () => clearInterval(id);
-    }
-  }, [enableTicker, isRunning, isPaused, tick]);
-
-  useEffect(() => {
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === TIMER_STORAGE_KEY) {
-        restoreState();
-      }
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && onClose) {
         onClose();
       }
     };
 
-    window.addEventListener('storage', handleStorage);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [restoreState, onClose]);
+  }, [onClose]);
 
   return (
     <div
       className={cn(
-        'flex min-h-screen w-full flex-col text-white transition-colors duration-500',
+        'flex h-full min-h-full w-full flex-col overflow-y-auto text-white transition-colors duration-500',
         isBreakPhase
           ? 'bg-gradient-to-br from-accent-brown via-accent-orange/80 to-ink'
           : 'bg-primary'
