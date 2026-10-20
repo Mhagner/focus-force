@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#035578">
+  <title>Sem conexão - FocusForge</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#F2F6F7;color:#0f2530;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    main{max-width:380px;text-align:center}
+    .logo{width:72px;height:72px;border-radius:18px;display:block;margin:0 auto 20px}
+    h1{font-size:22px;margin:0 0 8px}
+    p{margin:0 0 24px;color:#4b6270;line-height:1.5}
+    button{background:#035578;color:#fff;border:0;border-radius:8px;padding:12px 24px;font-size:15px;font-weight:500;cursor:pointer}
+    button:hover{opacity:.9}
+  </style>
+</head>
+<body>
+  <main>
+    <img class="logo" src="/icons/icon-192.png" alt="FocusForge">
+    <h1>Você está sem conexão</h1>
+    <p>O FocusForge precisa de internet para carregar seus dados. Verifique sua conexão e tente novamente.</p>
+    <button type="button" onclick="location.reload()">Tentar novamente</button>
+  </main>
+</body>
+</html>

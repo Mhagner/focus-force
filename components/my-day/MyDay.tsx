@@ -1,29 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { format, isToday } from 'date-fns';
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useRouter } from 'next/navigation';
-import { Check, ChevronDown, ChevronRight, Circle, ExternalLink, Play, Sun, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Check, ChevronDown, ChevronRight, Circle, Play, Sun, X } from 'lucide-react';
 import { useAppStore, subscribeToTasksChanges } from '@/stores/useAppStore';
 import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
 import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
 import { FocusDialog } from '@/components/focus/FocusDialog';
-import { useTimerStore } from '@/stores/useTimerStore';
-import { calculateTaskPriorityInsight, getTodayTasks, cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { useMyDayTasks } from '@/hooks/use-my-day-tasks';
+import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
 
 const REFRESH_INTERVAL_MS = 30_000;
-const TIMER_STORAGE_KEY = 'focusforge/timer-state';
 
-interface MyDayProps {
-  /** Standalone = rendered in the detached popup window (fills the screen). */
-  standalone?: boolean;
-}
-
-export function MyDay({ standalone = false }: MyDayProps) {
-  const { tasks, projects, sessions, updateTask, refreshTasks, isDataInitialized } = useAppStore();
+export function MyDay() {
+  const { updateTask, refreshTasks, isDataInitialized } = useAppStore();
   const {
     pendingTask,
     pendingTaskTrackedSeconds,
@@ -34,8 +27,9 @@ export function MyDay({ standalone = false }: MyDayProps) {
   const [showCompleted, setShowCompleted] = useState(true);
   const [focusTask, setFocusTask] = useState<Task | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
-  // Keep in sync with edits made in other windows (board <-> popup).
+  // Keep in sync with edits made elsewhere.
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState === 'visible') refreshTasks().catch(() => {});
@@ -50,48 +44,7 @@ export function MyDay({ standalone = false }: MyDayProps) {
     };
   }, [refreshTasks]);
 
-  // The detached popup has no TopNav, so nothing else restores or ticks the
-  // timer there. Mirror what /mini-timer does so a session started from the
-  // popup actually advances and persists.
-  const { isRunning, isPaused, tick, restoreState } = useTimerStore();
-
-  useEffect(() => {
-    if (!standalone) return;
-    restoreState();
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === TIMER_STORAGE_KEY) restoreState();
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, [standalone, restoreState]);
-
-  useEffect(() => {
-    if (!standalone || !isRunning || isPaused) return;
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [standalone, isRunning, isPaused, tick]);
-
-  const projectMap = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
-
-  const { pending, completed } = useMemo(() => {
-    const isVisible = (t: Task) => projectMap.get(t.projectId)?.active !== false;
-    // Completing a task clears its "planned for today" flag, so completed
-    // ones are picked by completion date instead (only today's).
-    return {
-      // Same score as the board's Priority Radar, highest first.
-      pending: getTodayTasks(tasks)
-        .filter((t) => t.status !== 'done' && isVisible(t))
-        .map((task) => ({
-          task,
-          score: calculateTaskPriorityInsight(task, projectMap.get(task.projectId), sessions).score,
-        }))
-        .sort((a, b) => b.score - a.score)
-        .map(({ task }) => task),
-      completed: tasks.filter(
-        (t) => t.status === 'done' && t.completedAt && isToday(new Date(t.completedAt)) && isVisible(t),
-      ),
-    };
-  }, [tasks, projectMap, sessions]);
+  const { pending, completed, projectMap } = useMyDayTasks();
 
   const handleToggle = (task: Task, isDone: boolean) => {
     if (isDone) {
@@ -100,11 +53,6 @@ export function MyDay({ standalone = false }: MyDayProps) {
       return;
     }
     requestStatusChange(task, 'done');
-  };
-
-  const handleOpenPopup = () => {
-    const features = 'width=420,height=720,menubar=no,toolbar=no,location=no,status=no';
-    window.open('/my-day', 'focusforge-my-day', features);
   };
 
   const renderTask = (task: Task, isDone: boolean) => {
@@ -174,12 +122,7 @@ export function MyDay({ standalone = false }: MyDayProps) {
   };
 
   return (
-    <div
-      className={cn(
-        'flex flex-col bg-background text-ink',
-        standalone ? 'min-h-screen p-4' : 'rounded-xl border border-border p-5',
-      )}
-    >
+    <div className="flex flex-col p-4 text-ink">
       <header className="mb-4 flex items-start justify-between gap-2">
         <div>
           <h2 className="flex items-center gap-2 font-display text-2xl font-bold">
@@ -189,11 +132,6 @@ export function MyDay({ standalone = false }: MyDayProps) {
             {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
           </p>
         </div>
-        {!standalone && (
-          <Button variant="ghost" size="sm" onClick={handleOpenPopup} title="Abrir em janela separada">
-            <ExternalLink className="h-4 w-4" />
-          </Button>
-        )}
       </header>
 
       {!isDataInitialized ? (
@@ -231,7 +169,9 @@ export function MyDay({ standalone = false }: MyDayProps) {
           onOpenChange={(open) => !open && setFocusTask(null)}
           initialProjectId={focusTask.projectId}
           initialTaskId={focusTask.id}
-          onStarted={standalone ? undefined : () => router.push('/focus')}
+          onStarted={() => {
+            if (pathname !== '/focus') router.push('/focus');
+          }}
         />
       )}
 

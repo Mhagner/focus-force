@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Sun, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,16 @@ import {
 } from '@/components/ui/command';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { useMyDaySidebarStore } from '@/stores/useMyDaySidebarStore';
 import { buildTaskNotifications, cn, formatTime } from '@/lib/utils';
 import { FocusDialog } from '@/components/focus/FocusDialog';
+import { InstallButton } from '@/components/pwa/InstallPrompt';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export function TopNav() {
   const router = useRouter();
+  const pathname = usePathname();
+  const { collapsed: myDayCollapsed, toggle: toggleMyDay } = useMyDaySidebarStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
@@ -49,16 +53,6 @@ export function TopNav() {
   const selectedProject = selectedProjectId
     ? activeProjects.find(project => project.id === selectedProjectId)
     : undefined;
-
-  const handleOpenMiniTimer = () => {
-    const features = 'width=360,height=260,menubar=no,toolbar=no,location=no,status=no';
-    window.open('/mini-timer', 'focusforge-mini-timer', features);
-  };
-
-  const handleOpenMyDay = () => {
-    const features = 'width=420,height=720,menubar=no,toolbar=no,location=no,status=no';
-    window.open('/my-day', 'focusforge-my-day', features);
-  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -207,13 +201,15 @@ export function TopNav() {
           </div>
 
           <div className="flex items-center gap-4">
+            <InstallButton />
             <Button
               variant="ghost"
               size="icon"
               className="text-ink-muted hover:text-ink"
-              aria-label="Abrir Meu Dia em janela separada"
+              aria-label="Alternar Meu Dia"
+              aria-pressed={!myDayCollapsed}
               title="Meu Dia"
-              onClick={handleOpenMyDay}
+              onClick={toggleMyDay}
             >
               <Sun className="h-5 w-5" />
             </Button>
