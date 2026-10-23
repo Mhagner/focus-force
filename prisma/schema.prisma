@@ -348,6 +348,8 @@ model TaskBoardSettings {
   id            String   @id @default(cuid())
   columns       Json?
   taskColumnMap Json?
+  // Nomes personalizados das 5 colunas padrão, por modo: { WORK: { todo: "..." }, STUDY: { ... } }
+  statusTitles  Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   userId        String?  @unique

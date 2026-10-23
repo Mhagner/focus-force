@@ -5,6 +5,7 @@ import { ensureClockfySyncForProject } from '@/lib/integrations/clockfy';
 import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
 import { apiError } from '@/lib/api';
 import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { isStudyProject } from '@/lib/auth/workspace-mode';
 export const dynamic = 'force-dynamic';
 
 interface Params { params: { id: string } }
@@ -83,6 +84,15 @@ export async function PATCH(
     });
 
     const parsed = schema.parse(body);
+
+    // Matérias (workspace de estudo) não têm Clockfy, valor/hora nem links de trabalho.
+    if (await isStudyProject(userId, id)) {
+      parsed.syncWithClockfy = undefined;
+      parsed.clockfyWorkspaceId = undefined;
+      parsed.hourlyRate = undefined;
+      parsed.salesforceOppUrl = undefined;
+      parsed.sharepointRepoUrl = undefined;
+    }
 
     const data: any = {};
     if (parsed.name !== undefined) data.name = parsed.name;

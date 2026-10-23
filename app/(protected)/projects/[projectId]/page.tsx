@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/stores/useAppStore';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { formatDateTime, formatDuration, formatFriendlyDate, getProjectHoursToday } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -16,12 +17,6 @@ import {
   Play,
   FolderKanban,
 } from 'lucide-react';
-
-const STATUS_LABELS: Record<'todo' | 'doing' | 'done', string> = {
-  todo: 'Todo',
-  doing: 'Fazendo',
-  done: 'Feito',
-};
 
 type Params = { projectId?: string | string[] };
 
@@ -36,6 +31,7 @@ export default function ProjectDetailPage() {
   const projectId = resolveParam(params?.projectId);
 
   const { projects, tasks, sessions } = useAppStore();
+  const { isStudy, labels, statusTitles } = useWorkspace();
   const project = projects.find((current) => current.id === projectId);
 
   const projectTasks = useMemo(
@@ -65,7 +61,7 @@ export default function ProjectDetailPage() {
           Voltar para projetos
         </Button>
         <Card className="p-6 text-ink-muted">
-          <p>Projeto não encontrado.</p>
+          <p>{labels.project} não encontrad{isStudy ? 'a' : 'o'}.</p>
         </Card>
       </div>
     );
@@ -118,11 +114,13 @@ export default function ProjectDetailPage() {
               style={{ backgroundColor: project.color }}
             />
             <h1 className="text-3xl font-semibold text-ink">{project.name}</h1>
-            <Badge variant={clockfyBadgeVariant}>
-              {clockfyStatus}
-            </Badge>
+            {!isStudy && (
+              <Badge variant={clockfyBadgeVariant}>
+                {clockfyStatus}
+              </Badge>
+            )}
           </div>
-          {project.client && <p className="text-ink-muted">Cliente: {project.client}</p>}
+          {project.client && <p className="text-ink-muted">{labels.clientField}: {project.client}</p>}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -135,7 +133,7 @@ export default function ProjectDetailPage() {
             <p className="text-xl font-semibold text-ink">{formatDuration(weekSeconds)}</p>
           </div>
           <div className="rounded-lg border border-border bg-background p-4">
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Tarefas pendentes</p>
+            <p className="text-xs uppercase tracking-wide text-ink-muted">{labels.tasks} pendentes</p>
             <p className="text-xl font-semibold text-ink">{pendingTasks}</p>
           </div>
           <div className="rounded-lg border border-border bg-background p-4">
@@ -150,10 +148,12 @@ export default function ProjectDetailPage() {
               <Calendar className="h-5 w-5 text-ink-muted" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wide text-ink-muted">Entrega prevista</p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">{isStudy ? 'Data da prova' : 'Entrega prevista'}</p>
               <p className="text-sm text-ink">{estimatedDelivery}</p>
             </div>
           </div>
+          {!isStudy && (
+          <>
           <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
               <Clock className="h-5 w-5 text-ink-muted" />
@@ -203,6 +203,8 @@ export default function ProjectDetailPage() {
               )}
             </div>
           </div>
+          </>
+          )}
         </div>
       </Card>
 
@@ -230,7 +232,7 @@ export default function ProjectDetailPage() {
                     className="mt-1 px-0 text-xs"
                     onClick={() => router.push(`/tasks/${update.taskId}`)}
                   >
-                    Ver tarefa
+                    Ver {labels.task.toLowerCase()}
                   </Button>
                 </div>
               ))
@@ -240,18 +242,17 @@ export default function ProjectDetailPage() {
 
         <Card className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ink">Tarefas do projeto</h2>
-            <span className="text-sm text-ink-muted">{projectTasks.length} tarefas</span>
+            <h2 className="text-lg font-semibold text-ink">{isStudy ? 'Tópicos da matéria' : 'Tarefas do projeto'}</h2>
+            <span className="text-sm text-ink-muted">{projectTasks.length} {labels.tasks.toLowerCase()}</span>
           </div>
 
           <div className="space-y-3">
             {projectTasks.length === 0 ? (
-              <p className="text-sm text-ink-muted">Nenhuma tarefa associada ainda.</p>
+              <p className="text-sm text-ink-muted">Nenhum{isStudy ? '' : 'a'} {labels.task.toLowerCase()} associad{isStudy ? 'o' : 'a'} ainda.</p>
             ) : (
               projectTasks.map((task) => {
                 const commentTotal = task.comments?.length ?? 0;
-                const statusLabel =
-                  STATUS_LABELS[(task.status ?? 'todo') as keyof typeof STATUS_LABELS] ?? 'Desconhecido';
+                const statusLabel = statusTitles[task.status ?? 'todo'] ?? 'Desconhecido';
                 return (
                   <div
                     key={task.id}

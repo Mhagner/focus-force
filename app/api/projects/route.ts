@@ -6,13 +6,16 @@ import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
 import { apiError } from '@/lib/api';
 import { HttpError, requireUser } from '@/lib/auth/require-user';
 import { assertWorkspaceOwned, getDefaultWorkspaceId } from '@/lib/auth/ownership';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
+import { isStudyWorkspace } from '@/lib/auth/workspace-mode';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const { userId } = await requireUser();
+    const workspaceId = await getWorkspaceFilter(userId, req.url);
     const projects = await prisma.project.findMany({
-      where: { userId },
+      where: { userId, ...(workspaceId ? { workspaceId } : {}) },
       orderBy: { createdAt: 'asc' },
     });
     return NextResponse.json(projects);
@@ -100,18 +103,22 @@ export async function POST(req: Request) {
     }
     const workspaceId = parsed.workspaceId ?? (await getDefaultWorkspaceId(userId));
 
+    // Em workspaces de estudo não existem Clockfy, valor/hora nem links de trabalho:
+    // ignoramos esses campos no servidor, mesmo que venham no corpo da requisição.
+    const isStudy = await isStudyWorkspace(userId, workspaceId);
+
     const data = {
       userId,
       workspaceId,
       name: parsed.name,
       client: parsed.client || undefined,
       color: parsed.color,
-      hourlyRate: parsed.hourlyRate !== undefined ? parsed.hourlyRate : undefined,
+      hourlyRate: !isStudy && parsed.hourlyRate !== undefined ? parsed.hourlyRate : undefined,
       active: parsed.active ?? true,
-      syncWithClockfy: parsed.syncWithClockfy ?? false,
-      clockfyWorkspaceId: parsed.clockfyWorkspaceId ?? undefined,
-      salesforceOppUrl: parsed.salesforceOppUrl ?? undefined,
-      sharepointRepoUrl: parsed.sharepointRepoUrl ?? undefined,
+      syncWithClockfy: isStudy ? false : parsed.syncWithClockfy ?? false,
+      clockfyWorkspaceId: isStudy ? undefined : parsed.clockfyWorkspaceId ?? undefined,
+      salesforceOppUrl: isStudy ? undefined : parsed.salesforceOppUrl ?? undefined,
+      sharepointRepoUrl: isStudy ? undefined : parsed.sharepointRepoUrl ?? undefined,
       estimatedDeliveryDate: parsed.estimatedDeliveryDate ?? undefined,
     };
 

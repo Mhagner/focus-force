@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Settings, Download, Upload, Trash2, PlugZap, CheckCircle2, AlertCircle, Loader2, FolderKanban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { InstallCard } from '@/components/pwa/InstallPrompt';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 export default function SettingsPage() {
   const {
@@ -28,6 +29,7 @@ export default function SettingsPage() {
     deleteSessionDescriptionPreset,
   } = useAppStore();
   const { toast } = useToast();
+  const { isStudy, labels } = useWorkspace();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
 
   const [settings, setSettings] = useState(pomodoroSettings);
@@ -248,7 +250,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label className="mb-3 block">
-                Tempo de Trabalho: {settings.workMin} minutos
+                {isStudy ? 'Tempo de Estudo' : 'Tempo de Trabalho'}: {settings.workMin} minutos
               </Label>
               <Slider
                 value={[settings.workMin]}
@@ -347,9 +349,9 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2 mb-6">
             <Settings className="h-5 w-5 text-ink-muted" />
             <div>
-              <h2 className="text-lg font-semibold text-ink">Checklist padrão das tarefas</h2>
+              <h2 className="text-lg font-semibold text-ink">Checklist padrão {isStudy ? 'dos tópicos' : 'das tarefas'}</h2>
               <p className="text-xs text-ink-muted mt-1">
-                Itens adicionados aqui serão incluídos automaticamente em novas tarefas.
+                Itens adicionados aqui serão incluídos automaticamente em {isStudy ? 'novos tópicos' : 'novas tarefas'}.
               </p>
             </div>
           </div>
@@ -434,7 +436,7 @@ export default function SettingsPage() {
                   id="new-description-preset"
                   value={newDescriptionPreset}
                   onChange={(e) => setNewDescriptionPreset(e.target.value)}
-                  placeholder="Ex: Reunião com o cliente"
+                  placeholder={isStudy ? 'Ex: Resolução de questões' : 'Ex: Reunião com o cliente'}
                 />
               </div>
               <Button
@@ -472,6 +474,9 @@ export default function SettingsPage() {
           </div>
         </Card>
 
+        {/* Valor/hora padrão e Clockfy só existem em workspaces de trabalho */}
+        {!isStudy && (
+        <>
         {/* Default Project Settings */}
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-6">
@@ -674,6 +679,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </Card>
+        </>
+        )}
 
         {/* Data Management */}
         <Card className="p-6">

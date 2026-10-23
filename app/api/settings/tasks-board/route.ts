@@ -8,14 +8,20 @@ import { prisma } from '@/lib/prisma';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const STATUS_KEYS = ['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done'] as const;
+
 const columnSchema = z.object({
   id: z.string().min(1).max(100),
   title: z.string().min(1).max(60),
 });
 
+const titlesByMode = z.record(z.enum(STATUS_KEYS), z.string().trim().min(1).max(40));
+
+// Todos os campos são opcionais: só o que vier no corpo é atualizado.
 const boardSchema = z.object({
-  columns: z.array(columnSchema).max(30).default([]),
-  taskColumnMap: z.record(z.string().max(100), z.string().max(100)).default({}),
+  columns: z.array(columnSchema).max(30).optional(),
+  taskColumnMap: z.record(z.string().max(100), z.string().max(100)).optional(),
+  statusTitles: z.object({ WORK: titlesByMode.optional(), STUDY: titlesByMode.optional() }).optional(),
 });
 
 const defaultBoard = {
@@ -23,7 +29,29 @@ const defaultBoard = {
   taskColumnMap: {},
 };
 
-function normalizeBoard(data: { columns?: unknown; taskColumnMap?: unknown; updatedAt?: Date | null }) {
+function normalizeStatusTitles(value: unknown) {
+  const result: { WORK: Record<string, string>; STUDY: Record<string, string> } = { WORK: {}, STUDY: {} };
+  if (!value || typeof value !== 'object') return result;
+
+  for (const mode of ['WORK', 'STUDY'] as const) {
+    const raw = (value as Record<string, unknown>)[mode];
+    if (!raw || typeof raw !== 'object') continue;
+    for (const key of STATUS_KEYS) {
+      const title = (raw as Record<string, unknown>)[key];
+      if (typeof title === 'string' && title.trim().length > 0) {
+        result[mode][key] = title.trim().slice(0, 40);
+      }
+    }
+  }
+  return result;
+}
+
+function normalizeBoard(data: {
+  columns?: unknown;
+  taskColumnMap?: unknown;
+  statusTitles?: unknown;
+  updatedAt?: Date | null;
+}) {
   const columns = Array.isArray(data.columns)
     ? data.columns
         .filter((column): column is { id: string; title: string } => {
@@ -47,6 +75,7 @@ function normalizeBoard(data: { columns?: unknown; taskColumnMap?: unknown; upda
   return {
     columns,
     taskColumnMap,
+    statusTitles: normalizeStatusTitles(data.statusTitles),
     updatedAt: data.updatedAt?.toISOString() ?? null,
   };
 }
@@ -70,10 +99,16 @@ export async function PATCH(req: Request) {
     const { userId } = await requireUser();
     const parsed = boardSchema.parse(await req.json());
 
+    const data = {
+      ...(parsed.columns !== undefined ? { columns: parsed.columns } : {}),
+      ...(parsed.taskColumnMap !== undefined ? { taskColumnMap: parsed.taskColumnMap } : {}),
+      ...(parsed.statusTitles !== undefined ? { statusTitles: normalizeStatusTitles(parsed.statusTitles) } : {}),
+    };
+
     const saved = await prisma.taskBoardSettings.upsert({
       where: { userId },
-      update: { columns: parsed.columns, taskColumnMap: parsed.taskColumnMap },
-      create: { userId, columns: parsed.columns, taskColumnMap: parsed.taskColumnMap },
+      update: data,
+      create: { userId, ...defaultBoard, ...data },
     });
 
     return NextResponse.json(normalizeBoard(saved));

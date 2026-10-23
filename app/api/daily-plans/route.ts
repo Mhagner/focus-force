@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { apiError } from '@/lib/api';
 import { HttpError, requireUser } from '@/lib/auth/require-user';
 import { assertProjectOwned } from '@/lib/auth/ownership';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,12 +52,14 @@ function getDateRange(dateISO: string) {
   return { start, end };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const { userId } = await requireUser();
+    const workspaceId = await getWorkspaceFilter(userId, req.url);
+    const blockFilter = workspaceId ? { where: { project: { workspaceId } } } : true;
     const plans = await prisma.dailyPlan.findMany({
       where: { userId },
-      include: { blocks: true },
+      include: { blocks: blockFilter },
       orderBy: { date: 'desc' },
     });
 
@@ -69,11 +72,20 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { userId } = await requireUser();
+    const workspaceId = await getWorkspaceFilter(userId, req.url);
     const payload = planSchema.parse(await req.json());
     const { start, end } = getDateRange(payload.dateISO);
 
     for (const projectId of Array.from(new Set(payload.blocks.map((block) => block.projectId)))) {
       await assertProjectOwned(userId, projectId);
+    }
+
+    // Com workspace ativo, salvar substitui só os blocos desse workspace (os dos outros ficam intactos).
+    if (workspaceId) {
+      const foreign = await prisma.project.count({
+        where: { userId, id: { in: payload.blocks.map((block) => block.projectId) }, workspaceId: { not: workspaceId } },
+      });
+      if (foreign > 0) throw new HttpError(400, 'Há blocos de outro workspace.');
     }
 
     const existing = await prisma.dailyPlan.findFirst({
@@ -85,6 +97,17 @@ export async function POST(req: Request) {
         },
       },
     });
+
+    const blocksInclude = workspaceId ? { where: { project: { workspaceId } } } : true;
+    // deleteMany aninhado só aceita filtros escalares: resolvemos os ids dos blocos do workspace antes.
+    const idsToReplace = existing
+      ? (
+          await prisma.dailyPlanBlock.findMany({
+            where: { dailyPlanId: existing.id, ...(workspaceId ? { project: { workspaceId } } : {}) },
+            select: { id: true },
+          })
+        ).map((block) => block.id)
+      : [];
 
     const blocksData = payload.blocks.map((block) => ({
       userId,
@@ -99,11 +122,11 @@ export async function POST(req: Request) {
             date: start,
             notes: payload.notes?.trim() ? payload.notes : null,
             blocks: {
-              deleteMany: {},
+              deleteMany: { id: { in: idsToReplace } },
               create: blocksData,
             },
           },
-          include: { blocks: true },
+          include: { blocks: blocksInclude },
         })
       : await prisma.dailyPlan.create({
           data: {
@@ -114,10 +137,10 @@ export async function POST(req: Request) {
               create: blocksData,
             },
           },
-          include: { blocks: true },
+          include: { blocks: blocksInclude },
         });
 
-    return NextResponse.json(mapPlan(saved as PlanWithRelations));
+    return NextResponse.json(mapPlan(saved as unknown as PlanWithRelations));
   } catch (err) {
     return apiError(err);
   }

@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Zap, Target } from 'lucide-react';
 import clsx from 'clsx';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 export function PriorityRadar({ priorityQueue, projects, handleEdit }: any) {
+    const { isStudy } = useWorkspace();
     // Estado para controlar se está expandido ou não
     const [isExpanded, setIsExpanded] = useState(true);
 
@@ -41,7 +43,7 @@ export function PriorityRadar({ priorityQueue, projects, handleEdit }: any) {
                         <h2 className="text-sm font-bold text-ink leading-none">Radar de Prioridade</h2>
                         {!isExpanded && (
                             <p className="text-[10px] text-ink-muted mt-1">
-                                {priorityQueue.length} tarefas sugeridas agora
+                                {priorityQueue.length} {isStudy ? 'tópicos sugeridos' : 'tarefas sugeridas'} agora
                             </p>
                         )}
                     </div>

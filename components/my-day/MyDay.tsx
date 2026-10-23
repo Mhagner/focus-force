@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Check, ChevronDown, ChevronRight, Circle, Play, Sun, X } from 'lucide-react';
 import { useAppStore, subscribeToTasksChanges } from '@/stores/useAppStore';
 import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
 import { FocusDialog } from '@/components/focus/FocusDialog';
 import { useMyDayTasks } from '@/hooks/use-my-day-tasks';
@@ -17,6 +18,7 @@ const REFRESH_INTERVAL_MS = 30_000;
 
 export function MyDay() {
   const { updateTask, refreshTasks, isDataInitialized } = useAppStore();
+  const { isStudy, labels } = useWorkspace();
   const {
     pendingTask,
     pendingTaskTrackedSeconds,
@@ -64,7 +66,7 @@ export function MyDay() {
       >
         <button
           type="button"
-          aria-label={isDone ? 'Reabrir tarefa' : 'Concluir tarefa'}
+          aria-label={isDone ? `Reabrir ${labels.task.toLowerCase()}` : `Concluir ${labels.task.toLowerCase()}`}
           onClick={() => handleToggle(task, isDone)}
           className="shrink-0 text-ink-muted transition-colors hover:text-ink"
         >
@@ -138,7 +140,9 @@ export function MyDay() {
         <p className="py-8 text-center text-sm text-ink-muted">Carregando...</p>
       ) : pending.length === 0 && completed.length === 0 ? (
         <p className="py-8 text-center text-sm text-ink-muted">
-          Nenhuma tarefa para hoje. Use “Planejar para hoje” em uma tarefa para vê-la aqui.
+          {isStudy
+            ? 'Nenhum tópico para hoje. Use “Planejar para hoje” em um tópico para vê-lo aqui.'
+            : 'Nenhuma tarefa para hoje. Use “Planejar para hoje” em uma tarefa para vê-la aqui.'}
         </p>
       ) : (
         <>

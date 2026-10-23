@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { formatDuration, formatFriendlyDate, getProjectHoursToday } from '@/lib/utils';
 import { MoreVertical, Edit, Archive, ArchiveRestore, Play, MessageSquare } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,6 +18,7 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   const { sessions, tasks, updateProject } = useAppStore();
+  const { isStudy } = useWorkspace();
   const router = useRouter();
 
   const isArchived = !project.active;
@@ -69,15 +71,17 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
               {project.client && (
                 <p className="text-sm text-ink-muted">{project.client}</p>
               )}
-              <Badge
-                variant={clockfyStatus === 'linked' ? 'success' : clockfyStatus === 'pending' ? 'accent-orange' : 'secondary'}
-              >
-                {clockfyStatus === 'linked'
-                  ? 'Clockfy conectado'
-                  : clockfyStatus === 'pending'
-                    ? 'Clockfy pendente'
-                    : 'Clockfy desativado'}
-              </Badge>
+              {!isStudy && (
+                <Badge
+                  variant={clockfyStatus === 'linked' ? 'success' : clockfyStatus === 'pending' ? 'accent-orange' : 'secondary'}
+                >
+                  {clockfyStatus === 'linked'
+                    ? 'Clockfy conectado'
+                    : clockfyStatus === 'pending'
+                      ? 'Clockfy pendente'
+                      : 'Clockfy desativado'}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -124,7 +128,7 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
         </div>
 
         <div className="flex justify-between items-center">
-          <span className="text-sm text-ink-muted">Tarefas pendentes</span>
+          <span className="text-sm text-ink-muted">{isStudy ? 'Tópicos pendentes' : 'Tarefas pendentes'}</span>
           <span className="text-ink font-medium">{pendingTasks}</span>
         </div>
 

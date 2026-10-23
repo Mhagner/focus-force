@@ -1,5 +1,16 @@
+export type WorkspaceMode = 'WORK' | 'STUDY';
+
+export interface Workspace {
+  id: string;
+  name: string;
+  mode: WorkspaceMode;
+  archived: boolean;
+  createdAt: string;
+}
+
 export interface Project {
   id: string;
+  workspaceId?: string | null;
   name: string;
   client?: string;
   color: string;
@@ -133,11 +144,20 @@ export interface ClockfySettings {
   updatedAt?: string | null;
 }
 
+export type TaskStatusKey = 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
+
+/** Nomes personalizados das 5 colunas padrão do quadro, por modo de workspace. */
+export interface StatusTitles {
+  WORK: Partial<Record<TaskStatusKey, string>>;
+  STUDY: Partial<Record<TaskStatusKey, string>>;
+}
+
 export interface TaskBoardSettings {
   columns: Array<{
     id: string;
     title: string;
   }>;
   taskColumnMap: Record<string, string>;
+  statusTitles?: StatusTitles;
   updatedAt?: string | null;
 }

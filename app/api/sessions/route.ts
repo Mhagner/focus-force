@@ -7,11 +7,15 @@ import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
 import { apiError } from '@/lib/api';
 import { requireUser } from '@/lib/auth/require-user';
 import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const { userId } = await requireUser();
-    const sessions = await prisma.focusSession.findMany({ where: { userId } });
+    const workspaceId = await getWorkspaceFilter(userId, req.url);
+    const sessions = await prisma.focusSession.findMany({
+      where: { userId, ...(workspaceId ? { project: { workspaceId } } : {}) },
+    });
     return NextResponse.json(sessions);
   } catch (err) {
     return apiError(err);

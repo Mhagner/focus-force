@@ -111,19 +111,19 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
 
   it('controle positivo: A enxerga os próprios dados', async () => {
     as(A);
-    expect(((await (await r.projects.GET()).json()) as Json[]).map((p) => p.id)).toContain(projectA);
-    expect(((await (await r.tasks.GET()).json()) as Json[]).map((t) => t.id)).toContain(taskA);
-    expect(((await (await r.sessions.GET()).json()) as Json[]).map((s) => s.id)).toContain(sessionA);
+    expect(((await (await r.projects.GET(jsonReq("GET"))).json()) as Json[]).map((p) => p.id)).toContain(projectA);
+    expect(((await (await r.tasks.GET(jsonReq("GET"))).json()) as Json[]).map((t) => t.id)).toContain(taskA);
+    expect(((await (await r.sessions.GET(jsonReq("GET"))).json()) as Json[]).map((s) => s.id)).toContain(sessionA);
   });
 
   it('sem sessão: toda rota responde 401', async () => {
     as(null);
     const responses = await Promise.all([
-      r.projects.GET(),
-      r.tasks.GET(),
-      r.sessions.GET(),
+      r.projects.GET(jsonReq("GET")),
+      r.tasks.GET(jsonReq("GET")),
+      r.sessions.GET(jsonReq("GET")),
       r.presets.GET(),
-      r.plans.GET(),
+      r.plans.GET(jsonReq("GET")),
       r.settings.GET(),
       r.board.GET(),
       r.clockfy.GET(),
@@ -134,16 +134,16 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
 
   it('sessão com tokenVersion defasado (senha trocada) é rejeitada', async () => {
     as(A, 99);
-    expect((await r.projects.GET()).status).toBe(401);
+    expect((await r.projects.GET(jsonReq("GET"))).status).toBe(401);
   });
 
   it('B não vê nenhum dado de A nas listagens', async () => {
     as(B);
-    expect(await (await r.projects.GET()).json()).toEqual([]);
-    expect(await (await r.tasks.GET()).json()).toEqual([]);
-    expect(await (await r.sessions.GET()).json()).toEqual([]);
+    expect(await (await r.projects.GET(jsonReq("GET"))).json()).toEqual([]);
+    expect(await (await r.tasks.GET(jsonReq("GET"))).json()).toEqual([]);
+    expect(await (await r.sessions.GET(jsonReq("GET"))).json()).toEqual([]);
     expect(await (await r.presets.GET()).json()).toEqual([]);
-    expect(await (await r.plans.GET()).json()).toEqual([]);
+    expect(await (await r.plans.GET(jsonReq("GET"))).json()).toEqual([]);
     expect(await (await r.subtasks.GET(jsonReq('GET'), ctx(taskA))).json()).toEqual([]);
   });
 
@@ -165,7 +165,7 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
 
     // e nada mudou para A
     as(A);
-    const projects = (await (await r.projects.GET()).json()) as Json[];
+    const projects = (await (await r.projects.GET(jsonReq("GET"))).json()) as Json[];
     expect(projects.find((p) => p.id === projectA)?.name).toBe('Proj A');
     expect(await prisma.task.count({ where: { id: taskA } })).toBe(1);
     expect(await prisma.focusSession.count({ where: { id: sessionA } })).toBe(1);

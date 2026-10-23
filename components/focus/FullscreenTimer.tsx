@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/stores/useAppStore';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { cn } from '@/lib/utils';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { X, Pause, Play, StopCircle, SkipForward } from 'lucide-react';
 
 const phaseLabels: Record<string, string> = {
@@ -55,6 +56,7 @@ export function FullscreenTimer({ onClose }: FullscreenTimerProps) {
     nextPhase,
   } = useTimerStore();
   const { projects, tasks } = useAppStore();
+  const { isStudy } = useWorkspace();
   const isBreakPhase = currentPhase === 'short-break' || currentPhase === 'long-break';
 
   const timeBlocks = useMemo(() => getTimeBlocks(timeRemaining), [timeRemaining]);
@@ -91,7 +93,7 @@ export function FullscreenTimer({ onClose }: FullscreenTimerProps) {
     >
       <header className="flex items-center justify-between px-6 py-5 text-xs uppercase tracking-[0.3em] text-white/60">
         <div className="flex flex-col gap-1">
-          <span>{phaseLabels[currentPhase] ?? 'Sessão'}</span>
+          <span>{currentPhase === 'work' && isStudy ? 'Estudo' : phaseLabels[currentPhase] ?? 'Sessão'}</span>
           <span className="text-[10px] tracking-[0.35em] text-white/45">
             {isRunning ? (isPaused ? 'Pausado' : 'Em andamento') : 'Parado'}
           </span>

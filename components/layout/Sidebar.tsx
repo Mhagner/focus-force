@@ -17,11 +17,13 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { WorkspaceSwitcher } from '@/components/workspace/WorkspaceSwitcher';
+import { useWorkspace } from '@/hooks/use-workspace';
 
-const navigation = [
+const buildNavigation = (labels: { projects: string; tasks: string }) => [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Projetos', href: '/projects', icon: FolderKanban },
-  { name: 'Tarefas', href: '/tasks', icon: CheckSquare },
+  { name: labels.projects, href: '/projects', icon: FolderKanban },
+  { name: labels.tasks, href: '/tasks', icon: CheckSquare },
   { name: 'Planejamento', href: '/plan', icon: Calendar },
   { name: 'Calendário', href: '/calendar', icon: CalendarDays },
   { name: 'Foco', href: '/focus', icon: Timer },
@@ -31,6 +33,8 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { labels } = useWorkspace();
+  const navigation = buildNavigation(labels);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -63,6 +67,10 @@ export function Sidebar() {
             {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
         </div>
+      </div>
+
+      <div className="px-4 pt-4">
+        <WorkspaceSwitcher collapsed={isCollapsed} />
       </div>
 
       <nav className="flex-1 p-4">

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDuration } from '@/lib/utils';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { FocusSession, Project, Task } from '@/types';
 
 interface SessionDetailDialogProps {
@@ -26,6 +27,7 @@ export function SessionDetailDialog({
   onSave,
   onDuplicate,
 }: SessionDetailDialogProps) {
+  const { isStudy } = useWorkspace();
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
@@ -88,7 +90,7 @@ export function SessionDetailDialog({
               {project && (
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: project.color }} />
               )}
-              <span className="font-medium text-ink">{task?.title ?? 'Sessão sem tarefa'}</span>
+              <span className="font-medium text-ink">{task?.title ?? (isStudy ? 'Sessão sem tópico' : 'Sessão sem tarefa')}</span>
             </div>
             {project && <div className="mt-0.5 text-xs text-ink-muted">{project.name}</div>}
           </div>

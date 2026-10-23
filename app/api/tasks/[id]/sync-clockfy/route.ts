@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
 import { apiError } from '@/lib/api';
 import { requireUser } from '@/lib/auth/require-user';
+import { assertClockfyAllowedForProject } from '@/lib/auth/workspace-mode';
 import { updateClockfyTimeEntry, buildClockfyDescription } from '@/lib/integrations/clockfy';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,8 @@ export async function POST(
     if (!task) {
       return NextResponse.json({ message: 'Tarefa não encontrada' }, { status: 404 });
     }
+
+    await assertClockfyAllowedForProject(userId, task.projectId);
 
     const syncedSessions = await prisma.focusSession.findMany({
       where: { taskId: id, userId, clockfyTimeEntryId: { not: null } },

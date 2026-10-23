@@ -3,14 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { apiError } from '@/lib/api';
 import { requireUser } from '@/lib/auth/require-user';
 import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
   const { userId } = await requireUser();
+  const workspaceId = await getWorkspaceFilter(userId, req.url);
   const tasks = await prisma.task.findMany({
-    where: { userId },
+    where: { userId, ...(workspaceId ? { project: { workspaceId } } : {}) },
     include: {
       comments: {
         orderBy: { createdAt: 'desc' },
@@ -82,8 +84,8 @@ export async function POST(req: Request) {
 
     const schema = z.object({
       projectId: z.string().min(1),
-      title: z.string().min(1),
-      description: z.string().optional().nullable(),
+      title: z.string().trim().min(1).max(200),
+      description: z.string().max(10000).optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
       status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),

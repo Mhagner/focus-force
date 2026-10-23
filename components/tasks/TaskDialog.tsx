@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { Task, TaskInput } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 interface TaskDialogProps {
     open: boolean;
@@ -21,6 +22,7 @@ interface TaskDialogProps {
 
 export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskDialogProps) {
     const { projects, addTask, updateTask } = useAppStore();
+    const { isStudy, labels } = useWorkspace();
     const { toast } = useToast();
 
     const activeProjects = useMemo(() => projects.filter(p => p.active), [projects]);
@@ -74,10 +76,10 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
 
             if (task) {
                 await updateTask(task.id, payload);
-                toast({ title: 'Tarefa atualizada' });
+                toast({ title: `${labels.task} atualizad${isStudy ? 'o' : 'a'}` });
             } else {
                 await addTask(payload);
-                toast({ title: 'Tarefa criada' });
+                toast({ title: `${labels.task} criad${isStudy ? 'o' : 'a'}` });
             }
 
             onOpenChange(false);
@@ -91,13 +93,13 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {task ? 'Editar Tarefa' : 'Nova Tarefa'}
+                        {task ? `Editar ${labels.task}` : labels.newTask}
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-6">
                     <div>
-                        <Label htmlFor="project">Projeto *</Label>
+                        <Label htmlFor="project">{labels.project} *</Label>
                         <Select value={projectId} onValueChange={setProjectId}>
                             <SelectTrigger id="project" className="w-full">
                                 <SelectValue />
@@ -121,7 +123,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
                             id="title"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Defina o título da tarefa"
+                            placeholder={`Defina o título d${isStudy ? 'o' : 'a'} ${labels.task.toLowerCase()}`}
                         />
                     </div>
 
@@ -131,7 +133,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultProjectId }: TaskD
                             id="description"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Detalhes da tarefa"
+                            placeholder={`Detalhes d${isStudy ? 'o' : 'a'} ${labels.task.toLowerCase()}`}
                         />
                     </div>
 

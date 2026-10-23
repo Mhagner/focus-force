@@ -63,8 +63,8 @@ export async function PATCH(
 
     const schema = z.object({
       projectId: z.string().min(1).optional(),
-      title: z.string().min(1).optional(),
-      description: z.string().optional().nullable(),
+      title: z.string().trim().min(1).max(200).optional(),
+      description: z.string().max(10000).optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
       status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),

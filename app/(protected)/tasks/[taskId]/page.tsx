@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { formatDateTime, formatDuration, formatFriendlyDate, getTaskDueSignals, getTaskHighestDueLevel, getTaskTrackedSeconds, isTaskTimeOverrun } from '@/lib/utils';
@@ -36,6 +37,7 @@ export default function TaskDetailPage() {
   const taskId = resolveParam(params?.taskId);
 
   const { tasks, projects, sessions, updateTask, addTaskComment, updateTaskComment, deleteTaskComment, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask } = useAppStore();
+  const { isStudy, labels, statusShortTitles } = useWorkspace();
   const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
 
   const task = tasks.find((current) => current.id === taskId);
@@ -60,6 +62,14 @@ export default function TaskDetailPage() {
   const [salesforceOppUrlInput, setSalesforceOppUrlInput] = useState('');
   const [repoUrlInput, setRepoUrlInput] = useState('');
   const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!taskId) return;
@@ -239,6 +249,59 @@ export default function TaskDetailPage() {
     }
   };
 
+  const handleStartEditTitle = () => {
+    setTitleDraft(task?.title ?? '');
+    setTitleError(null);
+    setIsEditingTitle(true);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!task || isSavingTitle) return;
+
+    const trimmed = titleDraft.trim();
+    if (!trimmed) {
+      setTitleError('O título não pode ficar vazio.');
+      return;
+    }
+    if (trimmed === task.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    setIsSavingTitle(true);
+    setTitleError(null);
+    try {
+      await updateTask(task.id, { title: trimmed });
+      setIsEditingTitle(false);
+    } catch (error) {
+      setTitleError(error instanceof Error ? error.message : 'Não foi possível salvar o título.');
+    } finally {
+      setIsSavingTitle(false);
+    }
+  };
+
+  const handleStartEditDescription = () => {
+    setDescriptionDraft(task?.description ?? '');
+    setDescriptionError(null);
+    setIsEditingDescription(true);
+  };
+
+  const handleSaveDescription = async () => {
+    if (!task || isSavingDescription) return;
+
+    setIsSavingDescription(true);
+    setDescriptionError(null);
+    try {
+      const trimmed = descriptionDraft.trim();
+      await updateTask(task.id, { description: trimmed.length > 0 ? trimmed : null });
+      setIsEditingDescription(false);
+    } catch (error) {
+      setDescriptionError(error instanceof Error ? error.message : 'Não foi possível salvar a descrição.');
+    } finally {
+      setIsSavingDescription(false);
+    }
+  };
+
   const handleSaveMetadata = async () => {
     if (!task || isSavingMetadata) return;
 
@@ -266,7 +329,7 @@ export default function TaskDetailPage() {
           Voltar para tarefas
         </Button>
         <Card className="p-6 text-ink-muted">
-          <p>Tarefa não encontrada.</p>
+          <p>{labels.task} não encontrad{isStudy ? 'o' : 'a'}.</p>
         </Card>
       </div>
     );
@@ -328,7 +391,7 @@ export default function TaskDetailPage() {
           <div className="flex items-center gap-2 rounded-lg border border-accent-orange/40 bg-accent-orange/[0.1] p-3 text-sm text-accent-orange">
             <TimerReset className="h-4 w-4 shrink-0" />
             <span>
-              Esta tarefa acumulou <span className="font-semibold">{formatDuration(trackedSeconds)}</span> de trabalho, acima de 2h.
+              Est{isStudy ? 'e tópico' : 'a tarefa'} acumulou <span className="font-semibold">{formatDuration(trackedSeconds)}</span> de {isStudy ? 'estudo' : 'trabalho'}, acima de 2h.
               Ao concluir, será exigido um comentário explicando o motivo para registro no Clockfy.
             </span>
           </div>
@@ -340,12 +403,12 @@ export default function TaskDetailPage() {
               {highestDueLevel === 'overdue' && <AlertTriangle className="h-4 w-4 text-danger" />}
               {highestDueLevel === 'today' && <CalendarClock className="h-4 w-4 text-accent-orange" />}
               {highestDueLevel === 'upcoming' && <Clock3 className="h-4 w-4 text-accent-blue" />}
-              {highestDueLevel === 'overdue' ? 'Tarefa com atraso de prazo' : highestDueLevel === 'today' ? 'Tarefa com entrega para hoje' : 'Tarefa com entrega próxima'}
+              {highestDueLevel === 'overdue' ? `${labels.task} com atraso de prazo` : highestDueLevel === 'today' ? `${labels.task} com entrega para hoje` : `${labels.task} com entrega próxima`}
             </div>
             <ul className="space-y-1 text-xs text-ink-muted">
               {dueSignals.slice(0, 4).map((signal) => (
                 <li key={`${signal.source}-${signal.date.toISOString()}`}>
-                  • {signal.source === 'task' ? 'Entrega da tarefa' : 'Entrega do projeto'} ({signal.level === 'overdue' ? 'atrasada' : signal.level === 'today' ? 'vence hoje' : 'próxima do prazo'})
+                  • {signal.source === 'task' ? `Entrega d${isStudy ? 'o' : 'a'} ${labels.task.toLowerCase()}` : (isStudy ? 'Data da prova' : 'Entrega do projeto')} ({signal.level === 'overdue' ? 'atrasada' : signal.level === 'today' ? 'vence hoje' : 'próxima do prazo'})
                 </li>
               ))}
             </ul>
@@ -354,16 +417,125 @@ export default function TaskDetailPage() {
 
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <PriorityTag priority={task.priority || 'media'} />
-              <h1 className="text-2xl font-semibold text-ink">{task.title}</h1>
+              {isEditingTitle ? (
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={titleDraft}
+                      onChange={(event) => setTitleDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') void handleSaveTitle();
+                        if (event.key === 'Escape') setIsEditingTitle(false);
+                      }}
+                      maxLength={200}
+                      autoFocus
+                      aria-label="Título"
+                      className="h-10 text-lg font-semibold"
+                    />
+                    <Button size="icon" onClick={handleSaveTitle} disabled={isSavingTitle} aria-label="Salvar título">
+                      {isSavingTitle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setIsEditingTitle(false)}
+                      disabled={isSavingTitle}
+                      aria-label="Cancelar edição do título"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {titleError && (
+                    <p className="text-sm text-danger" role="alert">
+                      {titleError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <h1 className="min-w-0 break-words text-2xl font-semibold text-ink">{task.title}</h1>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-ink-muted hover:text-ink"
+                    onClick={handleStartEditTitle}
+                    aria-label="Editar título"
+                    title="Editar título"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </div>
             <ProjectBadge name={project.name} color={project.color} size="md" />
           </div>
 
-          {task.description && (
-            <p className="text-ink-muted leading-relaxed">{task.description}</p>
-          )}
+          <div className="space-y-2">
+            {isEditingDescription ? (
+              <>
+                <Textarea
+                  value={descriptionDraft}
+                  onChange={(event) => setDescriptionDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') setIsEditingDescription(false);
+                    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) void handleSaveDescription();
+                  }}
+                  rows={5}
+                  maxLength={10000}
+                  autoFocus
+                  aria-label="Descrição"
+                  placeholder={`Descreva ${isStudy ? 'o tópico' : 'a tarefa'}...`}
+                  className="resize-y"
+                />
+                {descriptionError && (
+                  <p className="text-sm text-danger" role="alert">
+                    {descriptionError}
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={handleSaveDescription} disabled={isSavingDescription}>
+                    {isSavingDescription ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      'Salvar'
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingDescription(false)}
+                    disabled={isSavingDescription}
+                  >
+                    Cancelar
+                  </Button>
+                  <span className="text-xs text-ink-muted">Ctrl+Enter salva · Esc cancela</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-start gap-2">
+                {task.description ? (
+                  <p className="flex-1 whitespace-pre-wrap leading-relaxed text-ink-muted">{task.description}</p>
+                ) : (
+                  <p className="flex-1 text-sm italic text-ink-muted/70">Sem descrição.</p>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-ink-muted hover:text-ink"
+                  onClick={handleStartEditDescription}
+                  aria-label="Editar descrição"
+                >
+                  <Edit className="mr-1 h-4 w-4" />
+                  {task.description ? 'Editar' : 'Adicionar'}
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-3">
             {(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done'] as const).map((status) => (
@@ -374,7 +546,7 @@ export default function TaskDetailPage() {
                 className="capitalize"
                 onClick={() => handleStatusChange(status)}
               >
-                {status === 'todo' ? 'Todo' : status === 'call_agendada' ? 'Call' : status === 'pronta_elaboracao' ? 'Pronta' : status === 'doing' ? 'Fazendo' : 'Feito'}
+                {statusShortTitles[status]}
               </Button>
             ))}
           </div>
@@ -401,6 +573,8 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
+          {!isStudy && (
+          <>
           <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
               <ExternalLink className="h-5 w-5 text-ink-muted" />
@@ -442,13 +616,15 @@ export default function TaskDetailPage() {
               )}
             </div>
           </div>
+          </>
+          )}
         </div>
 
         <div className="rounded-lg border border-border bg-background p-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-ink">Editar metadados</h3>
-              <p className="text-xs text-ink-muted">Atualize entrega, Salesforce e repositório desta tarefa.</p>
+              <p className="text-xs text-ink-muted">{isStudy ? 'Atualize a data de entrega deste tópico.' : 'Atualize entrega, Salesforce e repositório desta tarefa.'}</p>
             </div>
             <Button
               variant="outline"
@@ -476,6 +652,7 @@ export default function TaskDetailPage() {
               />
             </div>
 
+            {!isStudy && (
             <div>
               <label className="block text-sm text-ink-muted mb-2">URL da oportunidade no Salesforce</label>
               <Input
@@ -485,7 +662,9 @@ export default function TaskDetailPage() {
                 placeholder="https://..."
               />
             </div>
+            )}
 
+            {!isStudy && (
             <div className="md:col-span-2">
               <label className="block text-sm text-ink-muted mb-2">URL do repositório</label>
               <Input
@@ -495,6 +674,7 @@ export default function TaskDetailPage() {
                 placeholder="https://..."
               />
             </div>
+            )}
           </div>
         </div>
       </Card>

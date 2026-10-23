@@ -189,12 +189,15 @@ export function exportToCsv(data: any[], filename: string) {
   if (data.length === 0) return;
   
   const headers = Object.keys(data[0]);
+  // Aspas duplicadas conforme o padrão CSV; `??` preserva o número 0.
+  const escapeCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const csvContent = [
-    headers.join(','),
-    ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+    headers.map(escapeCell).join(','),
+    ...data.map(row => headers.map(header => escapeCell(row[header])).join(','))
   ].join('\n');
-  
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  // BOM para o Excel abrir os acentos corretamente.
+  const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   link.setAttribute('href', url);

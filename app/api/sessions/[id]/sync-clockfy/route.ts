@@ -4,6 +4,7 @@ import { createClockfyTimeEntry, buildClockfyDescription } from '@/lib/integrati
 import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
 import { apiError } from '@/lib/api';
 import { requireUser } from '@/lib/auth/require-user';
+import { assertClockfyAllowedForProject } from '@/lib/auth/workspace-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,8 @@ export async function POST(
     if (!session) {
       return NextResponse.json({ message: 'Sessão não encontrada' }, { status: 404 });
     }
+
+    await assertClockfyAllowedForProject(userId, session.projectId);
 
     if (session.clockfyTimeEntryId) {
       return NextResponse.json(session);

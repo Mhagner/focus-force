@@ -12,17 +12,19 @@ function isTouchDevice() {
 }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { Task } from '@/types';
-import { Plus, Filter, Columns3, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Filter, Columns3, X, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { calculateTaskPriorityInsight, getTodayTasks } from '@/lib/utils';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
 import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
 import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
+import { useWorkspace } from '@/hooks/use-workspace';
 import clsx from 'clsx';
 import { storage } from '@/lib/storage';
 
@@ -87,21 +89,40 @@ function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task:
 function DroppableColumn({
   id,
   title,
+  rawTitle,
   colorClass,
   children,
   onRemove,
+  onRename,
   isCollapsed,
   onToggleCollapse,
 }: {
   id: string;
+  /** Título exibido (com a contagem de itens). */
   title: string;
+  /** Título puro, usado no campo de edição. */
+  rawTitle: string;
   colorClass: string;
   children: React.ReactNode;
   onRemove?: () => void;
+  /** Recebe o novo nome; string vazia = restaurar o padrão (colunas padrão) ou ignorar (personalizadas). */
+  onRename?: (title: string) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
   const { isOver, setNodeRef, active } = useDroppable({ id });
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(rawTitle);
+
+  const startEditing = () => {
+    setDraft(rawTitle);
+    setIsEditing(true);
+  };
+
+  const commitEditing = () => {
+    setIsEditing(false);
+    if (draft.trim() !== rawTitle) onRename?.(draft.trim());
+  };
 
   if (isCollapsed) {
     return (
@@ -132,11 +153,43 @@ function DroppableColumn({
   return (
     <div className="w-[310px] shrink-0">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <div className={clsx('h-2.5 w-2.5 rounded-full', colorClass)} />
-          {title}
-        </h2>
+        {isEditing ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className={clsx('h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
+            <Input
+              value={draft}
+              autoFocus
+              maxLength={40}
+              aria-label="Nome da coluna"
+              placeholder="Deixe vazio para restaurar o padrão"
+              className="h-7 px-2 text-sm"
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitEditing}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitEditing();
+                if (e.key === 'Escape') setIsEditing(false);
+              }}
+            />
+          </div>
+        ) : (
+          <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+            <div className={clsx('h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
+            <span className="truncate">{title}</span>
+          </h2>
+        )}
         <div className="flex items-center gap-1">
+          {onRename && !isEditing && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-ink-muted hover:text-ink"
+              onClick={startEditing}
+              aria-label={`Renomear coluna ${rawTitle}`}
+              title="Renomear coluna"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {onToggleCollapse && (
             <Button
               variant="ghost"
@@ -249,7 +302,9 @@ export default function TasksPage() {
       board.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isPanning]);
-  const { tasks, projects, sessions, tasksFilters, setTasksFilters, isDataInitialized } = useAppStore();
+  const { tasks, projects, sessions, tasksFilters, setTasksFilters, isDataInitialized, setStatusTitle } = useAppStore();
+  const { mode } = useWorkspace();
+  const { labels, isStudy, statusTitles } = useWorkspace();
   const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [editingTask, setEditingTask] = useState<Task | undefined>();
@@ -422,7 +477,11 @@ export default function TasksPage() {
 
   const boardColumns = useMemo<BoardColumn[]>(() => {
     return [
-      ...BASE_COLUMNS,
+      // Mesmos 5 status do banco; o título vem do modo do workspace ou da personalização do usuário.
+      ...BASE_COLUMNS.map((column) => ({
+        ...column,
+        title: column.status ? statusTitles[column.status] : column.title,
+      })),
       ...customColumns.map((column, index) => ({
         id: `custom:${column.id}`,
         title: column.title,
@@ -430,7 +489,7 @@ export default function TasksPage() {
         isCustom: true,
       })),
     ];
-  }, [customColumns]);
+  }, [customColumns, statusTitles]);
 
   const visibleTasksByStatus = useMemo(() => {
     const statusTasks: Record<ColumnId, Task[]> = {
@@ -524,6 +583,21 @@ export default function TasksPage() {
     setNewColumnTitle('');
   };
 
+  const handleRenameColumn = (column: BoardColumn, newTitle: string) => {
+    if (column.status) {
+      // Coluna padrão: vazio restaura o nome padrão do modo.
+      setStatusTitle(mode, column.status, newTitle || null).catch(() => {
+        toast.error('Não foi possível renomear a coluna.');
+      });
+      return;
+    }
+    if (!newTitle) return; // coluna personalizada precisa de nome
+    const customId = column.id.replace('custom:', '');
+    setCustomColumns((previous) =>
+      previous.map((item) => (item.id === customId ? { ...item, title: newTitle.slice(0, 40) } : item)),
+    );
+  };
+
   const handleRemoveCustomColumn = (columnId: string) => {
     setCustomColumns((previous) => previous.filter((column) => column.id !== columnId));
     setTaskCustomColumnMap((previous) => {
@@ -556,8 +630,10 @@ export default function TasksPage() {
       <div className="p-4">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="mb-1 font-display text-2xl font-bold text-ink">Tarefas</h1>
-            <p className="text-sm text-ink-muted">Organize suas tarefas em um kanban simples</p>
+            <h1 className="mb-1 font-display text-2xl font-bold text-ink">{labels.tasks}</h1>
+            <p className="text-sm text-ink-muted">
+              {isStudy ? 'Organize seus tópicos de estudo em um kanban simples' : 'Organize suas tarefas em um kanban simples'}
+            </p>
           </div>
 
           <Button
@@ -566,7 +642,7 @@ export default function TasksPage() {
               setIsDialogOpen(true);
             }}
           >
-            <Plus className="mr-2 h-4 w-4" /> Nova Tarefa
+            <Plus className="mr-2 h-4 w-4" /> {labels.newTask}
           </Button>
         </div>
 
@@ -579,7 +655,7 @@ export default function TasksPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os projetos</SelectItem>
+                <SelectItem value="all">Tod{isStudy ? 'as as matérias' : 'os os projetos'}</SelectItem>
                 {projects
                   .filter(p => p.active)
                   .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
@@ -648,7 +724,9 @@ export default function TasksPage() {
                       key={column.id}
                       id={column.id}
                       title={`${column.title} (${tasksForColumn.length})`}
+                      rawTitle={column.title}
                       colorClass={column.colorClass}
+                      onRename={(newTitle) => handleRenameColumn(column, newTitle)}
                       isCollapsed={isCollapsed}
                       onToggleCollapse={() => handleToggleCollapse(column.id)}
                       onRemove={
@@ -673,7 +751,7 @@ export default function TasksPage() {
                 <div className="w-[310px] shrink-0 rounded-xl border border-dashed border-border bg-card p-4">
                   <h3 className="text-sm font-semibold text-ink">Adicionar coluna</h3>
                   <p className="mt-1 text-xs text-ink-muted">
-                    Crie colunas extras para organizar tarefas temporariamente no board.
+                    Crie colunas extras para organizar {labels.tasks.toLowerCase()} temporariamente no board.
                   </p>
 
                   <div className="mt-4 space-y-3">

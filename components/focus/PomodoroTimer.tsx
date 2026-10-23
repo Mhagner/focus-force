@@ -9,6 +9,7 @@ import { formatTime } from '@/lib/utils';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { Play, Pause, Square, RotateCcw, SkipForward } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 export function PomodoroTimer() {
   const {
@@ -29,6 +30,7 @@ export function PomodoroTimer() {
   } = useTimerStore();
 
   const { projects, tasks } = useAppStore();
+  const { isStudy } = useWorkspace();
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -67,7 +69,7 @@ export function PomodoroTimer() {
   const progress = totalTime > 0 ? ((totalTime - timeRemaining) / totalTime) * 100 : 0;
   
   const phaseLabels = {
-    work: 'Trabalho',
+    work: isStudy ? 'Estudo' : 'Trabalho',
     'short-break': 'Pausa Curta',
     'long-break': 'Pausa Longa',
     manual: 'Cronômetro',
