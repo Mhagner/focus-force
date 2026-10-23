@@ -26,44 +26,209 @@ enum SessionType {
   pomodoro
 }
 
-model Project {
-  id                String           @id @default(cuid())
-  name              String
-  client            String?
-  color             String
-  hourlyRate        Decimal?         @db.Decimal(10, 2)
-  active            Boolean          @default(true)
-  createdAt         DateTime         @default(now())
+enum WorkspaceMode {
+  WORK
+  STUDY
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
+// ---------------------------------------------------------------------------
+// Identidade e multi-tenancy
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?
+  tokenVersion  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  accounts          Account[]
+  authTokens        AuthToken[]
+  workspaces        Workspace[]
+  subscription      Subscription?
+  auditLogs         AuditLog[]
+  projects          Project[]
   tasks             Task[]
+  taskComments      TaskComment[]
+  taskSubtasks      TaskSubtask[]
   sessions          FocusSession[]
-  blocks            DailyPlanBlock[]
-  clockfyClientId   String?
-  clockfyProjectId  String?
-  clockfyWorkspaceId String?
-  syncWithClockfy   Boolean          @default(false)
+  descPresets       SessionDescriptionPreset[]
+  dailyPlans        DailyPlan[]
+  dailyPlanBlocks   DailyPlanBlock[]
+  pomodoroSettings  PomodoroSettings?
+  clockfySettings   ClockfySettings?
+  taskBoardSettings TaskBoardSettings?
+}
+
+// Modelo exigido pelo @auth/prisma-adapter (vinculo com provedores OAuth).
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// Tokens de uso unico (verificacao de e-mail, reset de senha). Guarda so o hash.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+// Rate limit simples em Postgres (sem dependencia de Redis).
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  ip        String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model Workspace {
+  id        String        @id @default(cuid())
+  userId    String
+  name      String
+  mode      WorkspaceMode @default(WORK)
+  archived  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@index([userId])
+}
+
+model Plan {
+  id            String         @id @default(cuid())
+  key           String         @unique
+  name          String
+  limits        Json
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  planId                 String
+  status                 SubscriptionStatus @default(trialing)
+  provider               String?
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  currentPeriodEnd       DateTime?
+  trialEndsAt            DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Dados de dominio (userId anulavel na fase "expand"; vira NOT NULL no "contract")
+// ---------------------------------------------------------------------------
+
+model Project {
+  id                    String           @id @default(cuid())
+  name                  String
+  client                String?
+  color                 String
+  hourlyRate            Decimal?         @db.Decimal(10, 2)
+  active                Boolean          @default(true)
+  createdAt             DateTime         @default(now())
+  tasks                 Task[]
+  sessions              FocusSession[]
+  blocks                DailyPlanBlock[]
+  clockfyClientId       String?
+  clockfyProjectId      String?
+  clockfyWorkspaceId    String?
+  syncWithClockfy       Boolean          @default(false)
   salesforceOppUrl      String?
   sharepointRepoUrl     String?
   estimatedDeliveryDate DateTime?
+  userId                String?
+  workspaceId           String?
+  user                  User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace             Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([workspaceId])
 }
 
 model Task {
-  id          String         @id @default(cuid())
-  project     Project        @relation(fields: [projectId], references: [id])
-  projectId   String
-  title       String
-  description String?
-  priority    Priority       @default(media)
-  plannedFor  String?
-  status      Status         @default(todo)
-  estimateMin Int?
+  id                    String         @id @default(cuid())
+  project               Project        @relation(fields: [projectId], references: [id])
+  projectId             String
+  title                 String
+  description           String?
+  priority              Priority       @default(media)
+  plannedFor            String?
+  status                Status         @default(todo)
+  estimateMin           Int?
   salesforceOppUrl      String?
   repoUrl               String?
   estimatedDeliveryDate DateTime?
-  completedAt DateTime?
-  createdAt   DateTime       @default(now())
-  sessions    FocusSession[]
-  comments    TaskComment[]
-  subtasks    TaskSubtask[]
+  completedAt           DateTime?
+  createdAt             DateTime       @default(now())
+  sessions              FocusSession[]
+  comments              TaskComment[]
+  subtasks              TaskSubtask[]
+  userId                String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, projectId])
 }
 
 model TaskComment {
@@ -72,32 +237,47 @@ model TaskComment {
   taskId    String
   message   String
   createdAt DateTime @default(now())
+  userId    String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model TaskSubtask {
-  id        String   @id @default(cuid())
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId    String
-  title     String
-  completed Boolean  @default(false)
-  completedAt DateTime?
+  id                    String    @id @default(cuid())
+  task                  Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId                String
+  title                 String
+  completed             Boolean   @default(false)
+  completedAt           DateTime?
   estimatedDeliveryDate DateTime?
-  createdAt DateTime @default(now())
+  createdAt             DateTime  @default(now())
+  userId                String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model FocusSession {
-  id             String      @id @default(cuid())
-  project        Project     @relation(fields: [projectId], references: [id])
-  projectId      String
-  task           Task?       @relation(fields: [taskId], references: [id])
-  taskId         String?
-  start          DateTime
-  end            DateTime?
-  durationSec    Int
-  type           SessionType
-  pomodoroCycles Int?
-  notes          String?     // Descrição da sessão (obrigatória a partir da UI)
+  id                 String      @id @default(cuid())
+  project            Project     @relation(fields: [projectId], references: [id])
+  projectId          String
+  task               Task?       @relation(fields: [taskId], references: [id])
+  taskId             String?
+  start              DateTime
+  end                DateTime?
+  durationSec        Int
+  type               SessionType
+  pomodoroCycles     Int?
+  notes              String? // Descrição da sessão (obrigatória a partir da UI)
   clockfyTimeEntryId String?
+  userId             String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, start])
 }
 
 model SessionDescriptionPreset {
@@ -106,6 +286,11 @@ model SessionDescriptionPreset {
   active    Boolean  @default(true)
   order     Int      @default(0)
   createdAt DateTime @default(now())
+  userId    String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model DailyPlan {
@@ -113,6 +298,11 @@ model DailyPlan {
   date   DateTime
   notes  String?
   blocks DailyPlanBlock[]
+  userId String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 model DailyPlanBlock {
@@ -122,33 +312,46 @@ model DailyPlanBlock {
   project       Project   @relation(fields: [projectId], references: [id])
   projectId     String
   targetMinutes Int
+  userId        String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model PomodoroSettings {
-  id               String  @id @default(cuid())
-  workMin          Int
-  shortBreakMin    Int
-  longBreakMin     Int
+  id                String  @id @default(cuid())
+  workMin           Int
+  shortBreakMin     Int
+  longBreakMin      Int
   cyclesToLongBreak Int
-  autoStartNext    Boolean
-  soundOn          Boolean
-  defaultChecklist Json?
+  autoStartNext     Boolean
+  soundOn           Boolean
+  defaultChecklist  Json?
   defaultHourlyRate Float?
+  userId            String? @unique
+  user              User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ClockfySettings {
-  id           String   @id @default(cuid())
-  apiKey       String?
-  workspaceId  String?
-  workspaces   Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  apiKey      String?
+  workspaceId String?
+  workspaces  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String?  @unique
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TaskBoardSettings {
   id            String   @id @default(cuid())
   columns       Json?
   taskColumnMap Json?
+  // Nomes personalizados das 5 colunas padrão, por modo: { WORK: { todo: "..." }, STUDY: { ... } }
+  statusTitles  Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  userId        String?  @unique
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { cn } from '@/lib/utils';
 
 interface ManualSessionDialogProps {
@@ -18,6 +19,7 @@ interface ManualSessionDialogProps {
 
 export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogProps) {
   const { projects, tasks, addSession, sessionDescriptionPresets } = useAppStore();
+  const { isStudy, labels } = useWorkspace();
   const { toast } = useToast();
   const [projectId, setProjectId] = useState('');
   const [taskId, setTaskId] = useState('');
@@ -70,7 +72,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm text-ink-muted mb-2">Projeto *</label>
+            <label className="block text-sm text-ink-muted mb-2">{labels.project} *</label>
             <Select value={projectId} onValueChange={setProjectId}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione" />
@@ -84,7 +86,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
           </div>
           {projectTasks.length > 0 && (
             <div>
-              <label className="block text-sm text-ink-muted mb-2">Tarefa</label>
+              <label className="block text-sm text-ink-muted mb-2">{labels.task}</label>
               <Select
                 value={taskId}
                 onValueChange={value => setTaskId(value === 'none' ? '' : value)}
@@ -93,7 +95,7 @@ export function ManualSessionDialog({ open, onOpenChange }: ManualSessionDialogP
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Sem tarefa</SelectItem>
+                  <SelectItem value="none">{isStudy ? 'Sem tópico' : 'Sem tarefa'}</SelectItem>
                   {projectTasks.map(t => (
                     <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                   ))}

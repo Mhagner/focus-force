@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
@@ -8,6 +11,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { userId } = await requireUser();
     const { id } = await params;
     const body = await req.json();
 
@@ -59,8 +63,8 @@ export async function PATCH(
 
     const schema = z.object({
       projectId: z.string().min(1).optional(),
-      title: z.string().min(1).optional(),
-      description: z.string().optional().nullable(),
+      title: z.string().trim().min(1).max(200).optional(),
+      description: z.string().max(10000).optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
       status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
@@ -75,6 +79,10 @@ export async function PATCH(
     });
 
     const parsed = schema.parse(body);
+
+    if (parsed.projectId !== undefined) {
+      await assertProjectOwned(userId, parsed.projectId);
+    }
 
     const data: {
       projectId?: string;
@@ -97,7 +105,7 @@ export async function PATCH(
     if (parsed.status !== undefined) {
       data.status = parsed.status;
       if (parsed.status === 'done') {
-        const current = await prisma.task.findUnique({ where: { id }, select: { status: true } });
+        const current = await prisma.task.findFirst({ where: { id, userId }, select: { status: true } });
         if (current?.status !== 'done') {
           // Finishing a task stamps the completion time and takes it off "Meu Dia".
           data.completedAt = new Date();
@@ -113,7 +121,7 @@ export async function PATCH(
     if (parsed.estimatedDeliveryDate !== undefined) data.estimatedDeliveryDate = parsed.estimatedDeliveryDate;
 
     const task = await prisma.task.update({
-      where: { id },
+      where: { id, userId },
       data: data as any,
       include: {
         comments: {
@@ -125,8 +133,8 @@ export async function PATCH(
       },
     });
     return NextResponse.json(task);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao atualizar tarefa' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }
 
@@ -134,7 +142,12 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  await prisma.task.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    const { userId } = await requireUser();
+    const { id } = await params;
+    await prisma.task.delete({ where: { id, userId } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return apiError(err);
+  }
 }

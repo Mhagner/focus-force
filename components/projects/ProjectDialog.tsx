@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Project } from '@/types';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 interface ProjectDialogProps {
   open: boolean;
@@ -27,7 +28,8 @@ const defaultColors = [
 export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProps) {
   const { addProject, updateProject, addTask, clockfySettings, pomodoroSettings } = useAppStore();
   const { toast } = useToast();
-  const defaultTaskTitle = 'Análise e elaboração do escopo';
+  const { isStudy, labels } = useWorkspace();
+  const defaultTaskTitle = isStudy ? 'Revisão geral' : 'Análise e elaboração do escopo';
 
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
@@ -102,11 +104,13 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
   const handleSubmit = async () => {
     if (!name.trim()) return;
 
-    const selectedWorkspaceId = syncWithClockfy
+    // Workspaces de estudo não usam integração com o Clockfy.
+    const shouldSync = syncWithClockfy && !isStudy;
+    const selectedWorkspaceId = shouldSync
       ? clockfyWorkspaceId || availableWorkspaces[0]?.id || ''
       : null;
 
-    if (syncWithClockfy && !selectedWorkspaceId) {
+    if (shouldSync && !selectedWorkspaceId) {
       toast({ title: 'Selecione um workspace para sincronizar.', variant: 'destructive' });
       return;
     }
@@ -123,18 +127,18 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
         name: name.trim(),
         client: client.trim() || undefined,
         color,
-        hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
+        hourlyRate: !isStudy && hourlyRate ? parseFloat(hourlyRate) : undefined,
         active: isEditing && project ? project.active : true,
-        syncWithClockfy,
-        clockfyWorkspaceId: syncWithClockfy ? selectedWorkspaceId || undefined : null,
-        salesforceOppUrl: trimmedSalesforceUrl ? trimmedSalesforceUrl : null,
-        sharepointRepoUrl: trimmedSharepointUrl ? trimmedSharepointUrl : null,
+        syncWithClockfy: shouldSync,
+        clockfyWorkspaceId: shouldSync ? selectedWorkspaceId || undefined : null,
+        salesforceOppUrl: !isStudy && trimmedSalesforceUrl ? trimmedSalesforceUrl : null,
+        sharepointRepoUrl: !isStudy && trimmedSharepointUrl ? trimmedSharepointUrl : null,
         estimatedDeliveryDate: estimatedDeliveryDate ? estimatedDeliveryDate : null,
       };
 
       if (project) {
         await updateProject(project.id, projectData);
-        toast({ title: 'Projeto atualizado' });
+        toast({ title: `${labels.project} atualizado${isStudy ? 'a' : ''}` });
       } else {
         const createdProject = await addProject(projectData);
         if (createDefaultTask && defaultTaskName.trim()) {
@@ -143,7 +147,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
             title: defaultTaskName.trim(),
           });
         }
-        toast({ title: 'Projeto criado' });
+        toast({ title: `${labels.project} criad${isStudy ? 'a' : 'o'}` });
       }
 
       onOpenChange(false);
@@ -157,28 +161,28 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>
-            {project ? 'Editar Projeto' : 'Novo Projeto'}
+            {project ? `Editar ${labels.project}` : labels.newProject}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           <div>
-            <Label htmlFor="name">Nome do Projeto *</Label>
+            <Label htmlFor="name">{labels.projectName} *</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nome do projeto"
+              placeholder={isStudy ? 'Ex.: Direito Constitucional' : 'Nome do projeto'}
             />
           </div>
 
           <div>
-            <Label htmlFor="client">Cliente</Label>
+            <Label htmlFor="client">{labels.clientField}</Label>
             <Input
               id="client"
               value={client}
               onChange={(e) => setClient(e.target.value)}
-              placeholder="Nome do cliente"
+              placeholder={labels.clientPlaceholder}
             />
           </div>
 
@@ -197,41 +201,45 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="hourlyRate">Taxa por Hora (R$)</Label>
-            <Input
-              id="hourlyRate"
-              type="number"
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-              placeholder="150.00"
-            />
-          </div>
+          {!isStudy && (
+            <>
+              <div>
+                <Label htmlFor="hourlyRate">Taxa por Hora (R$)</Label>
+                <Input
+                  id="hourlyRate"
+                  type="number"
+                  value={hourlyRate}
+                  onChange={(e) => setHourlyRate(e.target.value)}
+                  placeholder="150.00"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="salesforceOppUrl">URL da oportunidade no Salesforce</Label>
+                <Input
+                  id="salesforceOppUrl"
+                  type="url"
+                  value={salesforceOppUrl}
+                  onChange={(e) => setSalesforceOppUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="sharepointRepoUrl">URL do repositório no SharePoint</Label>
+                <Input
+                  id="sharepointRepoUrl"
+                  type="url"
+                  value={sharepointRepoUrl}
+                  onChange={(e) => setSharepointRepoUrl(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+            </>
+          )}
 
           <div>
-            <Label htmlFor="salesforceOppUrl">URL da oportunidade no Salesforce</Label>
-            <Input
-              id="salesforceOppUrl"
-              type="url"
-              value={salesforceOppUrl}
-              onChange={(e) => setSalesforceOppUrl(e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="sharepointRepoUrl">URL do repositório no SharePoint</Label>
-            <Input
-              id="sharepointRepoUrl"
-              type="url"
-              value={sharepointRepoUrl}
-              onChange={(e) => setSharepointRepoUrl(e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="estimatedDeliveryDate">Data prevista de entrega</Label>
+            <Label htmlFor="estimatedDeliveryDate">{labels.dueDateField}</Label>
             <Input
               id="estimatedDeliveryDate"
               type="date"
@@ -240,21 +248,23 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
             />
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3">
-            <div>
-              <Label htmlFor="sync-clockfy">Sincronizar com Clockfy</Label>
-              <p className="text-xs text-ink-muted mt-1">
-                Ative para criar o projeto também no Clockfy e registrar sessões automaticamente.
-              </p>
+          {!isStudy && (
+            <div className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3">
+              <div>
+                <Label htmlFor="sync-clockfy">Sincronizar com Clockfy</Label>
+                <p className="text-xs text-ink-muted mt-1">
+                  Ative para criar o projeto também no Clockfy e registrar sessões automaticamente.
+                </p>
+              </div>
+              <Switch
+                id="sync-clockfy"
+                checked={syncWithClockfy}
+                onCheckedChange={setSyncWithClockfy}
+              />
             </div>
-            <Switch
-              id="sync-clockfy"
-              checked={syncWithClockfy}
-              onCheckedChange={setSyncWithClockfy}
-            />
-          </div>
+          )}
 
-          {syncWithClockfy && (
+          {!isStudy && syncWithClockfy && (
             <div>
               <Label>Workspace do Clockfy</Label>
               {availableWorkspaces.length > 0 ? (
@@ -286,10 +296,10 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
               <div className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3">
                 <div>
                   <Label htmlFor="create-default-task">
-                    Criar tarefa inicial
+                    Criar {labels.task.toLowerCase()} inicial
                   </Label>
                   <p className="text-xs text-ink-muted mt-1">
-                    Gere automaticamente uma tarefa vinculada ao projeto.
+                    Gere automaticamente um{isStudy ? '' : 'a'} {labels.task.toLowerCase()} vinculad{isStudy ? 'o' : 'a'} {isStudy ? 'à matéria' : 'ao projeto'}.
                   </p>
                 </div>
                 <Switch
@@ -301,7 +311,7 @@ export function ProjectDialog({ open, onOpenChange, project }: ProjectDialogProp
 
               {createDefaultTask && (
                 <div>
-                  <Label htmlFor="defaultTaskName">Nome da tarefa</Label>
+                  <Label htmlFor="defaultTaskName">Nome d{isStudy ? 'o' : 'a'} {labels.task.toLowerCase()}</Label>
                   <Input
                     id="defaultTaskName"
                     value={defaultTaskName}

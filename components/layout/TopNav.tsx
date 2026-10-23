@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Sun, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
+import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
   CommandDialog,
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/command';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { useMyDaySidebarStore } from '@/stores/useMyDaySidebarStore';
 import { buildTaskNotifications, cn, formatTime } from '@/lib/utils';
 import { FocusDialog } from '@/components/focus/FocusDialog';
@@ -45,6 +47,7 @@ export function TopNav() {
   } = useTimerStore();
 
   const { projects, tasks, isDataInitialized } = useAppStore();
+  const { labels } = useWorkspace();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
   const notifications = useMemo(
     () => buildTaskNotifications(tasks, activeProjects),
@@ -58,10 +61,15 @@ export function TopNav() {
     setIsLoggingOut(true);
 
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      await signOut({ redirect: false });
 
-      if (!response.ok) {
-        throw new Error('Falha ao encerrar sessão');
+      // Evita que o próximo usuário do mesmo navegador herde o cronômetro em andamento.
+      try {
+        localStorage.removeItem('focusforge/timer-state');
+        localStorage.removeItem('focusforge/pomodoro-settings');
+        localStorage.removeItem('focusforge/active-workspace');
+      } catch {
+        // storage indisponível: nada a limpar
       }
 
       router.replace('/login');
@@ -193,7 +201,7 @@ export function TopNav() {
               className="w-80 justify-start bg-background border-border text-ink-muted hover:text-ink"
             >
               <Search className="mr-2 h-4 w-4" />
-              <span className="flex-1 text-left">Buscar projetos, tarefas...</span>
+              <span className="flex-1 text-left">Buscar {labels.projects.toLowerCase()}, {labels.tasks.toLowerCase()}...</span>
               <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border px-1.5 font-sans text-[10px] font-medium text-ink-muted">
                 ⌘K
               </kbd>
@@ -351,14 +359,14 @@ export function TopNav() {
         }}
       >
         <CommandInput
-          placeholder="Buscar por projetos ou tarefas"
+          placeholder={`Buscar por ${labels.projects.toLowerCase()} ou ${labels.tasks.toLowerCase()}`}
           value={searchQuery}
           onValueChange={setSearchQuery}
         />
         <CommandList>
           <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
           {filteredProjects.length > 0 && (
-            <CommandGroup heading="Projetos">
+            <CommandGroup heading={labels.projects}>
               {filteredProjects.map((project) => (
                 <CommandItem
                   key={project.id}
@@ -380,7 +388,7 @@ export function TopNav() {
             </CommandGroup>
           )}
           {filteredTasks.length > 0 && (
-            <CommandGroup heading="Tarefas">
+            <CommandGroup heading={labels.tasks}>
               {filteredTasks.map((task) => {
                 const project = projectMap[task.projectId];
                 return (

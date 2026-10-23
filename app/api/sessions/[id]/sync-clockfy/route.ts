@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createClockfyTimeEntry, buildClockfyDescription } from '@/lib/integrations/clockfy';
+import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertClockfyAllowedForProject } from '@/lib/auth/workspace-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,11 +12,12 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-
   try {
-    const session = await prisma.focusSession.findUnique({
-      where: { id },
+    const { userId } = await requireUser();
+    const { id } = await params;
+
+    const session = await prisma.focusSession.findFirst({
+      where: { id, userId },
       include: {
         project: true,
         task: { include: { comments: { orderBy: { createdAt: 'desc' } } } },
@@ -22,6 +27,8 @@ export async function POST(
     if (!session) {
       return NextResponse.json({ message: 'Sessão não encontrada' }, { status: 404 });
     }
+
+    await assertClockfyAllowedForProject(userId, session.projectId);
 
     if (session.clockfyTimeEntryId) {
       return NextResponse.json(session);
@@ -39,10 +46,10 @@ export async function POST(
       return NextResponse.json({ message: 'O projeto não está vinculado a um projeto do Clockfy.' }, { status: 400 });
     }
 
-    const settings = await prisma.clockfySettings.findFirst();
+    const { settings, apiKey } = await getClockfySettings(userId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
     const credentials = {
-      apiKey: settings?.apiKey ?? undefined,
+      apiKey,
       workspaceId: session.project?.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id,
     };
 
@@ -63,17 +70,12 @@ export async function POST(
     }
 
     const updated = await prisma.focusSession.update({
-      where: { id: session.id },
+      where: { id: session.id, userId },
       data: { clockfyTimeEntryId: timeEntryId },
     });
 
     return NextResponse.json(updated);
-  } catch (error: unknown) {
-    console.error('Clockfy manual sync failed', error);
-    const message = error instanceof Error ? error.message : undefined;
-    return NextResponse.json(
-      { message: message ?? 'Erro ao sincronizar com o Clockfy' },
-      { status: 500 },
-    );
+  } catch (error) {
+    return apiError(error);
   }
 }

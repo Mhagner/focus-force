@@ -12,9 +12,11 @@ import { useAppStore } from '@/stores/useAppStore';
 import { FocusDialog } from '@/components/focus/FocusDialog';
 import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
 import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopFive }: any) {
   const { projects, deleteTask, sessions } = useAppStore();
+  const { isStudy, labels } = useWorkspace();
   const [isFocusDialogOpen, setIsFocusDialogOpen] = useState(false);
   const router = useRouter();
   const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
@@ -98,7 +100,7 @@ export function TaskCard({ task, onEdit, disableCardClick, priorityScore, isTopF
         {task.description && (
           <p
             className="line-clamp-1 text-xs text-ink-muted hover:text-ink hover:underline cursor-pointer"
-            title={`Ir para o projeto ${project.name}`}
+            title={`Ir para ${isStudy ? 'a' : 'o'} ${labels.project.toLowerCase()} ${project.name}`}
             onClick={(e) => { e.stopPropagation(); router.push(`/projects/${project.id}`); }}
           >
             {task.description}

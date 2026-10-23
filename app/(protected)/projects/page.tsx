@@ -12,9 +12,11 @@ import { ProjectDialog } from '@/components/projects/ProjectDialog';
 import { ProjectListItem } from '@/components/projects/ProjectListItem';
 import { Project } from '@/types';
 import { LayoutGrid, List, Plus } from 'lucide-react';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 export default function ProjectsPage() {
   const { projects, tasks, updateProject } = useAppStore();
+  const { labels, isStudy } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -231,9 +233,11 @@ export default function ProjectsPage() {
     <div className="p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink mb-2">Projetos</h1>
+          <h1 className="font-display text-3xl font-bold text-ink mb-2">{labels.projects}</h1>
           <p className="text-ink-muted">
-            Gerencie seus projetos e acompanhe o progresso
+            {isStudy
+              ? 'Organize suas matérias e acompanhe seu progresso de estudo'
+              : 'Gerencie seus projetos e acompanhe o progresso'}
           </p>
         </div>
 
@@ -248,7 +252,7 @@ export default function ProjectsPage() {
                 }
               }}
               className="self-start rounded-lg border border-border bg-card p-1 text-ink-muted"
-              aria-label="Filtrar por status do projeto"
+              aria-label={`Filtrar por status d${isStudy ? 'a' : 'o'} ${labels.project.toLowerCase()}`}
             >
               <ToggleGroupItem
                 value="active"
@@ -296,7 +300,7 @@ export default function ProjectsPage() {
 
           <Button onClick={handleNewProject}>
             <Plus className="h-4 w-4 mr-2" />
-            Novo Projeto
+            {labels.newProject}
           </Button>
         </div>
       </div>
@@ -305,10 +309,10 @@ export default function ProjectsPage() {
         viewMode === 'list' ? (
           <div className="space-y-3">
             <div className="hidden md:grid md:grid-cols-[1.6fr_1fr_1fr_1fr_auto] px-4 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-              <span>Projeto</span>
-              <span>Cliente</span>
-              <span>Novas URLs</span>
-              <span>Data prevista</span>
+              <span>{labels.project}</span>
+              <span>{labels.clientField}</span>
+              <span>{isStudy ? '' : 'Novas URLs'}</span>
+              <span>{isStudy ? 'Data da prova' : 'Data prevista'}</span>
               <span className="text-right">Ações</span>
             </div>
 
@@ -340,11 +344,11 @@ export default function ProjectsPage() {
       ) : (
         <div className="text-center py-12">
           <p className="text-ink-muted mb-4">
-            Nenhum projeto {isActiveFilter ? 'ativo' : 'arquivado'} encontrado
+            Nenhum{isStudy ? 'a' : ''} {labels.project.toLowerCase()} {isActiveFilter ? `ativ${isStudy ? 'a' : 'o'}` : `arquivad${isStudy ? 'a' : 'o'}`} encontrad{isStudy ? 'a' : 'o'}
           </p>
           {isActiveFilter && (
             <Button onClick={handleNewProject}>
-              Criar Primeiro Projeto
+              {isStudy ? 'Criar primeira matéria' : 'Criar Primeiro Projeto'}
             </Button>
           )}
         </div>

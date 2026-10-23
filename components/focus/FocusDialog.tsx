@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { useTimerStore } from '@/stores/useTimerStore';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { getTodayTasks, cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ interface FocusDialogProps {
 
 export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskId, onStarted }: FocusDialogProps) {
   const { projects, tasks, sessionDescriptionPresets } = useAppStore();
+  const { isStudy, labels } = useWorkspace();
   const { startTimer, switchTask, isRunning } = useTimerStore();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -133,7 +135,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                       <span className="truncate">{selectedProject.name}</span>
                     </span>
                   ) : (
-                    <span className="text-ink-muted">Selecione um projeto</span>
+                    <span className="text-ink-muted">{isStudy ? 'Selecione uma matéria' : 'Selecione um projeto'}</span>
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -143,7 +145,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                 align="start"
               >
                 <Command>
-                  <CommandInput placeholder="Buscar projeto..." />
+                  <CommandInput placeholder={`Buscar ${labels.project.toLowerCase()}...`} />
                   <CommandList>
                     <CommandEmpty className="py-6">
                       Nenhum projeto encontrado.
@@ -199,7 +201,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                     {selectedTaskId ? (
                       <span className="flex items-center gap-2 truncate">
                         {selectedTaskId === 'none' ? (
-                          <span className="truncate">Sem tarefa específica</span>
+                          <span className="truncate">{isStudy ? 'Sem tópico específico' : 'Sem tarefa específica'}</span>
                         ) : (
                           <>
                             <PriorityTag priority={selectedTask?.priority || 'media'} />
@@ -208,7 +210,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                         )}
                       </span>
                     ) : (
-                      <span className="text-ink-muted">Selecione uma tarefa</span>
+                      <span className="text-ink-muted">{isStudy ? 'Selecione um tópico' : 'Selecione uma tarefa'}</span>
                     )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -218,7 +220,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                   align="start"
                 >
                   <Command>
-                    <CommandInput placeholder="Buscar tarefa..." />
+                    <CommandInput placeholder={`Buscar ${labels.task.toLowerCase()}...`} />
                     <CommandList>
                       <CommandEmpty className="py-6">
                         Nenhuma tarefa encontrada.
@@ -231,7 +233,7 @@ export function FocusDialog({ open, onOpenChange, initialProjectId, initialTaskI
                             setIsTaskOpen(false);
                           }}
                         >
-                          <span className="flex-1 truncate">Sem tarefa específica</span>
+                          <span className="flex-1 truncate">{isStudy ? 'Sem tópico específico' : 'Sem tarefa específica'}</span>
                           <Check
                             className={cn(
                               'h-4 w-4',

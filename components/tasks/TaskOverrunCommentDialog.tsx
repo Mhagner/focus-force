@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatDuration } from '@/lib/utils';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 interface TaskOverrunCommentDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ export function TaskOverrunCommentDialog({
 }: TaskOverrunCommentDialogProps) {
   const { addTaskComment, syncTaskCommentWithClockfy } = useAppStore();
   const { toast } = useToast();
+  const { isStudy, labels } = useWorkspace();
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,22 +41,25 @@ export function TaskOverrunCommentDialog({
     try {
       await addTaskComment(taskId, trimmed);
 
-      try {
-        const { updated, failed } = await syncTaskCommentWithClockfy(taskId);
-        if (failed > 0) {
+      // Workspaces de estudo não usam o Clockfy.
+      if (!isStudy) {
+        try {
+          const { updated, failed } = await syncTaskCommentWithClockfy(taskId);
+          if (failed > 0) {
+            toast({
+              title: 'Comentário sincronizado parcialmente com o Clockfy',
+              description: `${updated} de ${updated + failed} lançamentos atualizados.`,
+              variant: 'destructive',
+            });
+          }
+        } catch (error) {
+          console.error(error);
           toast({
-            title: 'Comentário sincronizado parcialmente com o Clockfy',
-            description: `${updated} de ${updated + failed} lançamentos atualizados.`,
+            title: 'Comentário salvo, mas não sincronizado com o Clockfy',
+            description: error instanceof Error ? error.message : undefined,
             variant: 'destructive',
           });
         }
-      } catch (error) {
-        console.error(error);
-        toast({
-          title: 'Comentário salvo, mas não sincronizado com o Clockfy',
-          description: error instanceof Error ? error.message : undefined,
-          variant: 'destructive',
-        });
       }
 
       setComment('');
@@ -71,15 +76,17 @@ export function TaskOverrunCommentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-accent-orange" />
-            Tarefa com tempo acima do esperado
+            {labels.task} com tempo acima do esperado
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <p className="text-sm text-ink-muted">
             <span className="font-semibold text-ink">{taskTitle}</span> acumulou{' '}
-            <span className="font-semibold text-accent-orange">{formatDuration(trackedSeconds)}</span> de trabalho.
-            Antes de concluir, explique o motivo do tempo extra para registro no Clockfy.
+            <span className="font-semibold text-accent-orange">{formatDuration(trackedSeconds)}</span> de {isStudy ? 'estudo' : 'trabalho'}.
+            {isStudy
+              ? ' Antes de concluir, registre uma observação sobre o tempo extra.'
+              : ' Antes de concluir, explique o motivo do tempo extra para registro no Clockfy.'}
           </p>
 
           <div>
@@ -87,7 +94,7 @@ export function TaskOverrunCommentDialog({
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Ex: Retrabalho por mudança de escopo do cliente"
+              placeholder={isStudy ? 'Ex: Assunto mais denso, precisei revisar a base' : 'Ex: Retrabalho por mudança de escopo do cliente'}
               className="resize-none"
               rows={3}
               autoFocus
@@ -109,7 +116,7 @@ export function TaskOverrunCommentDialog({
                   Salvando...
                 </>
               ) : (
-                'Concluir tarefa'
+                `Concluir ${labels.task.toLowerCase()}`
               )}
             </Button>
           </div>

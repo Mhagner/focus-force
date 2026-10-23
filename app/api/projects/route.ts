@@ -2,17 +2,31 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { ensureClockfySyncForProject } from '@/lib/integrations/clockfy';
+import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
+import { apiError } from '@/lib/api';
+import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { assertWorkspaceOwned, getDefaultWorkspaceId } from '@/lib/auth/ownership';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
+import { isStudyWorkspace } from '@/lib/auth/workspace-mode';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  const projects = await prisma.project.findMany({
-    orderBy: { createdAt: 'asc' },
-  });
-  return NextResponse.json(projects);
+export async function GET(req: Request) {
+  try {
+    const { userId } = await requireUser();
+    const workspaceId = await getWorkspaceFilter(userId, req.url);
+    const projects = await prisma.project.findMany({
+      where: { userId, ...(workspaceId ? { workspaceId } : {}) },
+      orderBy: { createdAt: 'asc' },
+    });
+    return NextResponse.json(projects);
+  } catch (err) {
+    return apiError(err);
+  }
 }
 
 export async function POST(req: Request) {
   try {
+    const { userId } = await requireUser();
     const body = await req.json();
 
     const optionalUrlSchema = z
@@ -79,20 +93,32 @@ export async function POST(req: Request) {
       salesforceOppUrl: optionalUrlSchema,
       sharepointRepoUrl: optionalUrlSchema,
       estimatedDeliveryDate: estimatedDateSchema,
+      workspaceId: z.string().min(1).optional(),
     });
 
     const parsed = schema.parse(body);
 
+    if (parsed.workspaceId) {
+      await assertWorkspaceOwned(userId, parsed.workspaceId);
+    }
+    const workspaceId = parsed.workspaceId ?? (await getDefaultWorkspaceId(userId));
+
+    // Em workspaces de estudo não existem Clockfy, valor/hora nem links de trabalho:
+    // ignoramos esses campos no servidor, mesmo que venham no corpo da requisição.
+    const isStudy = await isStudyWorkspace(userId, workspaceId);
+
     const data = {
+      userId,
+      workspaceId,
       name: parsed.name,
       client: parsed.client || undefined,
       color: parsed.color,
-      hourlyRate: parsed.hourlyRate !== undefined ? parsed.hourlyRate : undefined,
+      hourlyRate: !isStudy && parsed.hourlyRate !== undefined ? parsed.hourlyRate : undefined,
       active: parsed.active ?? true,
-      syncWithClockfy: parsed.syncWithClockfy ?? false,
-      clockfyWorkspaceId: parsed.clockfyWorkspaceId ?? undefined,
-      salesforceOppUrl: parsed.salesforceOppUrl ?? undefined,
-      sharepointRepoUrl: parsed.sharepointRepoUrl ?? undefined,
+      syncWithClockfy: isStudy ? false : parsed.syncWithClockfy ?? false,
+      clockfyWorkspaceId: isStudy ? undefined : parsed.clockfyWorkspaceId ?? undefined,
+      salesforceOppUrl: isStudy ? undefined : parsed.salesforceOppUrl ?? undefined,
+      sharepointRepoUrl: isStudy ? undefined : parsed.sharepointRepoUrl ?? undefined,
       estimatedDeliveryDate: parsed.estimatedDeliveryDate ?? undefined,
     };
 
@@ -102,17 +128,17 @@ export async function POST(req: Request) {
       return NextResponse.json(project);
     }
 
-    const settings = await prisma.clockfySettings.findFirst();
+    const { settings, apiKey } = await getClockfySettings(userId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
     const selectedWorkspaceId =
       parsed.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id ?? undefined;
 
     if (!selectedWorkspaceId) {
-      throw new Error('Nenhum workspace configurado para sincronizar com o Clockfy.');
+      throw new HttpError(400, 'Nenhum workspace configurado para sincronizar com o Clockfy.');
     }
 
     const credentials = {
-      apiKey: settings?.apiKey ?? undefined,
+      apiKey,
       workspaceId: selectedWorkspaceId,
     };
 
@@ -135,7 +161,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(project);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao criar projeto' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

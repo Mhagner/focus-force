@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Edit, Link2, MessageSquare, Archive, ArchiveRestore } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 interface ProjectListItemProps {
   project: Project;
@@ -28,6 +29,7 @@ export function ProjectListItem({
   commentCount,
 }: ProjectListItemProps) {
   const router = useRouter();
+  const { isStudy, labels } = useWorkspace();
   const isClockfyLinked = Boolean(project.clockfyProjectId);
   const clockfyStatus = project.syncWithClockfy
     ? isClockfyLinked
@@ -66,9 +68,11 @@ export function ProjectListItem({
               </Badge>
             )}
           </div>
-          <Badge variant={badgeVariant} className="mt-2 h-5 px-2 text-xs">
-            {badgeLabel}
-          </Badge>
+          {!isStudy && (
+            <Badge variant={badgeVariant} className="mt-2 h-5 px-2 text-xs">
+              {badgeLabel}
+            </Badge>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -83,13 +87,17 @@ export function ProjectListItem({
 
       <div className="flex items-center gap-2 text-sm text-ink-muted">
         <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-ink-muted">
-          Cliente
+          {labels.clientField}
         </span>
         <span className={project.client ? 'text-ink' : 'text-ink-muted'}>
           {project.client || '—'}
         </span>
       </div>
 
+      {isStudy ? (
+        // Matérias não têm links de Salesforce/SharePoint; mantém a coluna só para o alinhamento da grade.
+        <div className="hidden md:block" aria-hidden="true" />
+      ) : (
       <div className="flex items-center gap-2 text-sm text-ink-muted">
         <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-ink-muted">
           Novas URLs
@@ -125,10 +133,11 @@ export function ProjectListItem({
           )}
         </div>
       </div>
+      )}
 
       <div className="flex items-center gap-2 text-sm text-ink-muted">
         <span className="md:hidden text-xs font-semibold uppercase tracking-wide text-ink-muted">
-          Data prevista
+          {labels.dueDateField}
         </span>
         <Calendar className="h-4 w-4 text-ink-muted" />
         <span className={dateIsEmpty ? 'text-ink-muted' : 'text-ink font-medium'}>

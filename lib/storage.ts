@@ -1,5 +1,5 @@
 // src/lib/storage.ts
-import { Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, TaskBoardSettings, SessionDescriptionPreset } from '@/types';
+import { Workspace, WorkspaceMode, Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, TaskBoardSettings, SessionDescriptionPreset } from '@/types';
 
 /**
  * ------------------------------------------------------------
@@ -45,6 +45,10 @@ function withTimeout<T>(p: Promise<T>, ms: number, controller: AbortController):
       }
     );
   });
+}
+
+function withWorkspace(path: string, workspaceId?: string): string {
+  return workspaceId ? `${path}?workspaceId=${encodeURIComponent(workspaceId)}` : path;
 }
 
 /** Wrapper de fetch tipado e resiliente */
@@ -112,6 +116,11 @@ async function request<T>(
     } catch {
       payload = undefined;
     }
+  }
+
+  if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    // Sessão expirada/invalidada: volta para o login preservando o destino.
+    window.location.assign(`/login?from=${encodeURIComponent(window.location.pathname)}`);
   }
 
   if (!res.ok) {
@@ -193,8 +202,20 @@ export const storage = {
    * Projects
    * ---------------------------
    */
-  async getProjects(): Promise<Project[]> {
-    return request<Project[]>('/api/projects');
+  async getWorkspaces(): Promise<Workspace[]> {
+    return request<Workspace[]>('/api/workspaces');
+  },
+
+  async addWorkspace(input: { name: string; mode: WorkspaceMode }): Promise<Workspace> {
+    return request<Workspace>('/api/workspaces', { method: 'POST', body: input });
+  },
+
+  async updateWorkspace(id: string, updates: { name?: string; archived?: boolean }): Promise<Workspace> {
+    return request<Workspace>(`/api/workspaces/${id}`, { method: 'PATCH', body: updates });
+  },
+
+  async getProjects(workspaceId?: string): Promise<Project[]> {
+    return request<Project[]>(withWorkspace('/api/projects', workspaceId));
   },
 
   async addProject(project: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
@@ -220,8 +241,8 @@ export const storage = {
    * Tasks
    * ---------------------------
    */
-  async getTasks(): Promise<Task[]> {
-    return request<Task[]>('/api/tasks');
+  async getTasks(workspaceId?: string): Promise<Task[]> {
+    return request<Task[]>(withWorkspace('/api/tasks', workspaceId));
   },
 
   async addTask(task: TaskInput): Promise<Task> {
@@ -297,8 +318,8 @@ export const storage = {
    * Focus Sessions
    * ---------------------------
    */
-  async getSessions(): Promise<FocusSession[]> {
-    return request<FocusSession[]>('/api/sessions');
+  async getSessions(workspaceId?: string): Promise<FocusSession[]> {
+    return request<FocusSession[]>(withWorkspace('/api/sessions', workspaceId));
   },
 
   async addSession(session: Omit<FocusSession, 'id'>): Promise<FocusSession> {
@@ -392,12 +413,12 @@ export const storage = {
    * Daily Plans (database)
    * ---------------------------
    */
-  async getDailyPlans(): Promise<DailyPlan[]> {
-    return request<DailyPlan[]>('/api/daily-plans');
+  async getDailyPlans(workspaceId?: string): Promise<DailyPlan[]> {
+    return request<DailyPlan[]>(withWorkspace('/api/daily-plans', workspaceId));
   },
 
-  async saveDailyPlan(plan: DailyPlan): Promise<DailyPlan> {
-    return request<DailyPlan>('/api/daily-plans', {
+  async saveDailyPlan(plan: DailyPlan, workspaceId?: string): Promise<DailyPlan> {
+    return request<DailyPlan>(withWorkspace('/api/daily-plans', workspaceId), {
       method: 'POST',
       body: plan,
     });
@@ -412,7 +433,7 @@ export const storage = {
     return request<TaskBoardSettings>('/api/settings/tasks-board');
   },
 
-  async setTasksBoardSettings(settings: Pick<TaskBoardSettings, 'columns' | 'taskColumnMap'>): Promise<TaskBoardSettings> {
+  async setTasksBoardSettings(settings: Partial<Pick<TaskBoardSettings, 'columns' | 'taskColumnMap' | 'statusTitles'>>): Promise<TaskBoardSettings> {
     return request<TaskBoardSettings>('/api/settings/tasks-board', {
       method: 'PATCH',
       body: settings,

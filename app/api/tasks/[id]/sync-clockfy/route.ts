@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertClockfyAllowedForProject } from '@/lib/auth/workspace-mode';
 import { updateClockfyTimeEntry, buildClockfyDescription } from '@/lib/integrations/clockfy';
 
 export const dynamic = 'force-dynamic';
@@ -14,11 +18,11 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-
   try {
-    const task = await prisma.task.findUnique({
-      where: { id },
+    const { userId } = await requireUser();
+    const { id } = await params;
+    const task = await prisma.task.findFirst({
+      where: { id, userId },
       include: { comments: { orderBy: { createdAt: 'desc' } } },
     });
 
@@ -26,8 +30,10 @@ export async function POST(
       return NextResponse.json({ message: 'Tarefa não encontrada' }, { status: 404 });
     }
 
+    await assertClockfyAllowedForProject(userId, task.projectId);
+
     const syncedSessions = await prisma.focusSession.findMany({
-      where: { taskId: id, clockfyTimeEntryId: { not: null } },
+      where: { taskId: id, userId, clockfyTimeEntryId: { not: null } },
       orderBy: { end: 'desc' },
       include: { project: true },
     });
@@ -48,9 +54,8 @@ export async function POST(
       );
     }
 
-    const settings = await prisma.clockfySettings.findFirst();
+    const { settings, apiKey } = await getClockfySettings(userId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
-    const apiKey = settings?.apiKey ?? undefined;
 
     // Same comment on every Clockify entry of the task, so the report matches.
     const results = await Promise.allSettled(
@@ -80,11 +85,6 @@ export async function POST(
 
     return NextResponse.json({ ok: true, updated, failed });
   } catch (error: unknown) {
-    console.error('Clockfy task comment sync failed', error);
-    const message = error instanceof Error ? error.message : undefined;
-    return NextResponse.json(
-      { message: message ?? 'Erro ao sincronizar comentário com o Clockfy' },
-      { status: 500 },
-    );
+    return apiError(error);
   }
 }

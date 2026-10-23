@@ -1,14 +1,37 @@
 'use client';
 
 import { create } from 'zustand';
-import { Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, SessionDescriptionPreset } from '@/types';
+import { TaskBoardSettings, StatusTitles, TaskStatusKey, Workspace, WorkspaceMode, Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, SessionDescriptionPreset } from '@/types';
 import { storage } from '@/lib/storage';
 
 interface TasksFilters {
   showOnlyToday: boolean;
 }
 
+const ACTIVE_WORKSPACE_KEY = 'focusforge/active-workspace';
+
+function readActiveWorkspaceId(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveWorkspaceId(id: string) {
+  try {
+    localStorage.setItem(ACTIVE_WORKSPACE_KEY, id);
+  } catch {
+    // storage indisponível: o workspace ativo só não é lembrado
+  }
+}
+
 interface AppStore {
+  /** Mensagem quando o carregamento inicial falhou, total ou parcialmente; null se tudo carregou. */
+  initError: string | null;
+  statusTitles: StatusTitles;
+  workspaces: Workspace[];
+  activeWorkspaceId: string | null;
   projects: Project[];
   tasks: Task[];
   sessions: FocusSession[];
@@ -21,6 +44,13 @@ interface AppStore {
   isDataInitialized: boolean;
 
   initializeData: () => Promise<void>;
+
+  /** Renomeia uma coluna padrão do quadro no modo informado. `null` restaura o nome padrão. */
+  setStatusTitle: (mode: WorkspaceMode, status: TaskStatusKey, title: string | null) => Promise<void>;
+  setActiveWorkspace: (id: string) => Promise<void>;
+  addWorkspace: (input: { name: string; mode: WorkspaceMode }) => Promise<Workspace>;
+  renameWorkspace: (id: string, name: string) => Promise<void>;
+  setWorkspaceArchived: (id: string, archived: boolean) => Promise<void>;
 
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
@@ -84,6 +114,10 @@ export function subscribeToTasksChanges(onChange: () => void) {
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
+  initError: null,
+  statusTitles: { WORK: {}, STUDY: {} },
+  workspaces: [],
+  activeWorkspaceId: null,
   projects: [],
   tasks: [],
   sessions: [],
@@ -99,6 +133,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   clockfySettings: {
     apiKey: '',
+    hasApiKey: false,
     workspaceId: '',
     workspaces: [],
     updatedAt: null,
@@ -112,16 +147,62 @@ export const useAppStore = create<AppStore>((set, get) => ({
   isDataInitialized: false,
 
   initializeData: async () => {
-    const [projects, tasks, sessions, pomodoroSettings, clockfySettings, dailyPlans, sessionDescriptionPresets] = await Promise.all([
-      storage.getProjects(),
-      storage.getTasks(),
-      storage.getSessions(),
+    // Workspaces são pré-requisito de tudo: sem eles não há o que carregar.
+    let workspaces: Workspace[];
+    try {
+      workspaces = await storage.getWorkspaces();
+    } catch (error) {
+      console.error('[init] falha ao carregar os workspaces', error);
+      set({
+        initError: error instanceof Error ? error.message : 'Não foi possível carregar seus workspaces.',
+        isDataInitialized: true,
+      });
+      return;
+    }
+
+    const usable = workspaces.filter((workspace) => !workspace.archived);
+    // O id salvo no navegador só vale se ainda for um workspace ativo deste usuário.
+    const active = usable.find((workspace) => workspace.id === readActiveWorkspaceId()) ?? usable[0];
+    const workspaceId = active?.id;
+
+    // allSettled: uma requisição que falhe não impede o restante de carregar.
+    const results = await Promise.allSettled([
+      storage.getProjects(workspaceId),
+      storage.getTasks(workspaceId),
+      storage.getSessions(workspaceId),
       storage.getPomodoroSettings(),
       storage.getClockfySettings(),
-      storage.getDailyPlans(),
+      storage.getDailyPlans(workspaceId),
       storage.getSessionDescriptionPresets(),
+      storage.getTasksBoardSettings(),
     ]);
+
+    let failures = 0;
+    const pick = <T,>(index: number, fallback: T): T => {
+      const result = results[index];
+      if (result.status === 'fulfilled') return result.value as T;
+      failures += 1;
+      console.error(`[init] falha na requisição #${index}`, result.reason);
+      return fallback;
+    };
+
+    const projects = pick<Project[]>(0, []);
+    const tasks = pick<Task[]>(1, []);
+    const sessions = pick<FocusSession[]>(2, []);
+    const pomodoroSettings = pick<PomodoroSettings>(3, get().pomodoroSettings);
+    const clockfySettings = pick<ClockfySettings>(4, get().clockfySettings);
+    const dailyPlans = pick<DailyPlan[]>(5, []);
+    const sessionDescriptionPresets = pick<SessionDescriptionPreset[]>(6, []);
+    // O quadro é opcional aqui (só traz nomes personalizados de colunas): falha não conta como erro.
+    const boardResult = results[7];
+    const board = boardResult.status === 'fulfilled' ? (boardResult.value as TaskBoardSettings) : null;
+
+    if (workspaceId) writeActiveWorkspaceId(workspaceId);
     set({
+      initError: failures > 0 ? 'Alguns dados não puderam ser carregados. Tente novamente.' : null,
+      statusTitles: { WORK: board?.statusTitles?.WORK ?? {}, STUDY: board?.statusTitles?.STUDY ?? {} },
+      workspaces,
+      activeWorkspaceId: workspaceId ?? null,
       projects,
       tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
       sessions,
@@ -137,9 +218,69 @@ export const useAppStore = create<AppStore>((set, get) => ({
     });
   },
 
+  // Workspaces
+  setStatusTitle: async (mode, status, title) => {
+    const previous = get().statusTitles;
+    const nextForMode = { ...previous[mode] };
+    const trimmed = title?.trim().slice(0, 40);
+    if (trimmed) nextForMode[status] = trimmed;
+    else delete nextForMode[status];
+
+    const next: StatusTitles = { ...previous, [mode]: nextForMode };
+    set({ statusTitles: next });
+    try {
+      await storage.setTasksBoardSettings({ statusTitles: next });
+    } catch (error) {
+      set({ statusTitles: previous });
+      throw error;
+    }
+  },
+  setActiveWorkspace: async (id) => {
+    const target = get().workspaces.find((workspace) => workspace.id === id && !workspace.archived);
+    if (!target || get().activeWorkspaceId === id) return;
+
+    writeActiveWorkspaceId(id);
+    set({ activeWorkspaceId: id, projects: [], tasks: [], sessions: [], dailyPlans: [] });
+
+    const [projects, tasks, sessions, dailyPlans] = await Promise.all([
+      storage.getProjects(id),
+      storage.getTasks(id),
+      storage.getSessions(id),
+      storage.getDailyPlans(id),
+    ]);
+    // Se o usuário trocou de novo enquanto carregava, descarta esta resposta.
+    if (get().activeWorkspaceId !== id) return;
+    set({
+      projects,
+      tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
+      sessions,
+      dailyPlans,
+    });
+  },
+  addWorkspace: async (input) => {
+    const workspace = await storage.addWorkspace(input);
+    set((state) => ({ workspaces: [...state.workspaces, workspace] }));
+    return workspace;
+  },
+  renameWorkspace: async (id, name) => {
+    const workspace = await storage.updateWorkspace(id, { name });
+    set((state) => ({ workspaces: state.workspaces.map((w) => (w.id === id ? workspace : w)) }));
+  },
+  setWorkspaceArchived: async (id, archived) => {
+    const workspace = await storage.updateWorkspace(id, { archived });
+    set((state) => ({ workspaces: state.workspaces.map((w) => (w.id === id ? workspace : w)) }));
+    if (archived && get().activeWorkspaceId === id) {
+      const next = get().workspaces.find((w) => !w.archived);
+      if (next) await get().setActiveWorkspace(next.id);
+    }
+  },
+
   // Projects
   addProject: async (projectData) => {
-    const project = await storage.addProject(projectData);
+    const project = await storage.addProject({
+      ...projectData,
+      workspaceId: projectData.workspaceId ?? get().activeWorkspaceId,
+    });
     set((state) => ({ projects: [...state.projects, project] }));
     return project;
   },
@@ -169,7 +310,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     notifyTasksChanged();
   },
   refreshTasks: async () => {
-    const tasks = await storage.getTasks();
+    const tasks = await storage.getTasks(get().activeWorkspaceId ?? undefined);
     set({
       tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
     });
@@ -315,7 +456,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // Daily Plans
   updateDailyPlan: async (plan) => {
-    const savedPlan = await storage.saveDailyPlan(plan);
+    const savedPlan = await storage.saveDailyPlan(plan, get().activeWorkspaceId ?? undefined);
     set((state) => {
       const existingIndex = state.dailyPlans.findIndex(p => p.id === savedPlan.id || p.dateISO === savedPlan.dateISO);
       if (existingIndex >= 0) {

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
@@ -8,7 +11,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { userId } = await requireUser();
     const { id } = await params;
+    await assertTaskOwned(userId, id);
     const body = await req.json();
     const schema = z.object({
       message: z.string().min(1, 'Comentário obrigatório'),
@@ -23,14 +28,14 @@ export async function POST(
 
     const comment = await prisma.taskComment.create({
       data: {
+        userId,
         taskId: id,
         message: trimmedMessage,
       },
     });
 
     return NextResponse.json(comment);
-  } catch (err: any) {
-    const message = err?.message ?? 'Erro ao adicionar comentário';
-    return NextResponse.json({ message }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

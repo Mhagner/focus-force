@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/stores/useAppStore';
 import { useToast } from '@/hooks/use-toast';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { ProjectBadge } from '@/components/ui/project-badge';
 import { formatDuration, getProjectHoursForDate } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -26,6 +27,8 @@ import { ptBR } from 'date-fns/locale';
 export default function PlanPage() {
   const { projects, dailyPlans, sessions, tasks, updateDailyPlan } = useAppStore();
   const { toast } = useToast();
+  const { isStudy, labels } = useWorkspace();
+  const tasksLower = labels.tasks.toLowerCase();
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const selectedDateISO = useMemo(
@@ -127,7 +130,7 @@ export default function PlanPage() {
 
   const handleLoadTodayTasks = () => {
     if (plannedTasksForDate.length === 0) {
-      toast({ title: 'Nenhuma tarefa planejada para este dia' });
+      toast({ title: `Nenhum ${labels.task.toLowerCase()} planejado para este dia` });
       return;
     }
 
@@ -149,10 +152,10 @@ export default function PlanPage() {
     });
 
     toast({
-      title: `${plannedTasksForDate.length} tarefa(s) carregada(s)`,
+      title: `${plannedTasksForDate.length} ${isStudy ? 'tópico(s)' : 'tarefa(s)'} carregado(s)`,
       description: newBlocks > 0
         ? `${newBlocks} bloco(s) adicionado(s) ao planejamento`
-        : 'Todos os projetos já estavam nos blocos',
+        : `Tod${isStudy ? 'as as matérias' : 'os os projetos'} já estavam nos blocos`,
     });
   };
 
@@ -172,93 +175,18 @@ export default function PlanPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-ink mb-2">Planejamento Diário</h1>
-          <p className="text-ink-muted">
-            {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
-        </div>
+      <header className="mb-6 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="font-display text-3xl font-bold text-ink mb-1">
+              {isStudy ? 'Plano de Estudos' : 'Planejamento Diário'}
+            </h1>
+            <p className="text-ink-muted first-letter:uppercase">
+              {format(selectedDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-ink-muted hover:text-ink"
-            onClick={() => setSelectedDate(prev => addDays(prev, -1))}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <CalendarIcon className="h-4 w-4" />
-                {format(selectedDate, "dd/MM/yyyy")}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                locale={ptBR}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-ink-muted hover:text-ink"
-            onClick={() => setSelectedDate(prev => addDays(prev, 1))}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            className="text-ink-muted hover:text-ink"
-            onClick={() => setSelectedDate(new Date())}
-            disabled={isToday(selectedDate)}
-          >
-            Hoje
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleLoadTodayTasks}
-            disabled={isSaving}
-            title={plannedTasksForDate.length === 0 ? 'Nenhuma tarefa planejada para este dia' : undefined}
-          >
-            <ListChecks className="h-4 w-4 mr-2" />
-            Carregar tarefas do dia
-            {plannedTasksForDate.length > 0 && (
-              <span className="ml-2 rounded-full bg-accent-blue/[0.14] px-1.5 py-0.5 text-xs text-accent-blue">
-                {plannedTasksForDate.length}
-              </span>
-            )}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={handleCopyPreviousDay}
-            disabled={isSaving}
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copiar dia anterior
-          </Button>
-
-          <Button
-            onClick={handleSave}
-            disabled={isSaving}
-          >
+          <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -272,7 +200,81 @@ export default function PlanPage() {
             )}
           </Button>
         </div>
-      </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-2">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-ink-muted hover:text-ink"
+              aria-label="Dia anterior"
+              onClick={() => setSelectedDate(prev => addDays(prev, -1))}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  {format(selectedDate, 'dd/MM/yyyy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  locale={ptBR}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-ink-muted hover:text-ink"
+              aria-label="Próximo dia"
+              onClick={() => setSelectedDate(prev => addDays(prev, 1))}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="text-ink-muted hover:text-ink"
+              onClick={() => setSelectedDate(new Date())}
+              disabled={isToday(selectedDate)}
+            >
+              Hoje
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLoadTodayTasks}
+              disabled={isSaving}
+              title={plannedTasksForDate.length === 0 ? `Nenhum ${labels.task.toLowerCase()} planejado para este dia` : undefined}
+            >
+              <ListChecks className="h-4 w-4 mr-2" />
+              Carregar {tasksLower} do dia
+              {plannedTasksForDate.length > 0 && (
+                <span className="ml-2 rounded-full bg-accent-blue/[0.14] px-1.5 py-0.5 text-xs text-accent-blue">
+                  {plannedTasksForDate.length}
+                </span>
+              )}
+            </Button>
+
+            <Button variant="outline" size="sm" onClick={handleCopyPreviousDay} disabled={isSaving}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copiar dia anterior
+            </Button>
+          </div>
+        </div>
+      </header>
 
       {/* Progress Overview */}
       <Card className="p-6 mb-6">
@@ -283,7 +285,7 @@ export default function PlanPage() {
 
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-ink-muted">Tempo trabalhado vs planejado</span>
+            <span className="text-ink-muted">Tempo {isStudy ? 'estudado' : 'trabalhado'} vs planejado</span>
             <span className="text-ink">
               {formatDuration(Math.round(totalWorkedMinutes * 60))} / {formatDuration(totalPlanned * 60)}
             </span>
@@ -310,12 +312,12 @@ export default function PlanPage() {
 
       {/* Time Blocks */}
       <Card className="p-6 mb-6">
-        <h2 className="text-lg font-semibold text-ink mb-4">Blocos de Tempo</h2>
+        <h2 className="text-lg font-semibold text-ink mb-4">{isStudy ? 'Blocos de Estudo' : 'Blocos de Tempo'}</h2>
 
         <div className="flex items-center gap-2 mb-6">
           <Select value={newProjectId} onValueChange={setNewProjectId}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Selecionar projeto" />
+              <SelectValue placeholder={`Selecionar ${labels.project.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
               {availableProjects.map(p => (
@@ -347,7 +349,7 @@ export default function PlanPage() {
                         {formatDuration(block.targetMinutes * 60)}
                       </p>
                       <p className="text-xs text-ink-muted">
-                        {formatDuration(Math.round(workedMinutes * 60))} trabalhados
+                        {formatDuration(Math.round(workedMinutes * 60))} {isStudy ? 'estudados' : 'trabalhados'}
                       </p>
                     </div>
                     <Button
@@ -383,7 +385,11 @@ export default function PlanPage() {
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Adicione observações sobre o dia, objetivos ou comentários..."
+          placeholder={
+            isStudy
+              ? 'Adicione observações sobre o dia, metas de estudo ou pontos para revisar...'
+              : 'Adicione observações sobre o dia, objetivos ou comentários...'
+          }
           className="min-h-24"
         />
       </Card>

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { ensureClockfySyncForProject } from '@/lib/integrations/clockfy';
+import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
+import { apiError } from '@/lib/api';
+import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { isStudyProject } from '@/lib/auth/workspace-mode';
 export const dynamic = 'force-dynamic';
 
 interface Params { params: { id: string } }
@@ -11,6 +15,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { userId } = await requireUser();
     const { id } = await params;
     const body = await req.json();
     const optionalUrlSchema = z
@@ -80,6 +85,15 @@ export async function PATCH(
 
     const parsed = schema.parse(body);
 
+    // Matérias (workspace de estudo) não têm Clockfy, valor/hora nem links de trabalho.
+    if (await isStudyProject(userId, id)) {
+      parsed.syncWithClockfy = undefined;
+      parsed.clockfyWorkspaceId = undefined;
+      parsed.hourlyRate = undefined;
+      parsed.salesforceOppUrl = undefined;
+      parsed.sharepointRepoUrl = undefined;
+    }
+
     const data: any = {};
     if (parsed.name !== undefined) data.name = parsed.name;
     if (parsed.client !== undefined) data.client = parsed.client || undefined;
@@ -99,7 +113,7 @@ export async function PATCH(
       }
     }
 
-    const project = await prisma.project.update({ where: { id }, data });
+    const project = await prisma.project.update({ where: { id, userId }, data });
 
     const shouldAttemptSync =
       project.syncWithClockfy &&
@@ -112,17 +126,17 @@ export async function PATCH(
       );
 
     if (shouldAttemptSync) {
-      const settings = await prisma.clockfySettings.findFirst();
+      const { settings, apiKey } = await getClockfySettings(userId);
       const workspaces = (settings?.workspaces as any[]) ?? [];
       const selectedWorkspaceId =
         parsed.clockfyWorkspaceId ?? project.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id;
 
       if (!selectedWorkspaceId) {
-        throw new Error('Nenhum workspace configurado para sincronizar com o Clockfy.');
+        throw new HttpError(400, 'Nenhum workspace configurado para sincronizar com o Clockfy.');
       }
 
       const credentials = {
-        apiKey: settings?.apiKey ?? undefined,
+        apiKey,
         workspaceId: selectedWorkspaceId ?? undefined,
       };
 
@@ -134,7 +148,7 @@ export async function PATCH(
 
       if (syncResult?.projectId || syncResult?.clientId) {
         const updated = await prisma.project.update({
-          where: { id },
+          where: { id, userId },
           data: {
             clockfyProjectId: syncResult.projectId ?? project.clockfyProjectId ?? undefined,
             clockfyClientId: syncResult.clientId ?? project.clockfyClientId ?? undefined,
@@ -151,8 +165,8 @@ export async function PATCH(
     }
 
     return NextResponse.json(project);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao atualizar projeto' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }
 
@@ -160,7 +174,12 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  await prisma.project.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    const { userId } = await requireUser();
+    const { id } = await params;
+    await prisma.project.delete({ where: { id, userId } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return apiError(err);
+  }
 }

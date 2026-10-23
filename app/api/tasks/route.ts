@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
-export async function GET() {
+export async function GET(req: Request) {
+  try {
+  const { userId } = await requireUser();
+  const workspaceId = await getWorkspaceFilter(userId, req.url);
   const tasks = await prisma.task.findMany({
+    where: { userId, ...(workspaceId ? { project: { workspaceId } } : {}) },
     include: {
       comments: {
         orderBy: { createdAt: 'desc' },
@@ -16,10 +24,14 @@ export async function GET() {
     orderBy: { createdAt: 'asc' },
   });
   return NextResponse.json(tasks);
+  } catch (err) {
+    return apiError(err);
+  }
 }
 
 export async function POST(req: Request) {
   try {
+    const { userId } = await requireUser();
     const body = await req.json();
 
     const optionalUrlSchema = z
@@ -72,8 +84,8 @@ export async function POST(req: Request) {
 
     const schema = z.object({
       projectId: z.string().min(1),
-      title: z.string().min(1),
-      description: z.string().optional().nullable(),
+      title: z.string().trim().min(1).max(200),
+      description: z.string().max(10000).optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
       status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
@@ -88,6 +100,7 @@ export async function POST(req: Request) {
     });
 
     const parsed = schema.parse(body);
+    await assertProjectOwned(userId, parsed.projectId);
 
     const bodyHasDescription =
       typeof body === 'object' && body !== null && Object.prototype.hasOwnProperty.call(body, 'description');
@@ -95,6 +108,7 @@ export async function POST(req: Request) {
       typeof body === 'object' && body !== null && Object.prototype.hasOwnProperty.call(body, 'plannedFor');
 
     const data: {
+      userId: string;
       projectId: string;
       title: string;
       priority: 'alta' | 'media' | 'baixa';
@@ -106,6 +120,7 @@ export async function POST(req: Request) {
       repoUrl?: string | null;
       estimatedDeliveryDate?: Date | null;
     } = {
+      userId,
       projectId: parsed.projectId,
       title: parsed.title,
       priority: parsed.priority ?? 'media',
@@ -136,14 +151,14 @@ export async function POST(req: Request) {
       data.estimatedDeliveryDate = parsed.estimatedDeliveryDate;
     }
 
-    const settings = await prisma.pomodoroSettings.findFirst();
+    const settings = await prisma.pomodoroSettings.findUnique({ where: { userId } });
     const defaultChecklist = Array.isArray(settings?.defaultChecklist)
       ? settings?.defaultChecklist.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
       : [];
 
     if (defaultChecklist.length > 0) {
       (data as any).subtasks = {
-        create: defaultChecklist.map((title) => ({ title })),
+        create: defaultChecklist.map((title) => ({ title, userId })),
       };
     }
 
@@ -159,7 +174,7 @@ export async function POST(req: Request) {
       },
     });
     return NextResponse.json(task);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao criar tarefa' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

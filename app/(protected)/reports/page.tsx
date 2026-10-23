@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { useAppStore } from '@/stores/useAppStore';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { formatDuration, exportToCsv, getTotalWorkSecondsForDate } from '@/lib/utils';
 import { exportSessionsReportToPdf, DailyHoursPoint } from '@/lib/report-pdf';
 import { ProjectBadge } from '@/components/ui/project-badge';
@@ -30,6 +31,7 @@ import { ptBR } from 'date-fns/locale';
 
 export default function ReportsPage() {
   const { sessions, projects, tasks, deleteSession, dailyPlans, syncSessionWithClockfy, clockfySettings } = useAppStore();
+  const { isStudy, labels, workspace } = useWorkspace();
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
@@ -225,17 +227,26 @@ export default function ReportsPage() {
     .filter(p => p.value > 0);
 
   // Export functions
+  // Nome do arquivo identifica o workspace (ex.: concurso-trf), sem acentos nem caracteres especiais.
+  const workspaceSlug = (workspace?.name ?? 'workspace')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'workspace';
+
   const handleExportSessions = () => {
     const exportData = filteredSessions.map(session => {
       const project = projects.find(p => p.id === session.projectId);
       const task = session.taskId ? tasks.find(t => t.id === session.taskId) : null;
 
       return {
+        'Workspace': workspace?.name ?? '',
         'Data': format(new Date(session.start), 'dd/MM/yyyy'),
         'Início': format(new Date(session.start), 'HH:mm'),
         'Fim': session.end ? format(new Date(session.end), 'HH:mm') : 'Em andamento',
-        'Projeto': project?.name || 'N/A',
-        'Tarefa': task?.title || 'Sem tarefa',
+        [labels.project]: project?.name || 'N/A',
+        [labels.task]: task?.title || (isStudy ? 'Sem tópico' : 'Sem tarefa'),
         'Duração': formatDuration(session.durationSec),
         'Tipo': session.type === 'pomodoro' ? 'Pomodoro' : 'Manual',
         'Ciclos': session.pomodoroCycles || 0,
@@ -243,7 +254,7 @@ export default function ReportsPage() {
       };
     });
 
-    exportToCsv(exportData, `focusforge-sessoes-${startDate}-${endDate}.csv`);
+    exportToCsv(exportData, `focusforge-${workspaceSlug}-${isStudy ? 'estudos' : 'sessoes'}-${startDate}-${endDate}.csv`);
   };
 
   const handleExportPdf = async () => {
@@ -256,7 +267,9 @@ export default function ReportsPage() {
         startDate: format(pickerStart, 'dd/MM/yyyy'),
         endDate: format(pickerEnd, 'dd/MM/yyyy'),
         dailyData,
-        filename: `focusforge-sessoes-${startDate}-${endDate}.pdf`,
+        filename: `focusforge-${workspaceSlug}-${isStudy ? 'estudos' : 'sessoes'}-${startDate}-${endDate}.pdf`,
+        workspaceName: workspace?.name,
+        isStudy,
       });
     } catch (error) {
       console.error(error);
@@ -379,10 +392,10 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {workspaces.length > 0 && (
+          {!isStudy && workspaces.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-ink-muted mb-2">
-                Workspace
+                Workspace do Clockfy
               </label>
               <Select value={selectedWorkspaceId} onValueChange={handleWorkspaceChange}>
                 <SelectTrigger className="min-w-[200px]">
@@ -402,14 +415,14 @@ export default function ReportsPage() {
 
           <div>
             <label className="block text-sm font-medium text-ink-muted mb-2">
-              Projeto
+              {labels.project}
             </label>
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
               <SelectTrigger className="min-w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os projetos</SelectItem>
+                <SelectItem value="all">Tod{isStudy ? 'as as matérias' : 'os os projetos'}</SelectItem>
                 {activeProjects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     <div className="flex items-center gap-2">
@@ -450,14 +463,14 @@ export default function ReportsPage() {
         <Card className="p-6">
           <div className="text-center">
             <p className="text-3xl font-bold text-ink">{projectHours.length}</p>
-            <p className="text-sm text-ink-muted">Projetos Ativos</p>
+            <p className="text-sm text-ink-muted">{isStudy ? 'Matérias Ativas' : 'Projetos Ativos'}</p>
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="text-center">
             <p className="text-3xl font-bold text-ink">{completedTasks}</p>
-            <p className="text-sm text-ink-muted">Tarefas Concluídas</p>
+            <p className="text-sm text-ink-muted">{isStudy ? 'Tópicos Concluídos' : 'Tarefas Concluídas'}</p>
           </div>
         </Card>
       </div>
@@ -493,7 +506,7 @@ export default function ReportsPage() {
         </Card>
 
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-ink mb-4">Distribuição por Projeto</h3>
+          <h3 className="text-lg font-semibold text-ink mb-4">Distribuição por {labels.project}</h3>
           <div className="h-64">
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -531,7 +544,7 @@ export default function ReportsPage() {
               <tr className="text-left text-ink-muted">
                 <th className="p-2">Dia</th>
                 <th className="p-2">Planejado</th>
-                <th className="p-2">Trabalhado</th>
+                <th className="p-2">{isStudy ? 'Estudado' : 'Trabalhado'}</th>
                 <th className="p-2">Eficiência</th>
               </tr>
             </thead>
@@ -558,7 +571,7 @@ export default function ReportsPage() {
 
       {/* Top Projects */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-ink mb-4">Top 3 Projetos</h2>
+        <h2 className="text-lg font-semibold text-ink mb-4">Top 3 {labels.projects}</h2>
 
         {projectHours.length > 0 ? (
           <div className="space-y-3">
@@ -604,8 +617,8 @@ export default function ReportsPage() {
                   <th className="p-2">Data</th>
                   <th className="p-2">Início</th>
                   <th className="p-2">Fim</th>
-                  <th className="p-2">Projeto</th>
-                  <th className="p-2">Tarefa</th>
+                  <th className="p-2">{labels.project}</th>
+                  <th className="p-2">{labels.task}</th>
                   <th className="p-2">Duração</th>
                   <th className="p-2 text-right">Ações</th>
                 </tr>

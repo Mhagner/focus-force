@@ -16,6 +16,10 @@ interface ExportSessionsReportParams {
   endDate: string;
   dailyData: DailyHoursPoint[];
   filename: string;
+  /** Nome do workspace exibido no cabeçalho do relatório. */
+  workspaceName?: string;
+  /** Workspace de Estudos: usa matéria/tópico e omite valores financeiros. */
+  isStudy?: boolean;
 }
 
 const PAGE_MARGIN = 12;
@@ -89,7 +93,7 @@ type SessionGroup = {
   sessions: FocusSession[];
 };
 
-function groupSessions(sessions: FocusSession[], tasks: Task[]): SessionGroup[] {
+function groupSessions(sessions: FocusSession[], tasks: Task[], noTaskLabel: string): SessionGroup[] {
   const byProject = new Map<string, FocusSession[]>();
   for (const session of sessions) {
     const list = byProject.get(session.projectId) ?? [];
@@ -129,7 +133,7 @@ function groupSessions(sessions: FocusSession[], tasks: Task[]): SessionGroup[] 
 
       return {
         key: taskKey,
-        label: task?.title ?? 'Sem tarefa',
+        label: task?.title ?? noTaskLabel,
         durationSec: taskSessions.reduce((sum: number, s: FocusSession) => sum + s.durationSec, 0),
         children: descriptionGroups,
         sessions: taskSessions,
@@ -156,7 +160,13 @@ export async function exportSessionsReportToPdf({
   endDate,
   dailyData,
   filename,
+  workspaceName,
+  isStudy = false,
 }: ExportSessionsReportParams): Promise<void> {
+  const L = isStudy
+    ? { title: 'Relatório de Estudos', project: 'Matéria', projects: 'Matérias', task: 'Tópico', noTask: 'Sem tópico', removed: 'Matéria removida' }
+    : { title: 'Relatório de Sessões', project: 'Projeto', projects: 'Projetos', task: 'Tarefa', noTask: 'Sem tarefa', removed: 'Projeto removido' };
+
   const doc = new jsPDF({ orientation: 'portrait' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -180,35 +190,48 @@ export async function exportSessionsReportToPdf({
   // Header
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('Relatório de Sessões', PAGE_MARGIN, y);
+  doc.text(L.title, PAGE_MARGIN, y);
   y += 8;
+
+  if (workspaceName) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Workspace: ${workspaceName}`, PAGE_MARGIN, y);
+    y += 6;
+  }
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Período: ${startDate} – ${endDate}`, PAGE_MARGIN, y);
   y += 6;
-  doc.text(`Total: ${formatDuration(totalSeconds)}    Faturável: ${formatCurrency(totalValue)}`, PAGE_MARGIN, y);
+  doc.text(
+    isStudy
+      ? `Total estudado: ${formatDuration(totalSeconds)}`
+      : `Total: ${formatDuration(totalSeconds)}    Faturável: ${formatCurrency(totalValue)}`,
+    PAGE_MARGIN,
+    y,
+  );
   y += 10;
 
   // Project list with percentage
-  const projectGroups = groupSessions(sessions, tasks);
+  const projectGroups = groupSessions(sessions, tasks, L.noTask);
   const groupsWithNames = projectGroups.map(group => ({
     ...group,
-    label: projects.find(p => p.id === group.key)?.name ?? 'Projeto removido',
+    label: projects.find(p => p.id === group.key)?.name ?? L.removed,
   }));
 
   if (groupsWithNames.length > 0) {
     doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
     ensureSpace(LINE_HEIGHT + 4);
-    doc.text('Projetos', PAGE_MARGIN, y);
+    doc.text(L.projects, PAGE_MARGIN, y);
     y += 4;
 
     autoTable(doc, {
       startY: y,
       margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
       theme: 'plain',
-      head: [['Projeto', 'Duração', '%']],
+      head: [[L.project, 'Duração', '%']],
       body: groupsWithNames.map(group => {
         const pct = totalSeconds > 0 ? (group.durationSec / totalSeconds) * 100 : 0;
         return [group.label, formatDuration(group.durationSec), `${pct.toFixed(1)}%`];
@@ -253,7 +276,7 @@ export async function exportSessionsReportToPdf({
   ensureSpace(LINE_HEIGHT + 6);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text('Detalhamento por Projeto / Tarefa / Descrição', PAGE_MARGIN, y);
+  doc.text(`Detalhamento por ${L.project} / ${L.task} / Descrição`, PAGE_MARGIN, y);
   y += 4;
 
   type RowLevel = 'project' | 'task' | 'description';
@@ -274,7 +297,7 @@ export async function exportSessionsReportToPdf({
           level: 'description',
           label: descGroup.label,
           duration: formatDuration(descGroup.durationSec),
-          value: rate > 0 ? formatCurrency(value) : '',
+          value: !isStudy && rate > 0 ? formatCurrency(value) : '',
         });
       }
     }
@@ -290,8 +313,8 @@ export async function exportSessionsReportToPdf({
     startY: y,
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
     theme: 'grid',
-    head: [['Projeto / Tarefa / Descrição', 'Duração', 'Valor']],
-    body: rows.map(row => [row.label, row.duration, row.value]),
+    head: [isStudy ? [`${L.project} / ${L.task} / Descrição`, 'Duração'] : [`${L.project} / ${L.task} / Descrição`, 'Duração', 'Valor']],
+    body: rows.map(row => (isStudy ? [row.label, row.duration] : [row.label, row.duration, row.value])),
     headStyles: {
       fillColor: [229, 231, 235],
       textColor: [55, 65, 81],
@@ -303,10 +326,12 @@ export async function exportSessionsReportToPdf({
       lineColor: [229, 231, 235],
       lineWidth: 0.1,
     },
-    columnStyles: {
-      1: { halign: 'right', cellWidth: 28 },
-      2: { halign: 'right', cellWidth: 28 },
-    },
+    columnStyles: isStudy
+      ? { 1: { halign: 'right', cellWidth: 28 } }
+      : {
+          1: { halign: 'right', cellWidth: 28 },
+          2: { halign: 'right', cellWidth: 28 },
+        },
     didParseCell: (data) => {
       if (data.section !== 'body') return;
       const row = rows[data.row.index];

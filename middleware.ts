@@ -1,36 +1,40 @@
-import type { NextRequest } from 'next/server';
+import NextAuth from 'next-auth';
 import { NextResponse } from 'next/server';
 
-import { ACCESS_COOKIE_NAME } from '@/lib/auth';
+import { authConfig } from '@/auth.config';
 
-const PUBLIC_ROUTES = ['/login'];
-const AUTH_API_ROUTES = ['/api/auth/login', '/api/auth/logout'];
+// Instância leve (Edge): só decodifica o JWT da sessão. A autorização real
+// (usuário existe, sessão não invalidada, dono do recurso) é feita em requireUser().
+const { auth } = NextAuth(authConfig);
 
-export function middleware(request: NextRequest) {
+const PUBLIC_PAGES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+const PUBLIC_API_PREFIX = '/api/auth/';
+// Páginas de auth que não fazem sentido para quem já está logado.
+const GUEST_ONLY_PAGES = ['/login', '/register', '/forgot-password'];
+
+const matchesRoute = (pathname: string, routes: string[]) =>
+  routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+
+export default auth((request) => {
   const { pathname } = request.nextUrl;
-  const hasAccessCookie = Boolean(request.cookies.get(ACCESS_COOKIE_NAME));
-  const isLoginRoute = PUBLIC_ROUTES.some((route) =>
-    pathname === route || pathname.startsWith(`${route}/`)
-  );
-  const isAuthApiRoute = AUTH_API_ROUTES.some((route) => pathname.startsWith(route));
+  const isLoggedIn = Boolean(request.auth);
   const isApiRoute = pathname.startsWith('/api');
 
-  if (isLoginRoute) {
-    if (hasAccessCookie) {
+  if (pathname.startsWith(PUBLIC_API_PREFIX) || request.method === 'OPTIONS') {
+    return NextResponse.next();
+  }
+
+  if (matchesRoute(pathname, PUBLIC_PAGES)) {
+    if (isLoggedIn && matchesRoute(pathname, GUEST_ONLY_PAGES)) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = '/';
-      redirectUrl.searchParams.delete('from');
+      redirectUrl.search = '';
       return NextResponse.redirect(redirectUrl);
     }
-
     return NextResponse.next();
   }
 
-  if (isAuthApiRoute || request.method === 'OPTIONS') {
-    return NextResponse.next();
-  }
-
-  if (hasAccessCookie) {
+  if (isLoggedIn) {
     return NextResponse.next();
   }
 
@@ -40,13 +44,12 @@ export function middleware(request: NextRequest) {
 
   const loginUrl = request.nextUrl.clone();
   loginUrl.pathname = '/login';
-
+  loginUrl.search = '';
   if (pathname && pathname !== '/') {
     loginUrl.searchParams.set('from', pathname);
   }
-
   return NextResponse.redirect(loginUrl);
-}
+});
 
 export const config = {
   matcher: [

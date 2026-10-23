@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useAppStore } from '@/stores/useAppStore';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import clsx from 'clsx';
@@ -26,6 +27,7 @@ const DEFAULT_ZOOM_INDEX = 1;
 
 export default function CalendarPage() {
   const { sessions, tasks, projects, addSession, updateSession } = useAppStore();
+  const { isStudy, labels } = useWorkspace();
   const [view, setView] = useState<ViewType>(ViewType.Month);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [zoomIndex, setZoomIndex] = useState(DEFAULT_ZOOM_INDEX);
@@ -121,7 +123,7 @@ export default function CalendarPage() {
       if (existing) existing.totalSeconds += session.durationSec;
       else map.set(key, {
         key,
-        title: task?.title ?? 'Sessão sem tarefa',
+        title: task?.title ?? (isStudy ? 'Sessão sem tópico' : 'Sessão sem tarefa'),
         projectName: project?.name ?? '',
         color: project?.color,
         totalSeconds: session.durationSec,
@@ -321,7 +323,7 @@ export default function CalendarPage() {
             {[
               { label: 'Tempo total', value: totalSecondsForDate > 0 ? formatDuration(totalSecondsForDate) : '—' },
               { label: 'Sessões', value: sessionsForDate.length > 0 ? String(sessionsForDate.length) : '—' },
-              { label: 'Tarefas', value: taskSummaries.length > 0 ? String(taskSummaries.length) : '—' },
+              { label: labels.tasks, value: taskSummaries.length > 0 ? String(taskSummaries.length) : '—' },
             ].map(({ label, value }) => (
               <Card key={label} className="px-4 py-3 text-center">
                 <div className="text-2xl font-bold text-ink">{value}</div>
@@ -357,7 +359,7 @@ export default function CalendarPage() {
 
             {/* Task summary */}
             <Card className="p-4">
-              <h3 className="mb-3 text-sm font-semibold text-ink">Tarefas trabalhadas</h3>
+              <h3 className="mb-3 text-sm font-semibold text-ink">{isStudy ? 'Tópicos estudados' : 'Tarefas trabalhadas'}</h3>
               {taskSummaries.length === 0 ? (
                 <div className="py-10 text-center text-sm text-ink-muted">—</div>
               ) : (

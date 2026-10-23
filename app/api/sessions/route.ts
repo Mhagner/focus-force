@@ -3,28 +3,50 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 import { createClockfyTimeEntry, buildClockfyDescription } from '@/lib/integrations/clockfy';
+import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
 
-export async function GET() {
-  const sessions = await prisma.focusSession.findMany();
-  return NextResponse.json(sessions);
+export async function GET(req: Request) {
+  try {
+    const { userId } = await requireUser();
+    const workspaceId = await getWorkspaceFilter(userId, req.url);
+    const sessions = await prisma.focusSession.findMany({
+      where: { userId, ...(workspaceId ? { project: { workspaceId } } : {}) },
+    });
+    return NextResponse.json(sessions);
+  } catch (err) {
+    return apiError(err);
+  }
 }
+
+const isoDate = z.string().min(1).refine((value) => !Number.isNaN(new Date(value).getTime()), 'Data inválida');
 
 export async function POST(req: Request) {
   try {
+    const { userId } = await requireUser();
     const body = await req.json();
     const schema = z.object({
       projectId: z.string().min(1),
       taskId: z.string().optional().nullable(),
-      start: z.string().min(1),
-      end: z.string().optional().nullable(),
+      start: isoDate,
+      end: isoDate.optional().nullable(),
       durationSec: z.number().int().nonnegative(),
       type: z.enum(['manual', 'pomodoro']),
       pomodoroCycles: z.number().int().optional().nullable(),
-      notes: z.string().min(1, 'Descrição da sessão é obrigatória'),
+      notes: z.string().min(1, 'Descrição da sessão é obrigatória').max(5000),
     });
 
     const parsed = schema.parse(body);
+    await assertProjectOwned(userId, parsed.projectId);
+    if (parsed.taskId) {
+      await assertTaskOwned(userId, parsed.taskId);
+    }
+
     const data = {
+      userId,
       projectId: parsed.projectId,
       taskId: parsed.taskId || undefined,
       start: new Date(parsed.start),
@@ -43,10 +65,10 @@ export async function POST(req: Request) {
       },
     });
 
-    const settings = await prisma.clockfySettings.findFirst();
+    const { settings, apiKey } = await getClockfySettings(userId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
     const credentials = {
-      apiKey: settings?.apiKey ?? undefined,
+      apiKey,
       workspaceId: session.project?.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id,
     };
 
@@ -69,7 +91,7 @@ export async function POST(req: Request) {
 
       if (timeEntryId) {
         payload = await prisma.focusSession.update({
-          where: { id: session.id },
+          where: { id: session.id, userId },
           data: { clockfyTimeEntryId: timeEntryId },
         });
       }
@@ -81,7 +103,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(payload);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao criar sessão' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

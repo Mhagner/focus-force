@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
@@ -8,6 +11,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
   try {
+    const { userId } = await requireUser();
     const { id: taskId, commentId } = await params;
     const body = await req.json();
 
@@ -22,7 +26,7 @@ export async function PATCH(
       return NextResponse.json({ message: 'Comentário obrigatório' }, { status: 400 });
     }
 
-    const existing = await prisma.taskComment.findUnique({ where: { id: commentId } });
+    const existing = await prisma.taskComment.findFirst({ where: { id: commentId, userId } });
 
     if (!existing || existing.taskId !== taskId) {
       return NextResponse.json({ message: 'Comentário não encontrado' }, { status: 404 });
@@ -34,9 +38,8 @@ export async function PATCH(
     });
 
     return NextResponse.json(updated);
-  } catch (err: any) {
-    const message = err?.message ?? 'Erro ao atualizar comentário';
-    return NextResponse.json({ message }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }
 
@@ -45,9 +48,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; commentId: string }> }
 ) {
   try {
+    const { userId } = await requireUser();
     const { id: taskId, commentId } = await params;
 
-    const existing = await prisma.taskComment.findUnique({ where: { id: commentId } });
+    const existing = await prisma.taskComment.findFirst({ where: { id: commentId, userId } });
 
     if (!existing || existing.taskId !== taskId) {
       return NextResponse.json({ message: 'Comentário não encontrado' }, { status: 404 });
@@ -56,8 +60,7 @@ export async function DELETE(
     await prisma.taskComment.delete({ where: { id: commentId } });
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    const message = err?.message ?? 'Erro ao excluir comentário';
-    return NextResponse.json({ message }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

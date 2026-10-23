@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { formatDuration, getTodayHours, getWeekHours, getTodayTasks, getTaskCompletionRate } from '@/lib/utils';
 import { Clock, Calendar, CheckCircle2, Target, BadgeDollarSign } from 'lucide-react';
 import { isToday } from 'date-fns';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 function formatBRL(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -13,6 +14,7 @@ function formatBRL(value: number) {
 
 export function StatsCards() {
   const { sessions, tasks, projects } = useAppStore();
+  const { isStudy, labels } = useWorkspace();
 
   const todayHours = getTodayHours(sessions);
   const weekHours = getWeekHours(sessions);
@@ -51,7 +53,7 @@ export function StatsCards() {
       color: 'text-accent-blue',
     },
     {
-      title: 'Projetos Ativos',
+      title: isStudy ? 'Matérias Ativas' : 'Projetos Ativos',
       value: activeProjects.toString(),
       icon: Target,
       color: 'text-brand-secondary',
@@ -59,19 +61,24 @@ export function StatsCards() {
     {
       title: 'Taxa de Conclusão',
       value: `${completionRate}%`,
-      subtitle: `${todayTasks.filter(t => t.status === 'done').length}/${todayTasks.length} tarefas`,
+      subtitle: `${todayTasks.filter(t => t.status === 'done').length}/${todayTasks.length} ${labels.tasks.toLowerCase()}`,
       icon: CheckCircle2,
       color: 'text-accent-orange',
     },
-    {
-      title: 'Valor Acumulado Hoje',
-      value: formatBRL(todayEarnings),
-      subtitle: billedProjectsCount > 0
-        ? `${billedProjectsCount} projeto${billedProjectsCount > 1 ? 's' : ''} com valor/hora`
-        : 'Nenhum projeto com valor/hora',
-      icon: BadgeDollarSign,
-      color: 'text-success',
-    },
+    // Valor/hora só faz sentido em workspaces de trabalho.
+    ...(isStudy
+      ? []
+      : [
+          {
+            title: 'Valor Acumulado Hoje',
+            value: formatBRL(todayEarnings),
+            subtitle: billedProjectsCount > 0
+              ? `${billedProjectsCount} projeto${billedProjectsCount > 1 ? 's' : ''} com valor/hora`
+              : 'Nenhum projeto com valor/hora',
+            icon: BadgeDollarSign,
+            color: 'text-success',
+          },
+        ]),
   ];
 
   return (
