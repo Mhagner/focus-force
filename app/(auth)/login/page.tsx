@@ -1,108 +1,111 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
+
+import { AuthShell, safeRedirectPath } from '@/components/auth/AuthShell';
+import { GoogleButton, OrDivider } from '@/components/auth/GoogleButton';
 import { Button } from '@/components/ui/button';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function LoginPage() {
-  const [code, setCode] = useState('');
+function LoginForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const redirectTo = safeRedirectPath(params.get('from'));
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
-  const handleCodeChange = (value: string) => {
-    const sanitizedValue = value.replace(/\D/g, '').slice(0, 6);
-    setCode(sanitizedValue);
-
-    if (error) {
-      setError(null);
-    }
-  };
+  const oauthError = params.get('error');
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const sanitizedCode = code.replace(/\D/g, '');
-
-    if (sanitizedCode.length !== 6) {
-      setError('Informe os 6 dígitos do código de acesso.');
-      return;
-    }
-
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: sanitizedCode }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        setError(data?.message ?? 'Não foi possível autenticar com o código informado.');
+      const result = await signIn('credentials', { email, password, redirect: false });
+      if (!result || result.error) {
+        setError('E-mail ou senha inválidos, ou e-mail ainda não confirmado.');
         setIsSubmitting(false);
         return;
       }
-
-      router.replace('/');
+      router.replace(redirectTo);
       router.refresh();
-    } catch (err) {
-      setError('Erro inesperado ao autenticar. Tente novamente.');
+    } catch {
+      setError('Erro inesperado ao entrar. Tente novamente.');
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-ink px-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-surface p-8 shadow-sm">
-        <div className="text-center space-y-2">
-          <h1 className="font-display text-3xl font-bold text-primary">Bem-vindo ao FocusForge</h1>
-          <p className="text-ink-muted">
-            Digite o código de acesso de 6 dígitos para entrar no painel.
-          </p>
+    <AuthShell
+      title="Bem-vindo ao FocusForge"
+      subtitle="Entre para continuar."
+      footer={
+        <>
+          Não tem conta?{' '}
+          <Link href="/register" className="text-primary underline">
+            Criar conta
+          </Link>
+        </>
+      }
+    >
+      <GoogleButton callbackUrl={redirectTo} />
+      <OrDivider />
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">E-mail</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Senha</Label>
+            <Link href="/forgot-password" className="text-xs text-primary underline">
+              Esqueci a senha
+            </Link>
+          </div>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-3">
-            <Label htmlFor="access-code" className="text-ink">
-              Código de acesso
-            </Label>
-            <InputOTP
-              id="access-code"
-              value={code}
-              onChange={handleCodeChange}
-              maxLength={6}
-              containerClassName="justify-center"
-              inputMode="numeric"
-              pattern="\d*"
-              autoFocus
-            >
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
-            {error && <p className="text-sm text-danger text-center">{error}</p>}
-          </div>
+        {(error || oauthError) && (
+          <p className="text-sm text-danger text-center" role="alert">
+            {error ?? 'Não foi possível entrar com o Google. Tente novamente.'}
+          </p>
+        )}
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Entrando...' : 'Entrar'}
-          </Button>
-        </form>
-      </div>
-    </div>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Entrando...' : 'Entrar'}
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

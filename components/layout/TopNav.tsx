@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Sun, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
+import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
   CommandDialog,
@@ -58,10 +59,14 @@ export function TopNav() {
     setIsLoggingOut(true);
 
     try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      await signOut({ redirect: false });
 
-      if (!response.ok) {
-        throw new Error('Falha ao encerrar sessão');
+      // Evita que o próximo usuário do mesmo navegador herde o cronômetro em andamento.
+      try {
+        localStorage.removeItem('focusforge/timer-state');
+        localStorage.removeItem('focusforge/pomodoro-settings');
+      } catch {
+        // storage indisponível: nada a limpar
       }
 
       router.replace('/login');

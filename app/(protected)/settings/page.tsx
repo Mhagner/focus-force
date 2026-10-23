@@ -220,7 +220,7 @@ export default function SettingsPage() {
   };
 
   const clockfyConfigured = Boolean(
-    clockfySettings.apiKey && ((clockfySettings.workspaces?.length ?? 0) > 0 || clockfySettings.workspaceId)
+    (clockfySettings.apiKey || clockfySettings.hasApiKey) && ((clockfySettings.workspaces?.length ?? 0) > 0 || clockfySettings.workspaceId)
   );
   const lastClockfyUpdate = clockfySettings.updatedAt
     ? new Date(clockfySettings.updatedAt).toLocaleString()
@@ -545,7 +545,7 @@ export default function SettingsPage() {
                 type="password"
                 value={clockfyForm.apiKey}
                 onChange={(e) => setClockfyForm({ ...clockfyForm, apiKey: e.target.value })}
-                placeholder="ckey_xxxxx"
+                placeholder={clockfySettings.hasApiKey ? '•••••••• (chave salva; digite para substituir)' : 'ckey_xxxxx'}
                 autoComplete="off"
               />
             </div>
@@ -651,25 +651,23 @@ export default function SettingsPage() {
                       : 'pending'
                     : 'disabled';
 
+                  if (clockfyStatus !== 'synced') return null;
+
                   return (
-                    <>
-                      {clockfyStatus === 'synced' && (
-                        <div
-                          key={project.id}
-                          className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-ink">{project.name}</p>
-                            {project.client && (
-                              <p className="text-xs text-ink-muted">{project.client}</p>
-                            )}
-                          </div>
-                          <Badge variant="success">
-                            Sincronizado
-                          </Badge>
-                        </div>
-                      )}
-                    </>
+                    <div
+                      key={project.id}
+                      className="flex items-center justify-between rounded-lg border border-border bg-background px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-ink">{project.name}</p>
+                        {project.client && (
+                          <p className="text-xs text-ink-muted">{project.client}</p>
+                        )}
+                      </div>
+                      <Badge variant="success">
+                        Sincronizado
+                      </Badge>
+                    </div>
                   );
                 })
               )}

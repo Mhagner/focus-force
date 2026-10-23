@@ -124,7 +124,10 @@ export interface ClockfyWorkspace {
 }
 
 export interface ClockfySettings {
+  /** Sempre vazio nas respostas da API; só é preenchido ao digitar uma nova chave. */
   apiKey: string;
+  /** Indica se já existe uma chave salva (armazenada criptografada). */
+  hasApiKey?: boolean;
   workspaceId?: string;
   workspaces: ClockfyWorkspace[];
   updatedAt?: string | null;

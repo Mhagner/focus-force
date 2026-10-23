@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +12,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; subtaskId: string }> }
 ) {
   try {
-    const { subtaskId } = await params;
+    const { userId } = await requireUser();
+    const { id: taskId, subtaskId } = await params;
     const body = await req.json();
 
     const dateOrDateOnlySchema = z
@@ -86,13 +90,13 @@ export async function PATCH(
     }
 
     const updated = await prisma.taskSubtask.update({
-      where: { id: subtaskId },
+      where: { id: subtaskId, taskId, userId },
       data,
     });
 
     return NextResponse.json(updated);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao atualizar subtarefa' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }
 
@@ -100,7 +104,12 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string; subtaskId: string }> }
 ) {
-  const { subtaskId } = await params;
-  await prisma.taskSubtask.delete({ where: { id: subtaskId } });
-  return NextResponse.json({ ok: true });
+  try {
+    const { userId } = await requireUser();
+    const { id: taskId, subtaskId } = await params;
+    await prisma.taskSubtask.delete({ where: { id: subtaskId, taskId, userId } });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return apiError(err);
+  }
 }

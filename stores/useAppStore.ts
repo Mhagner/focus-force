@@ -99,6 +99,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   clockfySettings: {
     apiKey: '',
+    hasApiKey: false,
     workspaceId: '',
     workspaces: [],
     updatedAt: null,

@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const columnSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(100),
   title: z.string().min(1).max(60),
 });
 
 const boardSchema = z.object({
-  columns: z.array(columnSchema).default([]),
-  taskColumnMap: z.record(z.string(), z.string()).default({}),
+  columns: z.array(columnSchema).max(30).default([]),
+  taskColumnMap: z.record(z.string().max(100), z.string().max(100)).default({}),
 });
 
 const defaultBoard = {
@@ -50,40 +52,32 @@ function normalizeBoard(data: { columns?: unknown; taskColumnMap?: unknown; upda
 }
 
 export async function GET() {
-  const existing = await prisma.taskBoardSettings.findFirst();
-
-  if (!existing) {
-    const created = await prisma.taskBoardSettings.create({ data: defaultBoard });
-    return NextResponse.json(normalizeBoard(created));
+  try {
+    const { userId } = await requireUser();
+    const board = await prisma.taskBoardSettings.upsert({
+      where: { userId },
+      update: {},
+      create: { ...defaultBoard, userId },
+    });
+    return NextResponse.json(normalizeBoard(board));
+  } catch (err) {
+    return apiError(err);
   }
-
-  return NextResponse.json(normalizeBoard(existing));
 }
 
 export async function PATCH(req: Request) {
   try {
-    const body = await req.json();
-    const parsed = boardSchema.parse(body);
+    const { userId } = await requireUser();
+    const parsed = boardSchema.parse(await req.json());
 
-    const existing = await prisma.taskBoardSettings.findFirst();
-
-    const saved = existing
-      ? await prisma.taskBoardSettings.update({
-          where: { id: existing.id },
-          data: {
-            columns: parsed.columns,
-            taskColumnMap: parsed.taskColumnMap,
-          },
-        })
-      : await prisma.taskBoardSettings.create({
-          data: {
-            columns: parsed.columns,
-            taskColumnMap: parsed.taskColumnMap,
-          },
-        });
+    const saved = await prisma.taskBoardSettings.upsert({
+      where: { userId },
+      update: { columns: parsed.columns, taskColumnMap: parsed.taskColumnMap },
+      create: { userId, columns: parsed.columns, taskColumnMap: parsed.taskColumnMap },
+    });
 
     return NextResponse.json(normalizeBoard(saved));
-  } catch (err: any) {
-    return NextResponse.json({ message: err?.message ?? 'Erro ao salvar board de tarefas' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

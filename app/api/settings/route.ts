@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
 export const dynamic = 'force-dynamic';
 
 const defaultSettings = {
@@ -15,37 +17,45 @@ const defaultSettings = {
 };
 
 export async function GET() {
-  const existing = await prisma.pomodoroSettings.findFirst();
-  if (existing) {
-    return NextResponse.json({
-      ...existing,
-      defaultChecklist: Array.isArray(existing.defaultChecklist) ? existing.defaultChecklist : [],
+  try {
+    const { userId } = await requireUser();
+    // upsert evita corrida entre duas requisições simultâneas do primeiro acesso.
+    const settings = await prisma.pomodoroSettings.upsert({
+      where: { userId },
+      update: {},
+      create: { ...defaultSettings, userId },
     });
+    return NextResponse.json({
+      ...settings,
+      defaultChecklist: Array.isArray(settings.defaultChecklist) ? settings.defaultChecklist : [],
+    });
+  } catch (err) {
+    return apiError(err);
   }
-  const created = await prisma.pomodoroSettings.create({ data: defaultSettings });
-  return NextResponse.json(created);
 }
 
 export async function PATCH(req: Request) {
   try {
+    const { userId } = await requireUser();
     const body = await req.json();
     const schema = z.object({
-      workMin: z.number().int(),
-      shortBreakMin: z.number().int(),
-      longBreakMin: z.number().int(),
-      cyclesToLongBreak: z.number().int(),
+      workMin: z.number().int().min(1).max(240),
+      shortBreakMin: z.number().int().min(1).max(120),
+      longBreakMin: z.number().int().min(1).max(240),
+      cyclesToLongBreak: z.number().int().min(1).max(20),
       autoStartNext: z.boolean(),
       soundOn: z.boolean(),
-      defaultChecklist: z.array(z.string().min(1)).default([]),
-      defaultHourlyRate: z.number().min(0).optional(),
+      defaultChecklist: z.array(z.string().min(1).max(200)).max(50).default([]),
+      defaultHourlyRate: z.number().min(0).max(1_000_000).optional(),
     });
     const parsed = schema.parse(body);
-    const existing = await prisma.pomodoroSettings.findFirst();
-    const updated = existing
-      ? await prisma.pomodoroSettings.update({ where: { id: existing.id }, data: parsed })
-      : await prisma.pomodoroSettings.create({ data: parsed });
+    const updated = await prisma.pomodoroSettings.upsert({
+      where: { userId },
+      update: parsed,
+      create: { ...parsed, userId },
+    });
     return NextResponse.json(updated);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao atualizar' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { apiError } from '@/lib/api';
+import { requireUser } from '@/lib/auth/require-user';
+import { encryptSecret } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const workspaceSchema = z.object({
-  id: z.string().optional().nullable(),
-  description: z.string().optional().nullable(),
+  id: z.string().max(100).optional().nullable(),
+  description: z.string().max(200).optional().nullable(),
 });
 
 const settingsSchema = z.object({
-  apiKey: z.string().optional().nullable(),
-  workspaceId: z.string().optional().nullable(),
-  workspaces: z.array(workspaceSchema).optional(),
+  // Vazio/ausente = manter a chave atual. Para remover, enviar clearApiKey: true.
+  apiKey: z.string().max(200).optional().nullable(),
+  clearApiKey: z.boolean().optional(),
+  workspaceId: z.string().max(100).optional().nullable(),
+  workspaces: z.array(workspaceSchema).max(50).optional(),
 });
 
 function normalize(value?: string | null): string | null {
@@ -22,21 +27,31 @@ function normalize(value?: string | null): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export async function GET() {
-  const settings = await prisma.clockfySettings.findFirst();
-
-  return NextResponse.json({
-    apiKey: settings?.apiKey ?? '',
+// Nunca devolve a chave: o cliente só precisa saber se existe uma salva.
+function toResponse(settings: { apiKey: string | null; workspaceId: string | null; workspaces: unknown; updatedAt: Date } | null) {
+  return {
+    apiKey: '',
+    hasApiKey: Boolean(settings?.apiKey),
     workspaceId: settings?.workspaceId ?? '',
     workspaces: (settings?.workspaces as any[])?.filter(Boolean) ?? [],
     updatedAt: settings?.updatedAt ?? null,
-  });
+  };
+}
+
+export async function GET() {
+  try {
+    const { userId } = await requireUser();
+    const settings = await prisma.clockfySettings.findUnique({ where: { userId } });
+    return NextResponse.json(toResponse(settings));
+  } catch (err) {
+    return apiError(err);
+  }
 }
 
 export async function PATCH(req: Request) {
   try {
-    const body = await req.json();
-    const parsed = settingsSchema.parse(body);
+    const { userId } = await requireUser();
+    const parsed = settingsSchema.parse(await req.json());
 
     const workspaces = (parsed.workspaces ?? [])
       .map((workspace) => ({
@@ -45,28 +60,25 @@ export async function PATCH(req: Request) {
       }))
       .filter((workspace) => Boolean(workspace.id));
 
-    const data = {
-      apiKey: normalize(parsed.apiKey),
+    const newKey = normalize(parsed.apiKey);
+    const data: { apiKey?: string | null; workspaceId: string | null; workspaces: typeof workspaces } = {
       workspaceId: normalize(parsed.workspaceId) ?? workspaces[0]?.id ?? null,
       workspaces,
     };
+    if (parsed.clearApiKey) {
+      data.apiKey = null;
+    } else if (newKey) {
+      data.apiKey = encryptSecret(newKey);
+    }
 
-    const existing = await prisma.clockfySettings.findFirst();
-
-    const saved = existing
-      ? await prisma.clockfySettings.update({ where: { id: existing.id }, data })
-      : await prisma.clockfySettings.create({ data });
-
-    return NextResponse.json({
-      apiKey: saved.apiKey ?? '',
-      workspaceId: saved.workspaceId ?? '',
-      workspaces: (saved.workspaces as any[])?.filter(Boolean) ?? [],
-      updatedAt: saved.updatedAt,
+    const saved = await prisma.clockfySettings.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { message: err?.message ?? 'Erro ao salvar configurações do Clockfy' },
-      { status: 400 }
-    );
+
+    return NextResponse.json(toResponse(saved));
+  } catch (err) {
+    return apiError(err);
   }
 }

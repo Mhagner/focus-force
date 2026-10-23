@@ -114,6 +114,11 @@ async function request<T>(
     }
   }
 
+  if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    // Sessão expirada/invalidada: volta para o login preservando o destino.
+    window.location.assign(`/login?from=${encodeURIComponent(window.location.pathname)}`);
+  }
+
   if (!res.ok) {
     const msg =
       typeof payload === 'object' && payload && 'message' in (payload as any)

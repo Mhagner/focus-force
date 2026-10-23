@@ -2,17 +2,28 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { ensureClockfySyncForProject } from '@/lib/integrations/clockfy';
+import { getClockfySettings } from '@/lib/integrations/clockfy-settings';
+import { apiError } from '@/lib/api';
+import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { assertWorkspaceOwned, getDefaultWorkspaceId } from '@/lib/auth/ownership';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const projects = await prisma.project.findMany({
-    orderBy: { createdAt: 'asc' },
-  });
-  return NextResponse.json(projects);
+  try {
+    const { userId } = await requireUser();
+    const projects = await prisma.project.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return NextResponse.json(projects);
+  } catch (err) {
+    return apiError(err);
+  }
 }
 
 export async function POST(req: Request) {
   try {
+    const { userId } = await requireUser();
     const body = await req.json();
 
     const optionalUrlSchema = z
@@ -79,11 +90,19 @@ export async function POST(req: Request) {
       salesforceOppUrl: optionalUrlSchema,
       sharepointRepoUrl: optionalUrlSchema,
       estimatedDeliveryDate: estimatedDateSchema,
+      workspaceId: z.string().min(1).optional(),
     });
 
     const parsed = schema.parse(body);
 
+    if (parsed.workspaceId) {
+      await assertWorkspaceOwned(userId, parsed.workspaceId);
+    }
+    const workspaceId = parsed.workspaceId ?? (await getDefaultWorkspaceId(userId));
+
     const data = {
+      userId,
+      workspaceId,
       name: parsed.name,
       client: parsed.client || undefined,
       color: parsed.color,
@@ -102,17 +121,17 @@ export async function POST(req: Request) {
       return NextResponse.json(project);
     }
 
-    const settings = await prisma.clockfySettings.findFirst();
+    const { settings, apiKey } = await getClockfySettings(userId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
     const selectedWorkspaceId =
       parsed.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id ?? undefined;
 
     if (!selectedWorkspaceId) {
-      throw new Error('Nenhum workspace configurado para sincronizar com o Clockfy.');
+      throw new HttpError(400, 'Nenhum workspace configurado para sincronizar com o Clockfy.');
     }
 
     const credentials = {
-      apiKey: settings?.apiKey ?? undefined,
+      apiKey,
       workspaceId: selectedWorkspaceId,
     };
 
@@ -135,7 +154,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(project);
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message ?? 'Erro ao criar projeto' }, { status: 400 });
+  } catch (err) {
+    return apiError(err);
   }
 }

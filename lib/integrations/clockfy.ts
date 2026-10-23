@@ -101,8 +101,9 @@ function buildQuery(query?: Record<string, string | undefined>): string {
 export function resolveClockfyCredentials(
   credentials?: Partial<ClockfyCredentials>
 ): ClockfyCredentials | null {
-  const apiKey = credentials?.apiKey ?? process.env.CLOCKFY_API_KEY;
-  const workspaceId = credentials?.workspaceId ?? process.env.CLOCKFY_WORKSPACE_ID;
+  // Sem fallback para variáveis de ambiente: em modo multiusuário, cada conta usa só a própria chave.
+  const apiKey = credentials?.apiKey;
+  const workspaceId = credentials?.workspaceId;
 
   if (!apiKey || !workspaceId) {
     return null;
