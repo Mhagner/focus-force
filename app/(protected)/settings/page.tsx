@@ -29,7 +29,7 @@ export default function SettingsPage() {
     deleteSessionDescriptionPreset,
   } = useAppStore();
   const { toast } = useToast();
-  const { isStudy, labels } = useWorkspace();
+  const { isStudy, labels, workspace } = useWorkspace();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
 
   const [settings, setSettings] = useState(pomodoroSettings);
@@ -50,11 +50,10 @@ export default function SettingsPage() {
     });
   }, [clockfySettings]);
 
+  // As configurações são do workspace ativo: ao trocar de workspace (ou quando o store termina de carregar),
+  // o formulário recomeça com os valores daquele workspace, nunca com os do anterior.
   useEffect(() => {
-    setSettings((current) => ({
-      ...current,
-      defaultChecklist: pomodoroSettings.defaultChecklist ?? [],
-    }));
+    setSettings({ ...pomodoroSettings, defaultChecklist: pomodoroSettings.defaultChecklist ?? [] });
   }, [pomodoroSettings]);
 
   const handleWorkspaceChange = (index: number, field: 'id' | 'description', value: string) => {
@@ -231,9 +230,11 @@ export default function SettingsPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-ink mb-2">Configurações</h1>
+        <h1 className="font-display text-3xl font-bold text-ink mb-2">
+          Configurações{workspace ? ` de ${workspace.name}` : ''}
+        </h1>
         <p className="text-ink-muted">
-          Personalize sua experiência de foco
+          Foco, checklist e descrições de sessão valem apenas para este workspace. Cada workspace tem as suas.
         </p>
       </div>
 

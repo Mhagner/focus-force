@@ -1,29 +1,42 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+
 import { apiError } from '@/lib/api';
-import { requireUser } from '@/lib/auth/require-user';
+import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { prisma } from '@/lib/prisma';
+import { DEFAULT_FOCUS } from '@/lib/workspace/defaults';
+import { focusSettingsSchema } from '@/lib/workspace/schemas';
+
 export const dynamic = 'force-dynamic';
 
-const defaultSettings = {
-  workMin: 50,
-  shortBreakMin: 10,
-  longBreakMin: 20,
-  cyclesToLongBreak: 3,
-  autoStartNext: true,
-  soundOn: true,
-  defaultChecklist: [],
-  defaultHourlyRate: 0,
-};
+const workspaceQuery = z.string().min(1, 'Informe o workspace.');
 
-export async function GET() {
+// Configurações de foco pertencem ao WORKSPACE (não ao usuário): cada um tem as suas e nenhum herda de outro.
+async function getOwnedWorkspace(userId: string, req: Request) {
+  const workspaceId = workspaceQuery.parse(new URL(req.url).searchParams.get('workspaceId'));
+  const workspace = await prisma.workspace.findFirst({
+    where: { id: workspaceId, userId },
+    select: { id: true, mode: true },
+  });
+  if (!workspace) throw new HttpError(404, 'Não encontrado.');
+  return workspace;
+}
+
+export async function GET(req: Request) {
   try {
     const { userId } = await requireUser();
-    // upsert evita corrida entre duas requisições simultâneas do primeiro acesso.
+    const workspace = await getOwnedWorkspace(userId, req);
+
+    // Cria com os padrões do tipo apenas se ainda não existir (ex.: workspace anterior ao onboarding).
     const settings = await prisma.pomodoroSettings.upsert({
-      where: { userId },
+      where: { workspaceId: workspace.id },
       update: {},
-      create: { ...defaultSettings, userId },
+      create: {
+        ...DEFAULT_FOCUS[workspace.mode],
+        userId,
+        workspaceId: workspace.id,
+        defaultHourlyRate: workspace.mode === 'WORK' ? 0 : null,
+      },
     });
     return NextResponse.json({
       ...settings,
@@ -37,22 +50,19 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const { userId } = await requireUser();
-    const body = await req.json();
-    const schema = z.object({
-      workMin: z.number().int().min(1).max(240),
-      shortBreakMin: z.number().int().min(1).max(120),
-      longBreakMin: z.number().int().min(1).max(240),
-      cyclesToLongBreak: z.number().int().min(1).max(20),
-      autoStartNext: z.boolean(),
-      soundOn: z.boolean(),
-      defaultChecklist: z.array(z.string().min(1).max(200)).max(50).default([]),
-      defaultHourlyRate: z.number().min(0).max(1_000_000).optional(),
-    });
-    const parsed = schema.parse(body);
+    const workspace = await getOwnedWorkspace(userId, req);
+    const parsed = focusSettingsSchema.parse(await req.json());
+
+    // Valor/hora só existe em workspaces de trabalho.
+    const data = {
+      ...parsed,
+      defaultHourlyRate: workspace.mode === 'WORK' ? parsed.defaultHourlyRate ?? 0 : null,
+    };
+
     const updated = await prisma.pomodoroSettings.upsert({
-      where: { userId },
-      update: parsed,
-      create: { ...parsed, userId },
+      where: { workspaceId: workspace.id },
+      update: data,
+      create: { ...data, userId, workspaceId: workspace.id },
     });
     return NextResponse.json(updated);
   } catch (err) {

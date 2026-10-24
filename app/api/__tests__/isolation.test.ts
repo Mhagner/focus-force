@@ -20,6 +20,12 @@ const state = vi.hoisted(() => ({
 vi.mock('@/auth', () => ({ auth: async () => state.session }));
 
 type Json = any;
+const withWs = (workspaceId: string, method = 'GET', body?: unknown) =>
+  new Request(`http://test.local/api?workspaceId=${workspaceId}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 const ctx = (id: string, extra: Record<string, string> = {}) => ({ params: Promise.resolve({ id, ...extra }) });
 const jsonReq = (method: string, body?: unknown) =>
   new Request('http://test.local/api', {
@@ -32,6 +38,8 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
   let prisma: typeof import('@/lib/prisma').prisma;
   let A: { id: string };
   let B: { id: string };
+  let wsA: string;
+  let wsB: string;
   let projectA: string;
   let taskA: string;
   let sessionA: string;
@@ -70,11 +78,16 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
       const u = await prisma.user.create({
         data: { email: `${n}-${tag}@test.local`, emailVerified: new Date() },
       });
-      await prisma.workspace.create({ data: { userId: u.id, name: 'Trabalho', mode: 'WORK' } });
-      return u;
+      const { createWorkspaceWithSetup } = await import('@/lib/workspace/create');
+      const workspace = await createWorkspaceWithSetup(u.id, { name: 'Trabalho', mode: 'WORK' });
+      return { user: u, workspaceId: workspace.id };
     };
-    A = await mk('a');
-    B = await mk('b');
+    const madeA = await mk('a');
+    const madeB = await mk('b');
+    A = madeA.user;
+    B = madeB.user;
+    wsA = madeA.workspaceId;
+    wsB = madeB.workspaceId;
 
     as(A);
     projectA = (await (await r.projects.POST(jsonReq('POST', { name: 'Proj A', color: '#000' }))).json()).id;
@@ -94,7 +107,7 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
         )
       ).json()
     ).id;
-    presetA = (await (await r.presets.POST(jsonReq('POST', { label: 'preset A' }))).json()).id;
+    presetA = (await (await r.presets.POST(jsonReq('POST', { workspaceId: wsA, label: 'preset A' }))).json()).id;
   });
 
   afterAll(async () => {
@@ -122,9 +135,9 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
       r.projects.GET(jsonReq("GET")),
       r.tasks.GET(jsonReq("GET")),
       r.sessions.GET(jsonReq("GET")),
-      r.presets.GET(),
+      r.presets.GET(jsonReq('GET')),
       r.plans.GET(jsonReq("GET")),
-      r.settings.GET(),
+      r.settings.GET(jsonReq('GET')),
       r.board.GET(),
       r.clockfy.GET(),
       r.project.DELETE(jsonReq('DELETE'), ctx(projectA)),
@@ -142,7 +155,12 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
     expect(await (await r.projects.GET(jsonReq("GET"))).json()).toEqual([]);
     expect(await (await r.tasks.GET(jsonReq("GET"))).json()).toEqual([]);
     expect(await (await r.sessions.GET(jsonReq("GET"))).json()).toEqual([]);
-    expect(await (await r.presets.GET()).json()).toEqual([]);
+    // B tem as próprias descrições padrão, mas nunca a de A
+    const labelsB = ((await (await r.presets.GET(withWs(wsB))).json()) as Json[]).map((preset) => preset.label);
+    expect(labelsB).not.toContain('preset A');
+    // e não consegue listar as descrições/configurações de um workspace de A
+    expect((await r.presets.GET(withWs(wsA))).status).toBe(404);
+    expect((await r.settings.GET(withWs(wsA))).status).toBe(404);
     expect(await (await r.plans.GET(jsonReq("GET"))).json()).toEqual([]);
     expect(await (await r.subtasks.GET(jsonReq('GET'), ctx(taskA))).json()).toEqual([]);
   });
@@ -203,10 +221,10 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
     expect(row.notes).toBe('ok');
   });
 
-  it('configurações são por usuário (sem singleton global)', async () => {
+  it('configurações de foco são por workspace e por usuário', async () => {
     as(A);
     await r.settings.PATCH(
-      jsonReq('PATCH', {
+      withWs(wsA, 'PATCH', {
         workMin: 25,
         shortBreakMin: 5,
         longBreakMin: 15,
@@ -217,9 +235,12 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
       })
     );
     as(B);
-    const settingsB = (await (await r.settings.GET()).json()) as Json;
-    expect(settingsB.workMin).toBe(50); // padrão, não os 25 de A
+    const settingsB = (await (await r.settings.GET(withWs(wsB))).json()) as Json;
+    expect(settingsB.workMin).toBe(50); // padrão de Trabalho, não os 25 de A
     expect(settingsB.userId).toBe(B.id);
+    expect(settingsB.workspaceId).toBe(wsB);
+    // B não escreve nas configurações do workspace de A
+    expect((await r.settings.PATCH(withWs(wsA, 'PATCH', { workMin: 1, shortBreakMin: 1, longBreakMin: 1, cyclesToLongBreak: 1, autoStartNext: true, soundOn: true, defaultChecklist: [] }))).status).toBe(404);
   });
 
   it('Clockfy: chave é salva criptografada e nunca devolvida; B não a vê', async () => {

@@ -31,7 +31,8 @@ export default function ProjectDetailPage() {
   const projectId = resolveParam(params?.projectId);
 
   const { projects, tasks, sessions } = useAppStore();
-  const { isStudy, labels, statusTitles } = useWorkspace();
+  const { isStudy, labels } = useWorkspace();
+  const columns = useAppStore((state) => state.columns);
   const project = projects.find((current) => current.id === projectId);
 
   const projectTasks = useMemo(
@@ -252,7 +253,7 @@ export default function ProjectDetailPage() {
             ) : (
               projectTasks.map((task) => {
                 const commentTotal = task.comments?.length ?? 0;
-                const statusLabel = statusTitles[task.status ?? 'todo'] ?? 'Desconhecido';
+                const statusLabel = columns.find((column) => column.id === task.columnId)?.title ?? 'Sem coluna';
                 return (
                   <div
                     key={task.id}

@@ -57,32 +57,3 @@ export const MODE_DESCRIPTIONS: Record<WorkspaceMode, { title: string; descripti
     description: 'Matérias, tópicos e sessões de foco para concursos, vestibular e provas.',
   },
 };
-
-export type TaskStatusKey = 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
-
-/**
- * Nomes dos 5 estágios do quadro por modo. O status gravado no banco é o mesmo nos dois modos;
- * só o rótulo muda. Em Estudos o fluxo é: A estudar → Teoria → Exercícios → Revisão → Dominado.
- */
-export const STATUS_TITLES: Record<WorkspaceMode, Record<TaskStatusKey, string>> = {
-  WORK: {
-    todo: 'Todo',
-    call_agendada: 'Call agendada',
-    pronta_elaboracao: 'Pronta para elaboracao',
-    doing: 'Fazendo',
-    done: 'Feito',
-  },
-  STUDY: {
-    todo: 'A estudar',
-    call_agendada: 'Teoria',
-    pronta_elaboracao: 'Exercícios',
-    doing: 'Revisão',
-    done: 'Dominado',
-  },
-};
-
-/** Versão curta, usada nos botões de status do detalhe da tarefa/tópico. */
-export const STATUS_SHORT_TITLES: Record<WorkspaceMode, Record<TaskStatusKey, string>> = {
-  WORK: { todo: 'Todo', call_agendada: 'Call', pronta_elaboracao: 'Pronta', doing: 'Fazendo', done: 'Feito' },
-  STUDY: STATUS_TITLES.STUDY,
-};

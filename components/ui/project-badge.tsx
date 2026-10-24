@@ -50,7 +50,8 @@ export function ProjectBadge({
 
   if (href) {
     return (
-      <Link href={href} className={badgeClassName}>
+      // draggable={false}: evita o "arrastar link" nativo quando o selo fica dentro de um cartão arrastável (kanban).
+      <Link href={href} className={badgeClassName} draggable={false}>
         {content}
       </Link>
     );

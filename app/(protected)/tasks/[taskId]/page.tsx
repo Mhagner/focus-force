@@ -37,8 +37,9 @@ export default function TaskDetailPage() {
   const taskId = resolveParam(params?.taskId);
 
   const { tasks, projects, sessions, updateTask, addTaskComment, updateTaskComment, deleteTaskComment, addTaskSubtask, updateTaskSubtask, deleteTaskSubtask } = useAppStore();
-  const { isStudy, labels, statusShortTitles } = useWorkspace();
-  const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
+  const { isStudy, labels } = useWorkspace();
+  const columns = useAppStore((state) => state.columns);
+  const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, requestColumnChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
 
   const task = tasks.find((current) => current.id === taskId);
   const project = task ? projects.find((current) => current.id === task.projectId) : undefined;
@@ -90,9 +91,9 @@ export default function TaskDetailPage() {
   const completedSubtasks = subtasks.filter((subtask) => subtask.completed).length;
   const completionPercent = subtasks.length ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
 
-  const handleStatusChange = (status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done') => {
+  const handleColumnChange = (column: { id: string; isDone: boolean }) => {
     if (!task) return;
-    requestStatusChange(task, status);
+    requestColumnChange(task, column);
   };
 
   const handlePlanForToday = () => {
@@ -538,15 +539,14 @@ export default function TaskDetailPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            {(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done'] as const).map((status) => (
+            {columns.map((column) => (
               <Button
-                key={status}
+                key={column.id}
                 size="sm"
-                variant={task.status === status ? 'default' : 'outline'}
-                className="capitalize"
-                onClick={() => handleStatusChange(status)}
+                variant={task.columnId === column.id ? 'default' : 'outline'}
+                onClick={() => handleColumnChange(column)}
               >
-                {statusShortTitles[status]}
+                {column.title}
               </Button>
             ))}
           </div>

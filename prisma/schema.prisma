@@ -72,7 +72,8 @@ model User {
   descPresets       SessionDescriptionPreset[]
   dailyPlans        DailyPlan[]
   dailyPlanBlocks   DailyPlanBlock[]
-  pomodoroSettings  PomodoroSettings?
+  pomodoroSettings  PomodoroSettings[]
+  boardColumns      BoardColumn[]
   clockfySettings   ClockfySettings?
   taskBoardSettings TaskBoardSettings?
 }
@@ -136,16 +137,39 @@ model AuditLog {
 }
 
 model Workspace {
-  id        String        @id @default(cuid())
-  userId    String
-  name      String
-  mode      WorkspaceMode @default(WORK)
-  archived  Boolean       @default(false)
-  createdAt DateTime      @default(now())
+  id          String        @id @default(cuid())
+  userId      String
+  name        String
+  mode        WorkspaceMode @default(WORK)
+  archived    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  // Preenchido ao concluir o onboarding do workspace (workspaces antigos são marcados pelo backfill).
+  onboardedAt DateTime?
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projects Project[]
+  user             User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects         Project[]
+  columns          BoardColumn[]
+  pomodoroSettings PomodoroSettings?
+  presets          SessionDescriptionPreset[]
 
+  @@index([userId])
+}
+
+// Colunas do quadro, por workspace. Exatamente uma tem isDone = true (índice único parcial na migration).
+model BoardColumn {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  title       String
+  position    Int
+  isDone      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@index([workspaceId, position])
   @@index([userId])
 }
 
@@ -225,10 +249,14 @@ model Task {
   comments              TaskComment[]
   subtasks              TaskSubtask[]
   userId                String?
+  // Coluna do quadro; `status` é derivado dela (1ª = todo, conclusão = done, demais = doing).
+  columnId              String?
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  column BoardColumn? @relation(fields: [columnId], references: [id])
 
   @@index([userId, projectId])
+  @@index([columnId])
 }
 
 model TaskComment {
@@ -281,16 +309,19 @@ model FocusSession {
 }
 
 model SessionDescriptionPreset {
-  id        String   @id @default(cuid())
-  label     String
-  active    Boolean  @default(true)
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
-  userId    String?
+  id          String   @id @default(cuid())
+  label       String
+  active      Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  userId      String?
+  workspaceId String?
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([workspaceId, order])
 }
 
 model DailyPlan {
@@ -320,7 +351,7 @@ model DailyPlanBlock {
 }
 
 model PomodoroSettings {
-  id                String  @id @default(cuid())
+  id                String     @id @default(cuid())
   workMin           Int
   shortBreakMin     Int
   longBreakMin      Int
@@ -329,8 +360,12 @@ model PomodoroSettings {
   soundOn           Boolean
   defaultChecklist  Json?
   defaultHourlyRate Float?
-  userId            String? @unique
-  user              User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String?
+  workspaceId       String?    @unique
+  user              User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace         Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model ClockfySettings {

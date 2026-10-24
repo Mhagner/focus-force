@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Archive, Briefcase, Check, ChevronsUpDown, GraduationCap, Pencil, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { WorkspaceOnboarding } from '@/components/onboarding/WorkspaceOnboarding';
 import { WorkspaceDialog } from '@/components/workspace/WorkspaceDialog';
 import {
   DropdownMenu,
@@ -24,7 +25,8 @@ const ModeIcon = ({ mode, className }: { mode: Workspace['mode']; className?: st
 export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
   const { workspace } = useWorkspace();
   const { workspaces, setActiveWorkspace, setWorkspaceArchived } = useAppStore();
-  const [dialog, setDialog] = useState<{ open: boolean; workspace?: Workspace }>({ open: false });
+  const [isCreating, setIsCreating] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const visible = workspaces.filter((item) => !item.archived);
   const canArchive = visible.length > 1;
@@ -82,10 +84,10 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
           ))}
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setDialog({ open: true })} className="gap-2">
+          <DropdownMenuItem onSelect={() => setIsCreating(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Novo workspace
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setDialog({ open: true, workspace })} className="gap-2">
+          <DropdownMenuItem onSelect={() => setIsRenaming(true)} className="gap-2">
             <Pencil className="h-4 w-4" /> Renomear atual
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -98,11 +100,8 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <WorkspaceDialog
-        open={dialog.open}
-        workspace={dialog.workspace}
-        onOpenChange={(open) => setDialog((current) => ({ ...current, open }))}
-      />
+      <WorkspaceOnboarding variant="new" open={isCreating} onOpenChange={setIsCreating} />
+      <WorkspaceDialog open={isRenaming} workspace={workspace} onOpenChange={setIsRenaming} />
     </>
   );
 }
