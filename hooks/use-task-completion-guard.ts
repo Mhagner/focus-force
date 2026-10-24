@@ -13,23 +13,43 @@ import { getTaskTrackedSeconds, isTaskTimeOverrun } from '@/lib/utils';
 export function useTaskCompletionGuard() {
   const { sessions, updateTask } = useAppStore();
   const [pendingTask, setPendingTask] = useState<Task | null>(null);
+  // Coluna de destino quando a conclusão foi pedida arrastando/escolhendo uma coluna (e não por "status").
+  const [pendingColumnId, setPendingColumnId] = useState<string | null>(null);
 
+  // Compatível com quem ainda manda "status" (Meu Dia, TaskCard): o servidor traduz para a coluna.
   const requestStatusChange = (task: Task, status: Task['status']) => {
     if (status === 'done' && task.status !== 'done' && isTaskTimeOverrun(task.id, sessions)) {
       setPendingTask(task);
+      setPendingColumnId(null);
       return;
     }
 
     updateTask(task.id, { status });
   };
 
-  const confirmPendingCompletion = () => {
-    if (!pendingTask) return;
-    updateTask(pendingTask.id, { status: 'done' });
-    setPendingTask(null);
+  /** Move a tarefa para uma coluna do quadro; entrar na coluna de conclusão passa pelo guarda de tempo extra. */
+  const requestColumnChange = (task: Task, column: { id: string; isDone: boolean }) => {
+    if (task.columnId === column.id) return;
+    if (column.isDone && task.status !== 'done' && isTaskTimeOverrun(task.id, sessions)) {
+      setPendingTask(task);
+      setPendingColumnId(column.id);
+      return;
+    }
+
+    updateTask(task.id, { columnId: column.id });
   };
 
-  const cancelPendingCompletion = () => setPendingTask(null);
+  const confirmPendingCompletion = () => {
+    if (!pendingTask) return;
+    updateTask(pendingTask.id, pendingColumnId ? { columnId: pendingColumnId } : { status: 'done' });
+    setPendingTask(null);
+    setPendingColumnId(null);
+  };
+
+  const cancelPendingCompletion = () => {
+    setPendingTask(null);
+    setPendingColumnId(null);
+  };
 
   const pendingTaskTrackedSeconds = pendingTask ? getTaskTrackedSeconds(pendingTask.id, sessions) : 0;
 
@@ -37,6 +57,7 @@ export function useTaskCompletionGuard() {
     pendingTask,
     pendingTaskTrackedSeconds,
     requestStatusChange,
+    requestColumnChange,
     confirmPendingCompletion,
     cancelPendingCompletion,
   };

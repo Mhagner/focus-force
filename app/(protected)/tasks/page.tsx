@@ -1,23 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-// Utilitário para detectar se é touch device
-function isTouchDevice() {
-  return (
-    typeof window !== 'undefined' &&
-    ('ontouchstart' in window ||
-      navigator.maxTouchPoints > 0 ||
-      navigator.maxTouchPoints > 0)
-  );
-}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppStore } from '@/stores/useAppStore';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { Task } from '@/types';
-import { Plus, Filter, Columns3, X, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { BoardColumn, Task } from '@/types';
+import { CheckCircle2, Columns3, Filter, GripVertical, Pencil, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { calculateTaskPriorityInsight, getTodayTasks } from '@/lib/utils';
@@ -25,14 +17,13 @@ import { TaskDialog } from '@/components/tasks/TaskDialog';
 import { TaskOverrunCommentDialog } from '@/components/tasks/TaskOverrunCommentDialog';
 import { useTaskCompletionGuard } from '@/hooks/use-task-completion-guard';
 import { useWorkspace } from '@/hooks/use-workspace';
+import { MAX_COLUMN_TITLE } from '@/lib/workspace/defaults';
 import clsx from 'clsx';
-import { storage } from '@/lib/storage';
 
 // DnD Kit
 import {
   DndContext,
   useDraggable,
-  useDroppable,
   DragEndEvent,
   MouseSensor,
   TouchSensor,
@@ -40,30 +31,20 @@ import {
   useSensors,
   rectIntersection,
 } from '@dnd-kit/core';
+import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { PriorityRadar } from '@/components/tasks/PriorityRadar';
 
-export type ColumnId = 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
+// Colapso das colunas é uma preferência de tela, por workspace (as colunas em si vêm do servidor).
+const collapsedKey = (workspaceId: string) => `focusforge/tasks/collapsed-columns/v2:${workspaceId}`;
 
-type BoardColumn = {
-  id: string;
-  title: string;
-  colorClass: string;
-  status?: ColumnId;
-  isCustom?: boolean;
-};
+// Prefixo dos ids no dnd-kit: separa "arrastar coluna" de "soltar tarefa em coluna".
+const COLUMN_DND_PREFIX = 'col:';
+const COLUMN_COLORS = ['bg-accent-blue', 'bg-accent-orange', 'bg-brand-secondary', 'bg-fuchsia-400', 'bg-cyan-400'];
 
-const BOARD_COLUMNS_KEY = 'focusforge/tasks/custom-columns/v1';
-const BOARD_TASK_MAP_KEY = 'focusforge/tasks/custom-column-task-map/v1';
-const BOARD_COLLAPSED_KEY = 'focusforge/tasks/collapsed-columns/v1';
-
-const BASE_COLUMNS: BoardColumn[] = [
-  { id: 'status:todo', title: 'Todo', colorClass: 'bg-accent-blue', status: 'todo' },
-  { id: 'status:call_agendada', title: 'Call agendada', colorClass: 'bg-accent-orange', status: 'call_agendada' },
-  { id: 'status:pronta_elaboracao', title: 'Pronta para elaboracao', colorClass: 'bg-brand-secondary', status: 'pronta_elaboracao' },
-  { id: 'status:doing', title: 'Fazendo', colorClass: 'bg-accent-orange', status: 'doing' },
-  { id: 'status:done', title: 'Feito', colorClass: 'bg-success', status: 'done' },
-];
+function columnColor(column: BoardColumn, index: number) {
+  return column.isDone ? 'bg-success' : COLUMN_COLORS[index % COLUMN_COLORS.length];
+}
 
 function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task: Task; onEdit: (t: Task) => void; priorityScore?: number; priorityReasons?: string[] }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
@@ -74,7 +55,9 @@ function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task:
   } as React.CSSProperties;
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="select-none">
+    // onDragStart: links dentro do cartão (ex.: selo do projeto) iniciariam um "arrastar link" nativo do
+    // navegador, que rouba o gesto do dnd-kit e ainda dispara a navegação ao soltar.
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} onDragStart={(event) => event.preventDefault()} className="select-none">
       <TaskCard
         task={task}
         onEdit={onEdit}
@@ -86,55 +69,65 @@ function DraggableTask({ task, onEdit, priorityScore, priorityReasons }: { task:
   );
 }
 
-function DroppableColumn({
-  id,
-  title,
-  rawTitle,
+/**
+ * Coluna do quadro. É ao mesmo tempo:
+ *  - alvo para soltar tarefas (o `useSortable` também registra a coluna como área de soltura), e
+ *  - item arrastável pela alça do cabeçalho, para reordenar as colunas.
+ */
+function BoardColumnView({
+  column,
   colorClass,
+  count,
   children,
-  onRemove,
   onRename,
+  onRequestDelete,
   isCollapsed,
   onToggleCollapse,
 }: {
-  id: string;
-  /** Título exibido (com a contagem de itens). */
-  title: string;
-  /** Título puro, usado no campo de edição. */
-  rawTitle: string;
+  column: BoardColumn;
   colorClass: string;
+  count: number;
   children: React.ReactNode;
-  onRemove?: () => void;
-  /** Recebe o novo nome; string vazia = restaurar o padrão (colunas padrão) ou ignorar (personalizadas). */
-  onRename?: (title: string) => void;
-  isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
+  onRename: (title: string) => void;
+  /** Ausente na coluna de conclusão, que não pode ser excluída. */
+  onRequestDelete?: () => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
-  const { isOver, setNodeRef, active } = useDroppable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver, active } = useSortable({
+    id: `${COLUMN_DND_PREFIX}${column.id}`,
+  });
   const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(rawTitle);
+  const [draft, setDraft] = useState(column.title);
+
+  const title = `${column.title} (${count})`;
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 } as React.CSSProperties;
+  // Tarefas sendo arrastadas destacam a coluna sob o cursor; arrastar uma coluna não.
+  const isTaskDragActive = active ? !String(active.id).startsWith(COLUMN_DND_PREFIX) : false;
 
   const startEditing = () => {
-    setDraft(rawTitle);
+    setDraft(column.title);
     setIsEditing(true);
   };
 
   const commitEditing = () => {
     setIsEditing(false);
-    if (draft.trim() !== rawTitle) onRename?.(draft.trim());
+    const next = draft.trim();
+    if (next && next !== column.title) onRename(next);
   };
 
   if (isCollapsed) {
     return (
       <div
         ref={setNodeRef}
+        style={style}
         className="w-12 shrink-0 min-h-[58vh] flex flex-col items-center rounded-xl border border-border bg-card p-2 gap-3 cursor-pointer transition hover:border-primary/30"
         onClick={onToggleCollapse}
         title={`Expandir ${title}`}
       >
         <button
           className="text-ink-muted hover:text-ink transition"
-          onClick={(e) => { e.stopPropagation(); onToggleCollapse?.(); }}
+          onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
           aria-label={`Expandir coluna ${title}`}
         >
           <ChevronRight className="h-4 w-4" />
@@ -151,63 +144,81 @@ function DroppableColumn({
   }
 
   return (
-    <div className="w-[310px] shrink-0">
+    <div ref={setNodeRef} style={style} className="w-[310px] shrink-0">
       <div className="mb-3 flex items-center justify-between gap-2">
-        {isEditing ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className={clsx('h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
-            <Input
-              value={draft}
-              autoFocus
-              maxLength={40}
-              aria-label="Nome da coluna"
-              placeholder="Deixe vazio para restaurar o padrão"
-              className="h-7 px-2 text-sm"
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commitEditing}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitEditing();
-                if (e.key === 'Escape') setIsEditing(false);
-              }}
-            />
-          </div>
-        ) : (
-          <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
-            <div className={clsx('h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
-            <span className="truncate">{title}</span>
-          </h2>
-        )}
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <button
+            type="button"
+            data-no-pan
+            className="cursor-grab touch-none rounded p-0.5 text-ink-muted hover:text-ink active:cursor-grabbing"
+            aria-label={`Arrastar a coluna ${column.title}`}
+            title="Arrastar para mudar a posição da coluna"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+
+          {isEditing ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className={clsx('h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
+              <Input
+                value={draft}
+                autoFocus
+                maxLength={MAX_COLUMN_TITLE}
+                aria-label="Nome da coluna"
+                className="h-7 px-2 text-sm"
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commitEditing}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEditing();
+                  if (e.key === 'Escape') setIsEditing(false);
+                }}
+              />
+            </div>
+          ) : (
+            <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink">
+              <div className={clsx('h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
+              <span className="truncate">{title}</span>
+              {column.isDone && (
+                <span title="Coluna de conclusão: o que chega aqui é marcado como concluído">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-label="Coluna de conclusão" />
+                </span>
+              )}
+            </h2>
+          )}
+        </div>
+
         <div className="flex items-center gap-1">
-          {onRename && !isEditing && (
+          {!isEditing && (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-ink-muted hover:text-ink"
               onClick={startEditing}
-              aria-label={`Renomear coluna ${rawTitle}`}
+              aria-label={`Renomear coluna ${column.title}`}
               title="Renomear coluna"
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
           )}
-          {onToggleCollapse && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-ink-muted hover:text-ink"
-              onClick={onToggleCollapse}
-              aria-label={`Recolher coluna ${title}`}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          )}
-          {onRemove && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-ink-muted hover:text-ink"
+            onClick={onToggleCollapse}
+            aria-label={`Recolher coluna ${title}`}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {onRequestDelete && (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-ink-muted hover:text-danger"
-              onClick={onRemove}
-              aria-label={`Remover coluna ${title}`}
+              onClick={onRequestDelete}
+              aria-label={`Excluir coluna ${column.title}`}
+              title="Excluir coluna"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -215,12 +226,11 @@ function DroppableColumn({
         </div>
       </div>
       <div
-        ref={setNodeRef}
         className={clsx(
           'min-h-[58vh] space-y-3 rounded-xl border border-border bg-card p-3 transition',
-          isOver
+          isTaskDragActive && isOver
             ? 'border-primary/50 bg-primary/[0.06]'
-            : active
+            : isTaskDragActive
               ? 'border-primary/30 bg-secondary/40'
               : ''
         )}
@@ -243,9 +253,12 @@ export default function TasksPage() {
     const board = boardScrollRef.current;
     if (!board) return;
 
+    // A alça de arrastar coluna (data-no-pan) não deve rolar o quadro.
+    const isNoPan = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('[data-no-pan]'));
+
     const handleMouseDown = (e: MouseEvent) => {
       // Só botão esquerdo
-      if (e.button !== 0) return;
+      if (e.button !== 0 || isNoPan(e.target)) return;
       setIsPanning(true);
       panStart.current = {
         x: e.clientX,
@@ -268,7 +281,7 @@ export default function TasksPage() {
     let touchStartX = 0;
     let touchScrollLeft = 0;
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
+      if (e.touches.length !== 1 || isNoPan(e.target)) return;
       setIsPanning(true);
       touchStartX = e.touches[0].clientX;
       touchScrollLeft = board.scrollLeft;
@@ -302,36 +315,41 @@ export default function TasksPage() {
       board.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isPanning]);
-  const { tasks, projects, sessions, tasksFilters, setTasksFilters, isDataInitialized, setStatusTitle } = useAppStore();
-  const { mode } = useWorkspace();
-  const { labels, isStudy, statusTitles } = useWorkspace();
-  const { pendingTask, pendingTaskTrackedSeconds, requestStatusChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
+
+  const { tasks, projects, sessions, columns, activeWorkspaceId, tasksFilters, setTasksFilters, isDataInitialized, addColumn, renameColumn, reorderColumns, deleteColumn } = useAppStore();
+  const { labels, isStudy } = useWorkspace();
+  const { pendingTask, pendingTaskTrackedSeconds, requestColumnChange, confirmPendingCompletion, cancelPendingCompletion } = useTaskCompletionGuard();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [customColumns, setCustomColumns] = useState<Array<{ id: string; title: string }>>([]);
-  const [taskCustomColumnMap, setTaskCustomColumnMap] = useState<Record<string, string>>({});
   const [newColumnTitle, setNewColumnTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
-  const [isBoardStateHydrated, setIsBoardStateHydrated] = useState(false);
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(() => new Set());
+  const [columnToDelete, setColumnToDelete] = useState<BoardColumn | null>(null);
+  const [moveToColumnId, setMoveToColumnId] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const showOnlyToday = tasksFilters.showOnlyToday;
+
+  // Depois de arrastar um cartão, o navegador ainda dispara um "click" no elemento sob o cursor (o cartão
+  // acompanha o mouse). O dnd-kit interrompe a propagação desse clique, mas isso não cancela a ação padrão de
+  // links: o selo do projeto faria uma navegação completa. Este listener (registrado antes do do dnd-kit) a cancela.
+  const dragActiveRef = useRef(false);
+  const lastDragEndRef = useRef(0);
+  useEffect(() => {
+    const cancelClickAfterDrag = (event: MouseEvent) => {
+      if (dragActiveRef.current || Date.now() - lastDragEndRef.current < 250) event.preventDefault();
+    };
+    document.addEventListener('click', cancelClickAfterDrag, true);
+    return () => document.removeEventListener('click', cancelClickAfterDrag, true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     setSearchQuery(params.get('search') ?? '');
     setFocusId(params.get('focusId') ?? null);
-
-    try {
-      const saved = window.localStorage.getItem(BOARD_COLLAPSED_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setCollapsedColumns(new Set<string>(parsed as string[]));
-      }
-    } catch {}
 
     const onPop = () => {
       const p = new URLSearchParams(window.location.search);
@@ -343,99 +361,31 @@ export default function TasksPage() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  // Colunas recolhidas: lidas por workspace.
   useEffect(() => {
-    let canceled = false;
+    if (typeof window === 'undefined' || !activeWorkspaceId) return;
+    try {
+      const saved = window.localStorage.getItem(collapsedKey(activeWorkspaceId));
+      const parsed = saved ? JSON.parse(saved) : [];
+      setCollapsedColumns(new Set<string>(Array.isArray(parsed) ? (parsed as string[]) : []));
+    } catch {
+      setCollapsedColumns(new Set());
+    }
+  }, [activeWorkspaceId]);
 
-    const loadBoardState = async () => {
+  const handleToggleCollapse = (columnId: string) => {
+    setCollapsedColumns((previous) => {
+      const next = new Set(previous);
+      if (next.has(columnId)) next.delete(columnId);
+      else next.add(columnId);
       try {
-        const board = await storage.getTasksBoardSettings();
-        if (canceled) return;
-
-        setCustomColumns(Array.isArray(board.columns) ? board.columns : []);
-        setTaskCustomColumnMap(board.taskColumnMap && typeof board.taskColumnMap === 'object' ? board.taskColumnMap : {});
-
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(board.columns ?? []));
-          window.localStorage.setItem(BOARD_TASK_MAP_KEY, JSON.stringify(board.taskColumnMap ?? {}));
-        }
+        if (activeWorkspaceId) window.localStorage.setItem(collapsedKey(activeWorkspaceId), JSON.stringify(Array.from(next)));
       } catch {
-        if (typeof window !== 'undefined') {
-          try {
-            const savedColumns = window.localStorage.getItem(BOARD_COLUMNS_KEY);
-            if (savedColumns) {
-              const parsed = JSON.parse(savedColumns);
-              if (Array.isArray(parsed)) {
-                setCustomColumns(
-                  parsed
-                    .filter((item) => item && typeof item.id === 'string' && typeof item.title === 'string')
-                    .map((item) => ({ id: item.id, title: item.title })),
-                );
-              }
-            }
-
-            const savedTaskMap = window.localStorage.getItem(BOARD_TASK_MAP_KEY);
-            if (savedTaskMap) {
-              const parsed = JSON.parse(savedTaskMap);
-              if (parsed && typeof parsed === 'object') {
-                setTaskCustomColumnMap(parsed as Record<string, string>);
-              }
-            }
-          } catch {
-            setCustomColumns([]);
-            setTaskCustomColumnMap({});
-          }
-        }
-      } finally {
-        if (!canceled) {
-          setIsBoardStateHydrated(true);
-        }
+        // sem storage: o recolhimento só não é lembrado
       }
-    };
-
-    void loadBoardState();
-
-    return () => {
-      canceled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !isBoardStateHydrated) return;
-    window.localStorage.setItem(BOARD_COLUMNS_KEY, JSON.stringify(customColumns));
-    window.localStorage.setItem(BOARD_TASK_MAP_KEY, JSON.stringify(taskCustomColumnMap));
-
-    const timeoutId = window.setTimeout(() => {
-      void storage.setTasksBoardSettings({
-        columns: customColumns,
-        taskColumnMap: taskCustomColumnMap,
-      });
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [customColumns, taskCustomColumnMap, isBoardStateHydrated]);
-
-  useEffect(() => {
-    if (!isBoardStateHydrated) return;
-    if (!isDataInitialized) return;
-
-    const validColumnIds = new Set(customColumns.map((column) => column.id));
-    const validTaskIds = new Set(tasks.map((task) => task.id));
-
-    setTaskCustomColumnMap((previous) => {
-      let changed = false;
-      const nextMap: Record<string, string> = {};
-
-      for (const [taskId, columnId] of Object.entries(previous)) {
-        if (!validTaskIds.has(taskId) || !validColumnIds.has(columnId)) {
-          changed = true;
-          continue;
-        }
-        nextMap[taskId] = columnId;
-      }
-
-      return changed ? nextMap : previous;
+      return next;
     });
-  }, [customColumns, tasks, isBoardStateHydrated, isDataInitialized]);
+  };
 
   const searchTerm = searchQuery.trim().toLowerCase();
   const activeProjectIds = useMemo(() => new Set(projects.filter(project => project.active).map(project => project.id)), [projects]);
@@ -453,12 +403,10 @@ export default function TasksPage() {
 
   const sortedFilteredTasks = useMemo(() => [...filteredTasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [filteredTasks]);
 
+  // Radar: itens em andamento (colunas intermediárias => status derivado "doing").
   const taskPriorityInsights = useMemo(() => {
     return sortedFilteredTasks
-      .filter(task =>
-        !taskCustomColumnMap[task.id] &&
-        (task.status === 'pronta_elaboracao' || task.status === 'doing'),
-      )
+      .filter(task => task.status === 'doing' || task.status === 'pronta_elaboracao')
       .map(task => ({
         task,
         insight: calculateTaskPriorityInsight(
@@ -468,53 +416,27 @@ export default function TasksPage() {
         ),
       }))
       .sort((a, b) => b.insight.score - a.insight.score);
-  }, [sortedFilteredTasks, taskCustomColumnMap, projects, sessions]);
+  }, [sortedFilteredTasks, projects, sessions]);
 
   const priorityQueue = useMemo(() => taskPriorityInsights.slice(0, 5), [taskPriorityInsights]);
 
   let visibleTasks = sortedFilteredTasks;
   if (focusId) visibleTasks = sortedFilteredTasks.filter(t => t.id === focusId);
 
-  const boardColumns = useMemo<BoardColumn[]>(() => {
-    return [
-      // Mesmos 5 status do banco; o título vem do modo do workspace ou da personalização do usuário.
-      ...BASE_COLUMNS.map((column) => ({
-        ...column,
-        title: column.status ? statusTitles[column.status] : column.title,
-      })),
-      ...customColumns.map((column, index) => ({
-        id: `custom:${column.id}`,
-        title: column.title,
-        colorClass: index % 2 === 0 ? 'bg-fuchsia-400' : 'bg-cyan-400',
-        isCustom: true,
-      })),
-    ];
-  }, [customColumns, statusTitles]);
+  const orderedColumns = useMemo(() => [...columns].sort((a, b) => a.position - b.position), [columns]);
 
-  const visibleTasksByStatus = useMemo(() => {
-    const statusTasks: Record<ColumnId, Task[]> = {
-      todo: [],
-      call_agendada: [],
-      pronta_elaboracao: [],
-      doing: [],
-      done: [],
-    };
-
+  // Tarefas agrupadas pela coluna; sem coluna conhecida cai na primeira coluna aberta (não some do quadro).
+  const tasksByColumn = useMemo(() => {
+    const fallback = orderedColumns.find((column) => !column.isDone) ?? orderedColumns[0];
+    const known = new Set(orderedColumns.map((column) => column.id));
+    const groups: Record<string, Task[]> = {};
+    for (const column of orderedColumns) groups[column.id] = [];
     for (const task of visibleTasks) {
-      if (taskCustomColumnMap[task.id]) continue;
-      const status = (task.status ?? 'todo') as ColumnId;
-      statusTasks[status].push(task);
+      const target = task.columnId && known.has(task.columnId) ? task.columnId : fallback?.id;
+      if (target) groups[target].push(task);
     }
-
-    return statusTasks;
-  }, [visibleTasks, taskCustomColumnMap]);
-
-  const visibleTasksByCustomColumn = useMemo(() => {
-    return customColumns.reduce<Record<string, Task[]>>((acc, column) => {
-      acc[column.id] = visibleTasks.filter((task) => taskCustomColumnMap[task.id] === column.id);
-      return acc;
-    }, {});
-  }, [customColumns, visibleTasks, taskCustomColumnMap]);
+    return groups;
+  }, [orderedColumns, visibleTasks]);
 
   const handleEdit = (task: Task) => {
     setEditingTask(task);
@@ -533,97 +455,65 @@ export default function TasksPage() {
     }, {});
   }, [taskPriorityInsights]);
 
+  const reportError = (message: string) => (error: unknown) =>
+    toast.error(error instanceof Error && error.message ? error.message : message);
+
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
-    const taskId = String(active.id);
-    const target = String(over.id);
+    const activeId = String(active.id);
+    const overId = String(over.id);
 
-    if (target.startsWith('status:')) {
-      const status = target.replace('status:', '') as ColumnId;
-      const moved = tasks.find((task) => task.id === taskId);
-      if (!moved) return;
-
-      if ((moved.status ?? 'todo') !== status) {
-        requestStatusChange(moved, status);
-      }
-
-      if (taskCustomColumnMap[taskId]) {
-        setTaskCustomColumnMap((previous) => {
-          const nextMap = { ...previous };
-          delete nextMap[taskId];
-          return nextMap;
-        });
-      }
+    // Reordenar colunas
+    if (activeId.startsWith(COLUMN_DND_PREFIX)) {
+      if (!overId.startsWith(COLUMN_DND_PREFIX) || activeId === overId) return;
+      const ids = orderedColumns.map((column) => column.id);
+      const from = ids.indexOf(activeId.slice(COLUMN_DND_PREFIX.length));
+      const to = ids.indexOf(overId.slice(COLUMN_DND_PREFIX.length));
+      if (from < 0 || to < 0) return;
+      reorderColumns(arrayMove(ids, from, to)).catch(reportError('Não foi possível reordenar as colunas.'));
       return;
     }
 
-    if (target.startsWith('custom:')) {
-      const targetColumnId = target.replace('custom:', '');
-      if (!customColumns.some((column) => column.id === targetColumnId)) return;
+    // Mover tarefa para uma coluna
+    if (!overId.startsWith(COLUMN_DND_PREFIX)) return;
+    const column = orderedColumns.find((candidate) => candidate.id === overId.slice(COLUMN_DND_PREFIX.length));
+    const moved = tasks.find((task) => task.id === activeId);
+    if (column && moved) requestColumnChange(moved, column);
+  };
 
-      setTaskCustomColumnMap((previous) => {
-        if (previous[taskId] === targetColumnId) return previous;
-        return { ...previous, [taskId]: targetColumnId };
-      });
+  const handleAddColumn = () => {
+    const title = newColumnTitle.trim();
+    if (!title) return;
+    addColumn(title.slice(0, MAX_COLUMN_TITLE))
+      .then(() => setNewColumnTitle(''))
+      .catch(reportError('Não foi possível criar a coluna.'));
+  };
+
+  const requestDeleteColumn = (column: BoardColumn) => {
+    const others = orderedColumns.filter((candidate) => candidate.id !== column.id);
+    // destino padrão: a primeira coluna aberta que sobra
+    setMoveToColumnId((others.find((candidate) => !candidate.isDone) ?? others[0])?.id ?? '');
+    setColumnToDelete(column);
+  };
+
+  const confirmDeleteColumn = async () => {
+    if (!columnToDelete) return;
+    const itemCount = tasksByColumn[columnToDelete.id]?.length ?? tasks.filter((task) => task.columnId === columnToDelete.id).length;
+    setIsDeleting(true);
+    try {
+      await deleteColumn(columnToDelete.id, itemCount > 0 ? moveToColumnId : undefined);
+      setColumnToDelete(null);
+    } catch (error) {
+      reportError('Não foi possível excluir a coluna.')(error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handleAddCustomColumn = () => {
-    const normalizedTitle = newColumnTitle.trim().slice(0, 28);
-    if (!normalizedTitle) return;
-
-    const customId =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-    setCustomColumns((previous) => [...previous, { id: customId, title: normalizedTitle }]);
-    setNewColumnTitle('');
-  };
-
-  const handleRenameColumn = (column: BoardColumn, newTitle: string) => {
-    if (column.status) {
-      // Coluna padrão: vazio restaura o nome padrão do modo.
-      setStatusTitle(mode, column.status, newTitle || null).catch(() => {
-        toast.error('Não foi possível renomear a coluna.');
-      });
-      return;
-    }
-    if (!newTitle) return; // coluna personalizada precisa de nome
-    const customId = column.id.replace('custom:', '');
-    setCustomColumns((previous) =>
-      previous.map((item) => (item.id === customId ? { ...item, title: newTitle.slice(0, 40) } : item)),
-    );
-  };
-
-  const handleRemoveCustomColumn = (columnId: string) => {
-    setCustomColumns((previous) => previous.filter((column) => column.id !== columnId));
-    setTaskCustomColumnMap((previous) => {
-      const nextMap: Record<string, string> = {};
-      for (const [taskId, mappedColumnId] of Object.entries(previous)) {
-        if (mappedColumnId !== columnId) {
-          nextMap[taskId] = mappedColumnId;
-        }
-      }
-      return nextMap;
-    });
-  };
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(BOARD_COLLAPSED_KEY, JSON.stringify(Array.from(collapsedColumns)));
-  }, [collapsedColumns]);
-
-  const handleToggleCollapse = (columnId: string) => {
-    setCollapsedColumns((previous) => {
-      const next = new Set(previous);
-      if (next.has(columnId)) next.delete(columnId);
-      else next.add(columnId);
-      return next;
-    });
-  };
+  const deleteTargetCount = columnToDelete ? tasks.filter((task) => task.columnId === columnToDelete.id).length : 0;
+  const deleteTargetOptions = columnToDelete ? orderedColumns.filter((column) => column.id !== columnToDelete.id) : [];
 
   return (
     <>
@@ -700,104 +590,124 @@ export default function TasksPage() {
           Quadro Kanban arrastavel com scroll lateral
         </div>
 
-        <DndContext sensors={sensors} onDragEnd={onDragEnd} collisionDetection={rectIntersection}>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
+        {isDataInitialized && orderedColumns.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border bg-card p-6 text-sm text-ink-muted" role="status">
+            Não foi possível carregar as colunas deste workspace. Recarregue a página.
+          </p>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={rectIntersection}
+            onDragStart={() => {
+              dragActiveRef.current = true;
+            }}
+            onDragCancel={() => {
+              dragActiveRef.current = false;
+              lastDragEndRef.current = Date.now();
+            }}
+            onDragEnd={(event) => {
+              dragActiveRef.current = false;
+              lastDragEndRef.current = Date.now();
+              onDragEnd(event);
+            }}
+          >
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
 
-            {/* Board com scroll e pan */}
-            <div
-              ref={boardScrollRef}
-              className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-background"
-              style={{ WebkitOverflowScrolling: 'touch', cursor: isPanning ? 'grabbing' : 'grab' }}
-            >
-              <div className="flex w-max items-start gap-4 px-1 select-none">
-                {boardColumns.map((column) => {
-                  const tasksForColumn = column.status
-                    ? visibleTasksByStatus[column.status]
-                    : visibleTasksByCustomColumn[column.id.replace('custom:', '')] ?? [];
+              {/* Board com scroll e pan */}
+              <div
+                ref={boardScrollRef}
+                className="overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-background"
+                style={{ WebkitOverflowScrolling: 'touch', cursor: isPanning ? 'grabbing' : 'grab' }}
+              >
+                <div className="flex w-max items-start gap-4 px-1 select-none">
+                  <SortableContext
+                    items={orderedColumns.map((column) => `${COLUMN_DND_PREFIX}${column.id}`)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    {orderedColumns.map((column, index) => {
+                      const tasksForColumn = tasksByColumn[column.id] ?? [];
 
-                  const isCollapsed = collapsedColumns.has(column.id);
+                      return (
+                        <BoardColumnView
+                          key={column.id}
+                          column={column}
+                          colorClass={columnColor(column, index)}
+                          count={tasksForColumn.length}
+                          onRename={(title) => renameColumn(column.id, title).catch(reportError('Não foi possível renomear a coluna.'))}
+                          onRequestDelete={column.isDone ? undefined : () => requestDeleteColumn(column)}
+                          isCollapsed={collapsedColumns.has(column.id)}
+                          onToggleCollapse={() => handleToggleCollapse(column.id)}
+                        >
+                          {tasksForColumn.map((task) => (
+                            <DraggableTask
+                              key={task.id}
+                              task={task}
+                              onEdit={handleEdit}
+                              priorityScore={priorityByTaskId[task.id]?.score}
+                              priorityReasons={priorityByTaskId[task.id]?.reasons}
+                            />
+                          ))}
+                        </BoardColumnView>
+                      );
+                    })}
+                  </SortableContext>
 
-                  return (
-                    <DroppableColumn
-                      key={column.id}
-                      id={column.id}
-                      title={`${column.title} (${tasksForColumn.length})`}
-                      rawTitle={column.title}
-                      colorClass={column.colorClass}
-                      onRename={(newTitle) => handleRenameColumn(column, newTitle)}
-                      isCollapsed={isCollapsed}
-                      onToggleCollapse={() => handleToggleCollapse(column.id)}
-                      onRemove={
-                        column.isCustom
-                          ? () => handleRemoveCustomColumn(column.id.replace('custom:', ''))
-                          : undefined
-                      }
-                    >
-                      {tasksForColumn.map((task) => (
-                        <DraggableTask
-                          key={task.id}
-                          task={task}
-                          onEdit={handleEdit}
-                          priorityScore={priorityByTaskId[task.id]?.score}
-                          priorityReasons={priorityByTaskId[task.id]?.reasons}
-                        />
-                      ))}
-                    </DroppableColumn>
-                  );
-                })}
+                  <div className="w-[310px] shrink-0 rounded-xl border border-dashed border-border bg-card p-4">
+                    <h3 className="text-sm font-semibold text-ink">Adicionar coluna</h3>
+                    <p className="mt-1 text-xs text-ink-muted">
+                      A coluna vale só para este workspace e entra antes da coluna de conclusão. Depois, arraste para onde quiser.
+                    </p>
 
-                <div className="w-[310px] shrink-0 rounded-xl border border-dashed border-border bg-card p-4">
-                  <h3 className="text-sm font-semibold text-ink">Adicionar coluna</h3>
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Crie colunas extras para organizar {labels.tasks.toLowerCase()} temporariamente no board.
-                  </p>
-
-                  <div className="mt-4 space-y-3">
-                    <Input
-                      value={newColumnTitle}
-                      onChange={(event) => setNewColumnTitle(event.target.value)}
-                      placeholder="Ex.: Bloqueadas"
-                      maxLength={28}
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="w-full"
-                      onClick={handleAddCustomColumn}
-                      disabled={!newColumnTitle.trim()}
-                    >
-                      <Plus className="mr-2 h-4 w-4" /> Criar coluna
-                    </Button>
+                    <div className="mt-4 space-y-3">
+                      <Input
+                        value={newColumnTitle}
+                        onChange={(event) => setNewColumnTitle(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') handleAddColumn();
+                        }}
+                        placeholder={isStudy ? 'Ex.: Simulados' : 'Ex.: Bloqueadas'}
+                        maxLength={MAX_COLUMN_TITLE}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full"
+                        onClick={handleAddColumn}
+                        disabled={!newColumnTitle.trim()}
+                      >
+                        <Plus className="mr-2 h-4 w-4" /> Criar coluna
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            {/* Barra de rolagem fixa */}
-            <div className="sticky left-0 right-0 bottom-0 z-20 h-5 bg-background/80 flex items-end pointer-events-none">
-              <div
-                className="w-full h-2 overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-background pointer-events-auto"
-                style={{ WebkitOverflowScrolling: 'touch' }}
-                tabIndex={-1}
-                onScroll={e => {
-                  // Sincroniza scroll da barra fixa com o board
-                  if (boardScrollRef.current) {
-                    boardScrollRef.current.scrollLeft = (e.target as HTMLDivElement).scrollLeft;
-                  }
-                }}
-                ref={el => {
-                  // Sincroniza scroll da barra fixa ao board
-                  if (el && boardScrollRef.current) {
-                    el.scrollLeft = boardScrollRef.current.scrollLeft;
-                  }
-                }}
-              >
-                <div style={{ width: boardScrollRef.current ? boardScrollRef.current.scrollWidth : '100%' }} />
+              {/* Barra de rolagem fixa */}
+              <div className="sticky left-0 right-0 bottom-0 z-20 h-5 bg-background/80 flex items-end pointer-events-none">
+                <div
+                  className="w-full h-2 overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-background pointer-events-auto"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
+                  tabIndex={-1}
+                  onScroll={e => {
+                    // Sincroniza scroll da barra fixa com o board
+                    if (boardScrollRef.current) {
+                      boardScrollRef.current.scrollLeft = (e.target as HTMLDivElement).scrollLeft;
+                    }
+                  }}
+                  ref={el => {
+                    // Sincroniza scroll da barra fixa ao board
+                    if (el && boardScrollRef.current) {
+                      el.scrollLeft = boardScrollRef.current.scrollLeft;
+                    }
+                  }}
+                >
+                  <div style={{ width: boardScrollRef.current ? boardScrollRef.current.scrollWidth : '100%' }} />
+                </div>
               </div>
             </div>
-          </div>
-        </DndContext>
+          </DndContext>
+        )}
       </div>
 
       <TaskDialog
@@ -819,6 +729,54 @@ export default function TasksPage() {
           onConfirmed={confirmPendingCompletion}
         />
       )}
+
+      <Dialog open={Boolean(columnToDelete)} onOpenChange={(open) => !open && !isDeleting && setColumnToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir a coluna "{columnToDelete?.title}"?</DialogTitle>
+            <DialogDescription>
+              {deleteTargetCount > 0
+                ? `Há ${deleteTargetCount} ${deleteTargetCount === 1 ? 'item' : 'itens'} nesta coluna. Escolha para onde movê-los.`
+                : 'A coluna está vazia e será removida.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteTargetCount > 0 && (
+            <div className="space-y-2">
+              <Label>Mover os itens para</Label>
+              <Select value={moveToColumnId} onValueChange={setMoveToColumnId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {deleteTargetOptions.map((column) => (
+                    <SelectItem key={column.id} value={column.id}>
+                      {column.title}
+                      {column.isDone ? ' (conclusão)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {deleteTargetOptions.find((column) => column.id === moveToColumnId)?.isDone && (
+                <p className="text-xs text-ink-muted">Os itens serão marcados como concluídos.</p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColumnToDelete(null)} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteColumn}
+              disabled={isDeleting || (deleteTargetCount > 0 && !moveToColumnId)}
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir coluna'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

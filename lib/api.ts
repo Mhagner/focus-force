@@ -18,6 +18,10 @@ export function apiError(error: unknown) {
       { status: 400 }
     );
   }
+  // `await req.json()` com corpo vazio ou malformado: erro do cliente, não do servidor.
+  if (error instanceof SyntaxError) {
+    return NextResponse.json({ message: 'Corpo da requisição inválido.' }, { status: 400 });
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     // P2025: registro inexistente (ou de outro usuário, já que os filtros incluem userId).
     if (error.code === 'P2025') return notFound();

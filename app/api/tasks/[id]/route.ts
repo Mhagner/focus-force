@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { apiError } from '@/lib/api';
-import { requireUser } from '@/lib/auth/require-user';
+import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { doneColumn, firstOpenColumn, transitionData } from '@/lib/tasks/column-status';
+import { loadColumns, resolveTargetColumn } from '@/lib/tasks/columns';
 import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
 export const dynamic = 'force-dynamic';
 import { z } from 'zod';
@@ -67,7 +69,9 @@ export async function PATCH(
       description: z.string().max(10000).optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
+      // `status` é aceito por compatibilidade e traduzido para uma coluna; o que vale é a coluna (columnId).
       status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
+      columnId: z.string().min(1).optional(),
       estimateMin: z
         .union([z.string(), z.number()])
         .optional()
@@ -84,13 +88,30 @@ export async function PATCH(
       await assertProjectOwned(userId, parsed.projectId);
     }
 
+    const current = await prisma.task.findFirst({
+      where: { id, userId },
+      select: { status: true, completedAt: true, plannedFor: true, project: { select: { workspaceId: true } } },
+    });
+    if (!current) throw new HttpError(404, 'Não encontrado.');
+
+    let targetWorkspaceId = current.project.workspaceId;
+    if (parsed.projectId !== undefined) {
+      const targetProject = await prisma.project.findFirst({
+        where: { id: parsed.projectId, userId },
+        select: { workspaceId: true },
+      });
+      targetWorkspaceId = targetProject?.workspaceId ?? null;
+    }
+    const workspaceChanged = targetWorkspaceId !== current.project.workspaceId;
+
     const data: {
+      columnId?: string;
       projectId?: string;
       title?: string;
       description?: string | null;
       priority?: 'alta' | 'media' | 'baixa';
       plannedFor?: string | null;
-      status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
+      status?: 'todo' | 'doing' | 'done';
       estimateMin?: number;
       salesforceOppUrl?: string | null;
       repoUrl?: string | null;
@@ -102,18 +123,28 @@ export async function PATCH(
     if (parsed.description !== undefined) data.description = parsed.description ?? null;
     if (parsed.priority !== undefined) data.priority = parsed.priority;
     if (parsed.plannedFor !== undefined) data.plannedFor = parsed.plannedFor ?? null;
-    if (parsed.status !== undefined) {
-      data.status = parsed.status;
-      if (parsed.status === 'done') {
-        const current = await prisma.task.findFirst({ where: { id, userId }, select: { status: true } });
-        if (current?.status !== 'done') {
-          // Finishing a task stamps the completion time and takes it off "Meu Dia".
-          data.completedAt = new Date();
-          data.plannedFor = null;
-        }
-      } else {
-        data.completedAt = null;
-      }
+    // Mover de coluna (ou mudar de projeto para outro workspace) define o status e o carimbo de conclusão.
+    if (parsed.columnId !== undefined || parsed.status !== undefined || workspaceChanged) {
+      if (!targetWorkspaceId) throw new HttpError(409, 'O projeto não pertence a um workspace.');
+      const columns = await loadColumns(targetWorkspaceId);
+
+      const target =
+        workspaceChanged && parsed.columnId === undefined && parsed.status === undefined
+          ? // projeto de outro workspace: mantém "concluída" se já estava, senão entra na primeira coluna
+            (current.status === 'done' ? doneColumn(columns) : firstOpenColumn(columns)) ?? columns[0]
+          : resolveTargetColumn(columns, parsed.columnId, parsed.status);
+      if (!target) throw new HttpError(409, 'Este workspace não tem colunas.');
+
+      const transition = transitionData(
+        { completedAt: current.completedAt, plannedFor: current.plannedFor },
+        current.status === 'done',
+        target,
+        columns,
+      );
+      data.columnId = transition.columnId;
+      data.status = transition.status;
+      if ('completedAt' in transition) data.completedAt = transition.completedAt;
+      if ('plannedFor' in transition) data.plannedFor = transition.plannedFor;
     }
     if (parsed.estimateMin !== undefined) data.estimateMin = parsed.estimateMin;
     if (parsed.salesforceOppUrl !== undefined) data.salesforceOppUrl = parsed.salesforceOppUrl;

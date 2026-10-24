@@ -6,6 +6,16 @@ export interface Workspace {
   mode: WorkspaceMode;
   archived: boolean;
   createdAt: string;
+  onboardedAt?: string | null;
+}
+
+/** Coluna do quadro de um workspace. Cada workspace tem exatamente uma com isDone = true. */
+export interface BoardColumn {
+  id: string;
+  workspaceId: string;
+  title: string;
+  position: number;
+  isDone: boolean;
 }
 
 export interface Project {
@@ -34,6 +44,8 @@ export interface Task {
   priority?: 'alta' | 'media' | 'baixa';
   plannedFor?: 'today' | string | null; // dateISO
   status?: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
+  /** Coluna do quadro; `status` é derivado dela no servidor. */
+  columnId?: string | null;
   estimateMin?: number;
   salesforceOppUrl?: string | null;
   repoUrl?: string | null;
@@ -63,6 +75,7 @@ export interface TaskSubtask {
 
 export type TaskInput = {
   projectId: string;
+  columnId?: string;
   title: string;
   description?: string | null;
   priority?: 'alta' | 'media' | 'baixa';
@@ -144,20 +157,3 @@ export interface ClockfySettings {
   updatedAt?: string | null;
 }
 
-export type TaskStatusKey = 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
-
-/** Nomes personalizados das 5 colunas padrão do quadro, por modo de workspace. */
-export interface StatusTitles {
-  WORK: Partial<Record<TaskStatusKey, string>>;
-  STUDY: Partial<Record<TaskStatusKey, string>>;
-}
-
-export interface TaskBoardSettings {
-  columns: Array<{
-    id: string;
-    title: string;
-  }>;
-  taskColumnMap: Record<string, string>;
-  statusTitles?: StatusTitles;
-  updatedAt?: string | null;
-}

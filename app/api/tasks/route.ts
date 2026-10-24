@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { apiError } from '@/lib/api';
-import { requireUser } from '@/lib/auth/require-user';
+import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { statusForColumn } from '@/lib/tasks/column-status';
+import { loadColumns, resolveTargetColumn } from '@/lib/tasks/columns';
 import { assertProjectOwned, assertTaskOwned } from '@/lib/auth/ownership';
 import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
 export const dynamic = 'force-dynamic';
@@ -88,7 +90,9 @@ export async function POST(req: Request) {
       description: z.string().max(10000).optional().nullable(),
       priority: z.enum(['alta', 'media', 'baixa']).optional(),
       plannedFor: z.string().optional().nullable(),
+      // `status` é aceito por compatibilidade; o que vale é a coluna (columnId).
       status: z.enum(['todo', 'call_agendada', 'pronta_elaboracao', 'doing', 'done']).optional(),
+      columnId: z.string().min(1).optional(),
       estimateMin: z
         .union([z.string(), z.number()])
         .optional()
@@ -102,6 +106,16 @@ export async function POST(req: Request) {
     const parsed = schema.parse(body);
     await assertProjectOwned(userId, parsed.projectId);
 
+    const project = await prisma.project.findFirst({
+      where: { id: parsed.projectId, userId },
+      select: { workspaceId: true },
+    });
+    if (!project?.workspaceId) throw new HttpError(409, 'O projeto não pertence a um workspace.');
+
+    const columns = await loadColumns(project.workspaceId);
+    const target = resolveTargetColumn(columns, parsed.columnId, parsed.status);
+    const targetStatus = statusForColumn(target, columns);
+
     const bodyHasDescription =
       typeof body === 'object' && body !== null && Object.prototype.hasOwnProperty.call(body, 'description');
     const bodyHasPlannedFor =
@@ -112,7 +126,9 @@ export async function POST(req: Request) {
       projectId: string;
       title: string;
       priority: 'alta' | 'media' | 'baixa';
-      status: 'todo' | 'call_agendada' | 'pronta_elaboracao' | 'doing' | 'done';
+      status: 'todo' | 'doing' | 'done';
+      columnId: string;
+      completedAt?: Date;
       description?: string | null;
       plannedFor?: string | null;
       estimateMin?: number;
@@ -124,7 +140,9 @@ export async function POST(req: Request) {
       projectId: parsed.projectId,
       title: parsed.title,
       priority: parsed.priority ?? 'media',
-      status: parsed.status ?? 'todo',
+      status: targetStatus,
+      columnId: target.id,
+      ...(targetStatus === 'done' ? { completedAt: new Date() } : {}),
     };
 
     if (bodyHasDescription) {
@@ -151,7 +169,7 @@ export async function POST(req: Request) {
       data.estimatedDeliveryDate = parsed.estimatedDeliveryDate;
     }
 
-    const settings = await prisma.pomodoroSettings.findUnique({ where: { userId } });
+    const settings = await prisma.pomodoroSettings.findUnique({ where: { workspaceId: project.workspaceId } });
     const defaultChecklist = Array.isArray(settings?.defaultChecklist)
       ? settings?.defaultChecklist.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
       : [];

@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { TaskBoardSettings, StatusTitles, TaskStatusKey, Workspace, WorkspaceMode, Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, SessionDescriptionPreset } from '@/types';
+import { BoardColumn, Workspace, WorkspaceMode, Project, Task, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, SessionDescriptionPreset } from '@/types';
 import { storage } from '@/lib/storage';
 
 interface TasksFilters {
@@ -29,7 +29,7 @@ function writeActiveWorkspaceId(id: string) {
 interface AppStore {
   /** Mensagem quando o carregamento inicial falhou, total ou parcialmente; null se tudo carregou. */
   initError: string | null;
-  statusTitles: StatusTitles;
+  columns: BoardColumn[];
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
   projects: Project[];
@@ -45,10 +45,16 @@ interface AppStore {
 
   initializeData: () => Promise<void>;
 
-  /** Renomeia uma coluna padrão do quadro no modo informado. `null` restaura o nome padrão. */
-  setStatusTitle: (mode: WorkspaceMode, status: TaskStatusKey, title: string | null) => Promise<void>;
   setActiveWorkspace: (id: string) => Promise<void>;
-  addWorkspace: (input: { name: string; mode: WorkspaceMode }) => Promise<Workspace>;
+  /** Cria o workspace já configurado (onboarding) e o torna o ativo. */
+  createWorkspace: (input: Parameters<typeof storage.createWorkspace>[0]) => Promise<Workspace>;
+
+  /** Colunas do quadro do workspace ativo. */
+  addColumn: (title: string) => Promise<void>;
+  renameColumn: (id: string, title: string) => Promise<void>;
+  reorderColumns: (orderedIds: string[]) => Promise<void>;
+  /** `moveTo` é obrigatório quando a coluna tem itens. */
+  deleteColumn: (id: string, moveTo?: string) => Promise<void>;
   renameWorkspace: (id: string, name: string) => Promise<void>;
   setWorkspaceArchived: (id: string, archived: boolean) => Promise<void>;
 
@@ -113,9 +119,59 @@ export function subscribeToTasksChanges(onChange: () => void) {
   return () => channel.close();
 }
 
+interface WorkspaceData {
+  projects: Project[];
+  tasks: Task[];
+  sessions: FocusSession[];
+  dailyPlans: DailyPlan[];
+  columns: BoardColumn[];
+  pomodoroSettings?: PomodoroSettings;
+  sessionDescriptionPresets: SessionDescriptionPreset[];
+}
+
+/** Tudo o que pertence a um workspace. allSettled: uma requisição que falhe não impede o restante. */
+async function fetchWorkspaceData(workspaceId: string): Promise<{ data: WorkspaceData; failures: number }> {
+  const results = await Promise.allSettled([
+    storage.getProjects(workspaceId),
+    storage.getTasks(workspaceId),
+    storage.getSessions(workspaceId),
+    storage.getDailyPlans(workspaceId),
+    storage.getColumns(workspaceId),
+    storage.getPomodoroSettings(workspaceId),
+    storage.getSessionDescriptionPresets(workspaceId),
+  ]);
+
+  let failures = 0;
+  const pick = <T,>(index: number, fallback: T): T => {
+    const result = results[index];
+    if (result.status === 'fulfilled') return result.value as T;
+    failures += 1;
+    console.error(`[init] falha na requisição #${index}`, result.reason);
+    return fallback;
+  };
+
+  const settings = pick<PomodoroSettings | undefined>(5, undefined);
+  return {
+    failures,
+    data: {
+      projects: pick<Project[]>(0, []),
+      tasks: pick<Task[]>(1, []).map((task) => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
+      sessions: pick<FocusSession[]>(2, []),
+      dailyPlans: pick<DailyPlan[]>(3, []),
+      columns: pick<BoardColumn[]>(4, []),
+      pomodoroSettings: settings && {
+        ...settings,
+        defaultChecklist: settings.defaultChecklist ?? [],
+        defaultHourlyRate: settings.defaultHourlyRate ?? 0,
+      },
+      sessionDescriptionPresets: pick<SessionDescriptionPreset[]>(6, []),
+    },
+  };
+}
+
 export const useAppStore = create<AppStore>((set, get) => ({
   initError: null,
-  statusTitles: { WORK: {}, STUDY: {} },
+  columns: [],
   workspaces: [],
   activeWorkspaceId: null,
   projects: [],
@@ -163,104 +219,112 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const usable = workspaces.filter((workspace) => !workspace.archived);
     // O id salvo no navegador só vale se ainda for um workspace ativo deste usuário.
     const active = usable.find((workspace) => workspace.id === readActiveWorkspaceId()) ?? usable[0];
-    const workspaceId = active?.id;
 
-    // allSettled: uma requisição que falhe não impede o restante de carregar.
-    const results = await Promise.allSettled([
-      storage.getProjects(workspaceId),
-      storage.getTasks(workspaceId),
-      storage.getSessions(workspaceId),
-      storage.getPomodoroSettings(),
-      storage.getClockfySettings(),
-      storage.getDailyPlans(workspaceId),
-      storage.getSessionDescriptionPresets(),
-      storage.getTasksBoardSettings(),
+    // Sem workspace ativo: usuário novo. O app abre o onboarding para criar o primeiro.
+    if (!active) {
+      set({ workspaces, activeWorkspaceId: null, initError: null, isDataInitialized: true });
+      return;
+    }
+
+    const [clockfy, workspaceData] = await Promise.all([
+      storage.getClockfySettings().catch((error) => {
+        console.error('[init] falha ao carregar o Clockfy', error);
+        return null;
+      }),
+      fetchWorkspaceData(active.id),
     ]);
+    const { data, failures } = workspaceData;
 
-    let failures = 0;
-    const pick = <T,>(index: number, fallback: T): T => {
-      const result = results[index];
-      if (result.status === 'fulfilled') return result.value as T;
-      failures += 1;
-      console.error(`[init] falha na requisição #${index}`, result.reason);
-      return fallback;
-    };
-
-    const projects = pick<Project[]>(0, []);
-    const tasks = pick<Task[]>(1, []);
-    const sessions = pick<FocusSession[]>(2, []);
-    const pomodoroSettings = pick<PomodoroSettings>(3, get().pomodoroSettings);
-    const clockfySettings = pick<ClockfySettings>(4, get().clockfySettings);
-    const dailyPlans = pick<DailyPlan[]>(5, []);
-    const sessionDescriptionPresets = pick<SessionDescriptionPreset[]>(6, []);
-    // O quadro é opcional aqui (só traz nomes personalizados de colunas): falha não conta como erro.
-    const boardResult = results[7];
-    const board = boardResult.status === 'fulfilled' ? (boardResult.value as TaskBoardSettings) : null;
-
-    if (workspaceId) writeActiveWorkspaceId(workspaceId);
+    writeActiveWorkspaceId(active.id);
     set({
-      initError: failures > 0 ? 'Alguns dados não puderam ser carregados. Tente novamente.' : null,
-      statusTitles: { WORK: board?.statusTitles?.WORK ?? {}, STUDY: board?.statusTitles?.STUDY ?? {} },
+      initError: failures > 0 || !clockfy ? 'Alguns dados não puderam ser carregados. Tente novamente.' : null,
       workspaces,
-      activeWorkspaceId: workspaceId ?? null,
-      projects,
-      tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
-      sessions,
-      pomodoroSettings: {
-        ...pomodoroSettings,
-        defaultChecklist: pomodoroSettings.defaultChecklist ?? [],
-        defaultHourlyRate: pomodoroSettings.defaultHourlyRate ?? 0,
-      },
-      clockfySettings: { ...clockfySettings, workspaces: clockfySettings.workspaces ?? [] },
-      dailyPlans,
-      sessionDescriptionPresets,
+      activeWorkspaceId: active.id,
+      projects: data.projects,
+      tasks: data.tasks,
+      sessions: data.sessions,
+      dailyPlans: data.dailyPlans,
+      columns: data.columns,
+      sessionDescriptionPresets: data.sessionDescriptionPresets,
+      ...(data.pomodoroSettings ? { pomodoroSettings: data.pomodoroSettings } : {}),
+      ...(clockfy ? { clockfySettings: { ...clockfy, workspaces: clockfy.workspaces ?? [] } } : {}),
       isDataInitialized: true,
     });
   },
 
   // Workspaces
-  setStatusTitle: async (mode, status, title) => {
-    const previous = get().statusTitles;
-    const nextForMode = { ...previous[mode] };
-    const trimmed = title?.trim().slice(0, 40);
-    if (trimmed) nextForMode[status] = trimmed;
-    else delete nextForMode[status];
-
-    const next: StatusTitles = { ...previous, [mode]: nextForMode };
-    set({ statusTitles: next });
-    try {
-      await storage.setTasksBoardSettings({ statusTitles: next });
-    } catch (error) {
-      set({ statusTitles: previous });
-      throw error;
-    }
-  },
   setActiveWorkspace: async (id) => {
     const target = get().workspaces.find((workspace) => workspace.id === id && !workspace.archived);
     if (!target || get().activeWorkspaceId === id) return;
 
     writeActiveWorkspaceId(id);
-    set({ activeWorkspaceId: id, projects: [], tasks: [], sessions: [], dailyPlans: [] });
+    set({ activeWorkspaceId: id, projects: [], tasks: [], sessions: [], dailyPlans: [], columns: [], sessionDescriptionPresets: [] });
 
-    const [projects, tasks, sessions, dailyPlans] = await Promise.all([
-      storage.getProjects(id),
-      storage.getTasks(id),
-      storage.getSessions(id),
-      storage.getDailyPlans(id),
-    ]);
+    const { data, failures } = await fetchWorkspaceData(id);
     // Se o usuário trocou de novo enquanto carregava, descarta esta resposta.
     if (get().activeWorkspaceId !== id) return;
     set({
-      projects,
-      tasks: tasks.map(task => ({ ...task, comments: task.comments ?? [], subtasks: task.subtasks ?? [] })),
-      sessions,
-      dailyPlans,
+      projects: data.projects,
+      tasks: data.tasks,
+      sessions: data.sessions,
+      dailyPlans: data.dailyPlans,
+      columns: data.columns,
+      sessionDescriptionPresets: data.sessionDescriptionPresets,
+      ...(data.pomodoroSettings ? { pomodoroSettings: data.pomodoroSettings } : {}),
+      initError: failures > 0 ? 'Alguns dados não puderam ser carregados. Tente novamente.' : null,
     });
   },
-  addWorkspace: async (input) => {
-    const workspace = await storage.addWorkspace(input);
+  createWorkspace: async (input) => {
+    const workspace = await storage.createWorkspace(input);
     set((state) => ({ workspaces: [...state.workspaces, workspace] }));
+    await get().setActiveWorkspace(workspace.id);
     return workspace;
+  },
+
+  // Colunas do quadro (workspace ativo). O status das tarefas é derivado delas no servidor,
+  // então depois de mudar a estrutura recarregamos as tarefas.
+  addColumn: async (title) => {
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) return;
+    await storage.addColumn(workspaceId, title);
+    set({ columns: await storage.getColumns(workspaceId) });
+    await get().refreshTasks();
+  },
+  renameColumn: async (id, title) => {
+    const previous = get().columns;
+    set({ columns: previous.map((column) => (column.id === id ? { ...column, title } : column)) });
+    try {
+      await storage.renameColumn(id, title);
+    } catch (error) {
+      set({ columns: previous });
+      throw error;
+    }
+  },
+  reorderColumns: async (orderedIds) => {
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) return;
+    const previous = get().columns;
+    const byId = new Map(previous.map((column) => [column.id, column]));
+    set({
+      columns: orderedIds.flatMap((id, index) => {
+        const column = byId.get(id);
+        return column ? [{ ...column, position: index }] : [];
+      }),
+    });
+    try {
+      set({ columns: await storage.reorderColumns(workspaceId, orderedIds) });
+      await get().refreshTasks();
+    } catch (error) {
+      set({ columns: previous });
+      throw error;
+    }
+  },
+  deleteColumn: async (id, moveTo) => {
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) return;
+    await storage.deleteColumn(id, moveTo);
+    set({ columns: await storage.getColumns(workspaceId) });
+    await get().refreshTasks();
   },
   renameWorkspace: async (id, name) => {
     const workspace = await storage.updateWorkspace(id, { name });
@@ -438,8 +502,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // Settings
   updatePomodoroSettings: async (settings) => {
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) throw new Error('Nenhum workspace ativo.');
     const newSettings = { ...get().pomodoroSettings, ...settings };
-    await storage.setPomodoroSettings(newSettings);
+    await storage.setPomodoroSettings(newSettings, workspaceId);
     set({ pomodoroSettings: newSettings });
   },
 
@@ -473,7 +539,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // Session Description Presets
   addSessionDescriptionPreset: async (label) => {
-    const preset = await storage.addSessionDescriptionPreset(label);
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) throw new Error('Nenhum workspace ativo.');
+    const preset = await storage.addSessionDescriptionPreset(workspaceId, label);
     set((state) => ({ sessionDescriptionPresets: [...state.sessionDescriptionPresets, preset] }));
   },
   updateSessionDescriptionPreset: async (id, updates) => {
