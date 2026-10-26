@@ -64,11 +64,11 @@ describe.skipIf(!TEST_DB)('auth com banco', () => {
     expect(await consumeAuthToken(second, 'PASSWORD_RESET')).toBeNull();
   });
 
-  it('bootstrapUser é idempotente (1 workspace, 1 assinatura em trial)', async () => {
+  it('bootstrapUser é idempotente: só cria a assinatura em trial (o workspace nasce no onboarding)', async () => {
     const { bootstrapUser } = await import('@/lib/auth/bootstrap');
     await bootstrapUser(userId);
     await bootstrapUser(userId);
-    expect(await prisma.workspace.count({ where: { userId } })).toBe(1);
+    expect(await prisma.workspace.count({ where: { userId } })).toBe(0);
     const sub = await prisma.subscription.findUniqueOrThrow({ where: { userId } });
     expect(sub.status).toBe('trialing');
     expect(sub.trialEndsAt!.getTime()).toBeGreaterThan(Date.now());

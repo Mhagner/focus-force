@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Sun, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
+import { Briefcase, GraduationCap, Search, Play, Pause, RotateCcw, LogOut, SquareArrowOutUpRight, Sun, Bell, AlertTriangle, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,7 @@ export function TopNav() {
   } = useTimerStore();
 
   const { projects, tasks, isDataInitialized } = useAppStore();
-  const { labels } = useWorkspace();
+  const { labels, workspace, isStudy } = useWorkspace();
   const activeProjects = useMemo(() => projects.filter(project => project.active), [projects]);
   const notifications = useMemo(
     () => buildTaskNotifications(tasks, activeProjects),
@@ -194,6 +194,23 @@ export function TopNav() {
       <header className="bg-surface/90 backdrop-blur border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            {workspace && (
+              <div
+                className="hidden items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 md:flex"
+                title={`Workspace ativo: ${workspace.name}`}
+                data-testid="active-workspace-badge"
+              >
+                {isStudy ? (
+                  <GraduationCap className="h-4 w-4 shrink-0 text-primary" />
+                ) : (
+                  <Briefcase className="h-4 w-4 shrink-0 text-primary" />
+                )}
+                <div className="leading-tight">
+                  <p className="max-w-[160px] truncate text-sm font-semibold text-ink">{workspace.name}</p>
+                  <p className="text-[10px] uppercase tracking-wide text-ink-muted">{isStudy ? 'Estudos' : 'Trabalho'}</p>
+                </div>
+              </div>
+            )}
             <Button
               type="button"
               variant="outline"

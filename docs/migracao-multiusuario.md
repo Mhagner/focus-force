@@ -71,7 +71,41 @@ Defina `ALLOW_SIGNUP=true` somente depois de: isolamento verificado em produçã
 
 ```bash
 npm test                                   # unitários (sem banco)
-TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/ff_test npm test   # inclui isolamento e auth com banco
+TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/ff_test npm test   # inclui isolamento, workspaces, colunas e auth com banco
 ```
 
 `TEST_DATABASE_URL` só é aceito se apontar para `localhost`/`127.0.0.1`.
+
+---
+
+## Onboarding e configurações por workspace (migration `20261025120000_workspace_columns_settings`)
+
+Muda o modelo: **colunas do quadro, configurações de foco e descrições de sessão passam a ser do workspace** (antes eram do usuário). O workspace deixa de ser criado automaticamente: o primeiro acesso cai no onboarding, onde a pessoa escolhe o tipo (Estudos ou Trabalho), o nome, o foco, as colunas e as descrições.
+
+Ordem (mesma lógica expand → backfill → deploy → backfill):
+
+```bash
+# 0. backup do banco; confira qual banco o Prisma vai usar:
+npx prisma migrate status            # linha: Datasource "db": ... at "<host>"
+
+# 1. migration aditiva (cria BoardColumn e colunas novas; remove só o índice único antigo de PomodoroSettings)
+npx prisma migrate deploy
+
+# 2. converte os dados existentes PRESERVANDO o que há hoje
+npm run db:backfill-workspaces -- --dry-run   # confere o resumo; desfaz tudo no final
+npm run db:backfill-workspaces
+
+# 3. deploy do código novo e, depois dele, rode o passo 2 de novo (idempotente)
+```
+
+O que o passo 2 faz, por workspace já existente:
+- cria as colunas: as 5 antigas, na ordem de antes e com os nomes que o usuário usava, mais as colunas personalizadas que tinham tarefa naquele workspace;
+- coloca cada tarefa na coluna correspondente (nenhuma tarefa muda de lugar; tarefa concluída sempre vai para a coluna de conclusão);
+- **copia** as configurações de foco e as descrições ativas do usuário para o workspace (a partir daí são independentes);
+- marca o workspace como já "onboarded".
+
+Falha sem gravar nada se sobrar tarefa sem coluna ou workspace sem coluna de conclusão. Se algum projeto antigo estiver sem workspace, rode antes `npm run db:backfill-owner`.
+
+Workspaces criados depois disso nascem pelo onboarding, com os padrões do tipo (Trabalho: Backlog → Em andamento → Concluído; Estudos: A estudar → Teoria → Exercícios → Revisão → Dominado) e sem herdar nada de outro workspace.
+
+Depois de validar em produção (contract, em outra migration): tornar `Task.columnId` obrigatório e remover `TaskBoardSettings.columns/taskColumnMap/statusTitles` e as linhas de `PomodoroSettings`/`SessionDescriptionPreset` sem `workspaceId`.

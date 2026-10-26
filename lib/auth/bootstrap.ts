@@ -2,15 +2,12 @@ import { ensurePlan, TRIAL_DAYS } from '@/lib/billing/plans';
 import { prisma } from '@/lib/prisma';
 
 /**
- * Cria o que todo usuário novo precisa (workspace padrão e assinatura em trial).
+ * Cria o que todo usuário novo precisa: a assinatura em trial.
+ * O workspace NÃO é criado aqui: o primeiro acesso passa pelo onboarding, onde a pessoa escolhe
+ * o tipo (Estudos ou Trabalho), o nome e as configurações.
  * Idempotente: pode ser chamado mais de uma vez para o mesmo usuário.
  */
 export async function bootstrapUser(userId: string) {
-  const existingWorkspace = await prisma.workspace.findFirst({ where: { userId }, select: { id: true } });
-  if (!existingWorkspace) {
-    await prisma.workspace.create({ data: { userId, name: 'Trabalho', mode: 'WORK' } });
-  }
-
   const existingSubscription = await prisma.subscription.findUnique({ where: { userId }, select: { id: true } });
   if (!existingSubscription) {
     const plan = await ensurePlan('pro');
