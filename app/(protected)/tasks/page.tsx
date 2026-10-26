@@ -419,14 +419,15 @@ export default function TasksPage() {
     if (!isDataInitialized) return;
 
     const validColumnIds = new Set(customColumns.map((column) => column.id));
-    const validTaskIds = new Set(tasks.map((task) => task.id));
 
+    // O mapa é global (todos os workspaces) e `tasks` só tem as do workspace ativo:
+    // podar por tarefa inexistente apagaria o mapeamento dos outros workspaces.
     setTaskCustomColumnMap((previous) => {
       let changed = false;
       const nextMap: Record<string, string> = {};
 
       for (const [taskId, columnId] of Object.entries(previous)) {
-        if (!validTaskIds.has(taskId) || !validColumnIds.has(columnId)) {
+        if (!validColumnIds.has(columnId)) {
           changed = true;
           continue;
         }
@@ -435,7 +436,7 @@ export default function TasksPage() {
 
       return changed ? nextMap : previous;
     });
-  }, [customColumns, tasks, isBoardStateHydrated, isDataInitialized]);
+  }, [customColumns, isBoardStateHydrated, isDataInitialized]);
 
   const searchTerm = searchQuery.trim().toLowerCase();
   const activeProjectIds = useMemo(() => new Set(projects.filter(project => project.active).map(project => project.id)), [projects]);
