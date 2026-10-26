@@ -130,7 +130,7 @@ export default function CalendarPage() {
       });
     }
     return Array.from(map.values()).sort((a, b) => b.totalSeconds - a.totalSeconds);
-  }, [sessionsForDate, tasks, projects]);
+  }, [sessionsForDate, tasks, projects, isStudy]);
 
   // ─── Month grid ───────────────────────────────────────────
   const monthDays = useMemo(() => eachDayOfInterval({

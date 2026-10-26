@@ -733,7 +733,7 @@ export default function TasksPage() {
       <Dialog open={Boolean(columnToDelete)} onOpenChange={(open) => !open && !isDeleting && setColumnToDelete(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Excluir a coluna "{columnToDelete?.title}"?</DialogTitle>
+            <DialogTitle>Excluir a coluna &quot;{columnToDelete?.title}&quot;?</DialogTitle>
             <DialogDescription>
               {deleteTargetCount > 0
                 ? `Há ${deleteTargetCount} ${deleteTargetCount === 1 ? 'item' : 'itens'} nesta coluna. Escolha para onde movê-los.`
