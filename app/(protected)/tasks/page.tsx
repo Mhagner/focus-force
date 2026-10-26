@@ -323,6 +323,8 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const addingColumnRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusId, setFocusId] = useState<string | null>(null);
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(() => new Set());
@@ -485,10 +487,17 @@ export default function TasksPage() {
 
   const handleAddColumn = () => {
     const title = newColumnTitle.trim();
-    if (!title) return;
+    // addingColumnRef bloqueia Enter repetido antes de o estado `isAddingColumn` renderizar.
+    if (!title || addingColumnRef.current) return;
+    addingColumnRef.current = true;
+    setIsAddingColumn(true);
     addColumn(title.slice(0, MAX_COLUMN_TITLE))
       .then(() => setNewColumnTitle(''))
-      .catch(reportError('Não foi possível criar a coluna.'));
+      .catch(reportError('Não foi possível criar a coluna.'))
+      .finally(() => {
+        addingColumnRef.current = false;
+        setIsAddingColumn(false);
+      });
   };
 
   const requestDeleteColumn = (column: BoardColumn) => {
@@ -669,15 +678,16 @@ export default function TasksPage() {
                         }}
                         placeholder={isStudy ? 'Ex.: Simulados' : 'Ex.: Bloqueadas'}
                         maxLength={MAX_COLUMN_TITLE}
+                        disabled={isAddingColumn}
                       />
                       <Button
                         type="button"
                         variant="secondary"
                         className="w-full"
                         onClick={handleAddColumn}
-                        disabled={!newColumnTitle.trim()}
+                        disabled={!newColumnTitle.trim() || isAddingColumn}
                       >
-                        <Plus className="mr-2 h-4 w-4" /> Criar coluna
+                        <Plus className="mr-2 h-4 w-4" /> {isAddingColumn ? 'Criando...' : 'Criar coluna'}
                       </Button>
                     </div>
                   </div>

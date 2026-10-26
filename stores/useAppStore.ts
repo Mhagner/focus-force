@@ -42,6 +42,8 @@ interface AppStore {
   theme: 'dark' | 'light' | 'system';
   tasksFilters: TasksFilters;
   isDataInitialized: boolean;
+  /** true enquanto os dados de outro workspace estão sendo carregados após a troca. */
+  isWorkspaceLoading: boolean;
 
   initializeData: () => Promise<void>;
 
@@ -201,6 +203,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     showOnlyToday: false,
   },
   isDataInitialized: false,
+  isWorkspaceLoading: false,
 
   initializeData: async () => {
     // Workspaces são pré-requisito de tudo: sem eles não há o que carregar.
@@ -258,12 +261,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!target || get().activeWorkspaceId === id) return;
 
     writeActiveWorkspaceId(id);
-    set({ activeWorkspaceId: id, projects: [], tasks: [], sessions: [], dailyPlans: [], columns: [], sessionDescriptionPresets: [] });
+    set({
+      activeWorkspaceId: id,
+      projects: [],
+      tasks: [],
+      sessions: [],
+      dailyPlans: [],
+      columns: [],
+      sessionDescriptionPresets: [],
+      isWorkspaceLoading: true,
+    });
 
-    const { data, failures } = await fetchWorkspaceData(id);
-    // Se o usuário trocou de novo enquanto carregava, descarta esta resposta.
+    let result: Awaited<ReturnType<typeof fetchWorkspaceData>>;
+    try {
+      result = await fetchWorkspaceData(id);
+    } catch (error) {
+      if (get().activeWorkspaceId === id) set({ isWorkspaceLoading: false });
+      throw error;
+    }
+    const { data, failures } = result;
+    // Se o usuário trocou de novo enquanto carregava, descarta esta resposta
+    // (a troca mais recente é quem encerra o carregamento).
     if (get().activeWorkspaceId !== id) return;
     set({
+      isWorkspaceLoading: false,
       projects: data.projects,
       tasks: data.tasks,
       sessions: data.sessions,
