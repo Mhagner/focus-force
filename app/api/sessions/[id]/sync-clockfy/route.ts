@@ -46,7 +46,7 @@ export async function POST(
       return NextResponse.json({ message: 'O projeto não está vinculado a um projeto do Clockfy.' }, { status: 400 });
     }
 
-    const { settings, apiKey } = await getClockfySettings(userId);
+    const { settings, apiKey } = await getClockfySettings(userId, session.project.workspaceId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
     const credentials = {
       apiKey,

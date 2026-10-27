@@ -17,6 +17,15 @@ const credentialsSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+// Diagnóstico: o Auth.js esconde a causa real atrás de "problem with the server configuration".
+// Registramos só os NOMES das variáveis ausentes para aparecerem nos logs do servidor.
+const missingServerEnv = ['DATABASE_URL', 'AUTH_GOOGLE_ID|GOOGLE_CLIENT_ID', 'AUTH_GOOGLE_SECRET|GOOGLE_CLIENT_SECRET', 'ENCRYPTION_KEY'].filter(
+  (spec) => !spec.split('|').some((name) => process.env[name]),
+);
+if (missingServerEnv.length > 0) {
+  console.error(`[auth] variáveis de ambiente ausentes no servidor: ${missingServerEnv.join(', ')}`);
+}
+
 const baseAdapter = PrismaAdapter(prisma);
 
 // Não persistimos tokens do Google (não usamos a API deles); guardamos só o vínculo.

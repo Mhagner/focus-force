@@ -1,5 +1,5 @@
 // src/lib/storage.ts
-import { Workspace, WorkspaceMode, Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, TaskBoardSettings, SessionDescriptionPreset } from '@/types';
+import { BoardColumn, Workspace, WorkspaceMode, Project, Task, TaskComment, TaskInput, FocusSession, PomodoroSettings, DailyPlan, ClockfySettings, TaskSubtask, SessionDescriptionPreset } from '@/types';
 
 /**
  * ------------------------------------------------------------
@@ -206,8 +206,45 @@ export const storage = {
     return request<Workspace[]>('/api/workspaces');
   },
 
-  async addWorkspace(input: { name: string; mode: WorkspaceMode }): Promise<Workspace> {
+  /** Cria o workspace já configurado (o que o onboarding coletou); o que faltar usa os padrões do tipo. */
+  async createWorkspace(input: {
+    name: string;
+    mode: WorkspaceMode;
+    settings?: Omit<PomodoroSettings, 'defaultHourlyRate'> & { defaultHourlyRate?: number };
+    columns?: Array<{ title: string; isDone: boolean }>;
+    presets?: string[];
+  }): Promise<Workspace> {
     return request<Workspace>('/api/workspaces', { method: 'POST', body: input });
+  },
+
+  async getWorkspaceLimits(): Promise<{ max: number | null; used: number; canCreate: boolean }> {
+    return request('/api/workspaces/limits');
+  },
+
+  /** Colunas do quadro (por workspace). */
+  async getColumns(workspaceId: string): Promise<BoardColumn[]> {
+    return request<BoardColumn[]>(withWorkspace('/api/columns', workspaceId));
+  },
+
+  async addColumn(workspaceId: string, title: string): Promise<BoardColumn> {
+    return request<BoardColumn>('/api/columns', { method: 'POST', body: { workspaceId, title } });
+  },
+
+  async renameColumn(id: string, title: string): Promise<BoardColumn> {
+    return request<BoardColumn>(`/api/columns/${id}`, { method: 'PATCH', body: { title } });
+  },
+
+  async reorderColumns(workspaceId: string, orderedIds: string[]): Promise<BoardColumn[]> {
+    return request<BoardColumn[]>('/api/columns/reorder', { method: 'PATCH', body: { workspaceId, orderedIds } });
+  },
+
+  async deleteColumn(id: string, moveTo?: string): Promise<void> {
+    const query = moveTo ? `?moveTo=${encodeURIComponent(moveTo)}` : '';
+    await request<unknown>(`/api/columns/${id}${query}`, { method: 'DELETE' });
+  },
+
+  async deleteWorkspace(id: string, confirmName: string): Promise<void> {
+    await request<{ ok: boolean }>(`/api/workspaces/${id}`, { method: 'DELETE', body: { confirmName } });
   },
 
   async updateWorkspace(id: string, updates: { name?: string; archived?: boolean }): Promise<Workspace> {
@@ -351,14 +388,14 @@ export const storage = {
    * Session Description Presets
    * ---------------------------
    */
-  async getSessionDescriptionPresets(): Promise<SessionDescriptionPreset[]> {
-    return request<SessionDescriptionPreset[]>('/api/session-description-presets');
+  async getSessionDescriptionPresets(workspaceId: string): Promise<SessionDescriptionPreset[]> {
+    return request<SessionDescriptionPreset[]>(withWorkspace('/api/session-description-presets', workspaceId));
   },
 
-  async addSessionDescriptionPreset(label: string): Promise<SessionDescriptionPreset> {
+  async addSessionDescriptionPreset(workspaceId: string, label: string): Promise<SessionDescriptionPreset> {
     return request<SessionDescriptionPreset>('/api/session-description-presets', {
       method: 'POST',
-      body: { label },
+      body: { workspaceId, label },
     });
   },
 
@@ -381,12 +418,12 @@ export const storage = {
    * Pomodoro (database)
    * ---------------------------
    */
-  async getPomodoroSettings(): Promise<PomodoroSettings> {
-    return request<PomodoroSettings>('/api/settings');
+  async getPomodoroSettings(workspaceId: string): Promise<PomodoroSettings> {
+    return request<PomodoroSettings>(withWorkspace('/api/settings', workspaceId));
   },
 
-  async setPomodoroSettings(settings: PomodoroSettings): Promise<void> {
-    await request<PomodoroSettings>('/api/settings', {
+  async setPomodoroSettings(settings: PomodoroSettings, workspaceId: string): Promise<void> {
+    await request<PomodoroSettings>(withWorkspace('/api/settings', workspaceId), {
       method: 'PATCH',
       body: settings,
     });
@@ -397,12 +434,12 @@ export const storage = {
    * Clockfy integration
    * ---------------------------
    */
-  async getClockfySettings(): Promise<ClockfySettings> {
-    return request<ClockfySettings>('/api/integrations/clockfy');
+  async getClockfySettings(workspaceId: string): Promise<ClockfySettings> {
+    return request<ClockfySettings>(withWorkspace('/api/integrations/clockfy', workspaceId));
   },
 
-  async updateClockfySettings(settings: Partial<ClockfySettings>): Promise<ClockfySettings> {
-    return request<ClockfySettings>('/api/integrations/clockfy', {
+  async updateClockfySettings(settings: Partial<ClockfySettings>, workspaceId: string): Promise<ClockfySettings> {
+    return request<ClockfySettings>(withWorkspace('/api/integrations/clockfy', workspaceId), {
       method: 'PATCH',
       body: settings,
     });
@@ -421,22 +458,6 @@ export const storage = {
     return request<DailyPlan>(withWorkspace('/api/daily-plans', workspaceId), {
       method: 'POST',
       body: plan,
-    });
-  },
-
-  /**
-   * ---------------------------
-   * Tasks Board (database)
-   * ---------------------------
-   */
-  async getTasksBoardSettings(): Promise<TaskBoardSettings> {
-    return request<TaskBoardSettings>('/api/settings/tasks-board');
-  },
-
-  async setTasksBoardSettings(settings: Partial<Pick<TaskBoardSettings, 'columns' | 'taskColumnMap' | 'statusTitles'>>): Promise<TaskBoardSettings> {
-    return request<TaskBoardSettings>('/api/settings/tasks-board', {
-      method: 'PATCH',
-      body: settings,
     });
   },
 

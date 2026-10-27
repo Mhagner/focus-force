@@ -126,7 +126,7 @@ export async function PATCH(
       );
 
     if (shouldAttemptSync) {
-      const { settings, apiKey } = await getClockfySettings(userId);
+      const { settings, apiKey } = await getClockfySettings(userId, project.workspaceId);
       const workspaces = (settings?.workspaces as any[]) ?? [];
       const selectedWorkspaceId =
         parsed.clockfyWorkspaceId ?? project.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id;

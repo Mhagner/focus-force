@@ -1,6 +1,7 @@
 import { MyDaySidebar } from '@/components/my-day/MyDaySidebar';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopNav } from '@/components/layout/TopNav';
+import { WorkspaceContent } from '@/components/layout/WorkspaceContent';
 import { AppProvider } from '@/components/providers/AppProvider';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -15,7 +16,9 @@ export default function ProtectedLayout({
         <Sidebar />
         <div className="relative flex-1 flex flex-col overflow-hidden rounded-l-2xl bg-background">
           <TopNav />
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-auto">
+            <WorkspaceContent>{children}</WorkspaceContent>
+          </main>
         </div>
         <MyDaySidebar />
       </div>

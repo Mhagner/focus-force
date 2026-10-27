@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { apiError } from '@/lib/api';
-import { requireUser } from '@/lib/auth/require-user';
+import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { getWorkspaceFilter } from '@/lib/auth/workspace-filter';
+
 import { encryptSecret } from '@/lib/crypto';
 
 export const runtime = 'nodejs';
@@ -38,10 +40,18 @@ function toResponse(settings: { apiKey: string | null; workspaceId: string | nul
   };
 }
 
-export async function GET() {
+// A integração pertence ao WORKSPACE do app: cada um tem a sua chave e os seus workspaces do Clockify.
+async function requireWorkspace(userId: string, req: Request): Promise<string> {
+  const workspaceId = await getWorkspaceFilter(userId, req.url);
+  if (!workspaceId) throw new HttpError(400, 'Informe o workspace.');
+  return workspaceId;
+}
+
+export async function GET(req: Request) {
   try {
     const { userId } = await requireUser();
-    const settings = await prisma.clockfySettings.findUnique({ where: { userId } });
+    const workspaceId = await requireWorkspace(userId, req);
+    const settings = await prisma.clockfySettings.findFirst({ where: { userId, appWorkspaceId: workspaceId } });
     return NextResponse.json(toResponse(settings));
   } catch (err) {
     return apiError(err);
@@ -51,6 +61,7 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const { userId } = await requireUser();
+    const appWorkspaceId = await requireWorkspace(userId, req);
     const parsed = settingsSchema.parse(await req.json());
 
     const workspaces = (parsed.workspaces ?? [])
@@ -72,9 +83,9 @@ export async function PATCH(req: Request) {
     }
 
     const saved = await prisma.clockfySettings.upsert({
-      where: { userId },
+      where: { appWorkspaceId },
       update: data,
-      create: { userId, ...data },
+      create: { userId, appWorkspaceId, ...data },
     });
 
     return NextResponse.json(toResponse(saved));

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Archive, Briefcase, Check, ChevronsUpDown, GraduationCap, Pencil, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, Briefcase, Check, ChevronsUpDown, GraduationCap, Pencil, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { WorkspaceOnboarding } from '@/components/onboarding/WorkspaceOnboarding';
+import { ArchivedWorkspacesDialog } from '@/components/workspace/ArchivedWorkspacesDialog';
 import { WorkspaceDialog } from '@/components/workspace/WorkspaceDialog';
 import {
   DropdownMenu,
@@ -24,10 +26,13 @@ const ModeIcon = ({ mode, className }: { mode: Workspace['mode']; className?: st
 export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
   const { workspace } = useWorkspace();
   const { workspaces, setActiveWorkspace, setWorkspaceArchived } = useAppStore();
-  const [dialog, setDialog] = useState<{ open: boolean; workspace?: Workspace }>({ open: false });
+  const [isCreating, setIsCreating] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isViewingArchived, setIsViewingArchived] = useState(false);
 
   const visible = workspaces.filter((item) => !item.archived);
   const canArchive = visible.length > 1;
+  const archivedCount = workspaces.length - visible.length;
 
   const handleArchive = async (target: Workspace) => {
     try {
@@ -82,10 +87,10 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
           ))}
 
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setDialog({ open: true })} className="gap-2">
+          <DropdownMenuItem onSelect={() => setIsCreating(true)} className="gap-2">
             <Plus className="h-4 w-4" /> Novo workspace
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setDialog({ open: true, workspace })} className="gap-2">
+          <DropdownMenuItem onSelect={() => setIsRenaming(true)} className="gap-2">
             <Pencil className="h-4 w-4" /> Renomear atual
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -95,14 +100,16 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
           >
             <Archive className="h-4 w-4" /> Arquivar atual
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setIsViewingArchived(true)} className="gap-2">
+            <ArchiveRestore className="h-4 w-4" /> Ver arquivados
+            {archivedCount > 0 && <span className="ml-auto text-xs text-ink-muted">{archivedCount}</span>}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <WorkspaceDialog
-        open={dialog.open}
-        workspace={dialog.workspace}
-        onOpenChange={(open) => setDialog((current) => ({ ...current, open }))}
-      />
+      <WorkspaceOnboarding variant="new" open={isCreating} onOpenChange={setIsCreating} />
+      <ArchivedWorkspacesDialog open={isViewingArchived} onOpenChange={setIsViewingArchived} />
+      <WorkspaceDialog open={isRenaming} workspace={workspace} onOpenChange={setIsRenaming} />
     </>
   );
 }

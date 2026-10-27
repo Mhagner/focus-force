@@ -54,7 +54,8 @@ export async function POST(
       );
     }
 
-    const { settings, apiKey } = await getClockfySettings(userId);
+    // Todas as sessões da tarefa pertencem ao mesmo workspace (o da tarefa/projeto).
+    const { settings, apiKey } = await getClockfySettings(userId, updatable[0].project!.workspaceId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
 
     // Same comment on every Clockify entry of the task, so the report matches.
