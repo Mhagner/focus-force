@@ -117,7 +117,7 @@ async function main() {
         }
 
         // 6) Clockfy: cifrar a chave em texto puro; se o dono usava a chave do .env, migrar para a conta dele
-        const clockfy = await tx.clockfySettings.findUnique({ where: { userId } });
+        const clockfy = await tx.clockfySettings.findFirst({ where: { userId } });
         const envKey = process.env.CLOCKFY_API_KEY;
         const envWorkspace = process.env.CLOCKFY_WORKSPACE_ID;
         if (clockfy) {

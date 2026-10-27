@@ -139,7 +139,7 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
       r.plans.GET(jsonReq("GET")),
       r.settings.GET(jsonReq('GET')),
       r.board.GET(),
-      r.clockfy.GET(),
+      r.clockfy.GET(jsonReq('GET')),
       r.project.DELETE(jsonReq('DELETE'), ctx(projectA)),
     ]);
     expect(responses.map((res) => res.status)).toEqual(Array(responses.length).fill(401));
@@ -243,28 +243,41 @@ describe.skipIf(!enabled)('isolamento entre usuários (rotas /api)', () => {
     expect((await r.settings.PATCH(withWs(wsA, 'PATCH', { workMin: 1, shortBreakMin: 1, longBreakMin: 1, cyclesToLongBreak: 1, autoStartNext: true, soundOn: true, defaultChecklist: [] }))).status).toBe(404);
   });
 
-  it('Clockfy: chave é salva criptografada e nunca devolvida; B não a vê', async () => {
+  it('Clockfy: configuração por workspace, chave criptografada e nunca devolvida; B não a vê', async () => {
     as(A);
     const saved = (await (
-      await r.clockfy.PATCH(jsonReq('PATCH', { apiKey: 'ckey_SEGREDO_DE_A', workspaces: [{ id: 'w1' }] }))
+      await r.clockfy.PATCH(withWs(wsA, 'PATCH', { apiKey: 'ckey_SEGREDO_DE_A', workspaces: [{ id: 'w1' }] }))
     ).json()) as Json;
     expect(saved.apiKey).toBe('');
     expect(saved.hasApiKey).toBe(true);
     expect(JSON.stringify(saved)).not.toContain('SEGREDO');
 
-    const row = await prisma.clockfySettings.findUniqueOrThrow({ where: { userId: A.id } });
+    const row = await prisma.clockfySettings.findUniqueOrThrow({ where: { appWorkspaceId: wsA } });
+    expect(row.userId).toBe(A.id);
     expect(row.apiKey?.startsWith('v1:')).toBe(true);
     expect(row.apiKey).not.toContain('SEGREDO');
 
     // salvar de novo sem apiKey mantém a chave
-    await r.clockfy.PATCH(jsonReq('PATCH', { workspaces: [{ id: 'w1' }, { id: 'w2' }] }));
-    const kept = await prisma.clockfySettings.findUniqueOrThrow({ where: { userId: A.id } });
+    await r.clockfy.PATCH(withWs(wsA, 'PATCH', { workspaces: [{ id: 'w1' }, { id: 'w2' }] }));
+    const kept = await prisma.clockfySettings.findUniqueOrThrow({ where: { appWorkspaceId: wsA } });
     expect(kept.apiKey).toBe(row.apiKey);
 
+    // outro workspace do mesmo usuário não herda a configuração
+    const other = await prisma.workspace.create({ data: { userId: A.id, name: 'Outro A' } });
+    const forOther = (await (await r.clockfy.GET(withWs(other.id))).json()) as Json;
+    expect(forOther.hasApiKey).toBe(false);
+    expect(forOther.workspaces).toEqual([]);
+
+    // sem workspace informado a rota recusa
+    expect((await r.clockfy.GET(jsonReq('GET'))).status).toBe(400);
+
     as(B);
-    const forB = (await (await r.clockfy.GET()).json()) as Json;
+    const forB = (await (await r.clockfy.GET(withWs(wsB))).json()) as Json;
     expect(forB.hasApiKey).toBe(false);
     expect(forB.workspaces).toEqual([]);
+    // B não lê nem escreve na configuração do workspace de A
+    expect((await r.clockfy.GET(withWs(wsA))).status).toBe(404);
+    expect((await r.clockfy.PATCH(withWs(wsA, 'PATCH', { apiKey: 'x' }))).status).toBe(404);
   });
 
   it('erros internos não vazam detalhes (corpo inválido → 400 genérico)', async () => {

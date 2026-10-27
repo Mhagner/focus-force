@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Archive, Briefcase, Check, ChevronsUpDown, GraduationCap, Pencil, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, Briefcase, Check, ChevronsUpDown, GraduationCap, Pencil, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { WorkspaceOnboarding } from '@/components/onboarding/WorkspaceOnboarding';
+import { ArchivedWorkspacesDialog } from '@/components/workspace/ArchivedWorkspacesDialog';
 import { WorkspaceDialog } from '@/components/workspace/WorkspaceDialog';
 import {
   DropdownMenu,
@@ -27,9 +28,11 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
   const { workspaces, setActiveWorkspace, setWorkspaceArchived } = useAppStore();
   const [isCreating, setIsCreating] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isViewingArchived, setIsViewingArchived] = useState(false);
 
   const visible = workspaces.filter((item) => !item.archived);
   const canArchive = visible.length > 1;
+  const archivedCount = workspaces.length - visible.length;
 
   const handleArchive = async (target: Workspace) => {
     try {
@@ -97,10 +100,15 @@ export function WorkspaceSwitcher({ collapsed }: { collapsed: boolean }) {
           >
             <Archive className="h-4 w-4" /> Arquivar atual
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setIsViewingArchived(true)} className="gap-2">
+            <ArchiveRestore className="h-4 w-4" /> Ver arquivados
+            {archivedCount > 0 && <span className="ml-auto text-xs text-ink-muted">{archivedCount}</span>}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <WorkspaceOnboarding variant="new" open={isCreating} onOpenChange={setIsCreating} />
+      <ArchivedWorkspacesDialog open={isViewingArchived} onOpenChange={setIsViewingArchived} />
       <WorkspaceDialog open={isRenaming} workspace={workspace} onOpenChange={setIsRenaming} />
     </>
   );

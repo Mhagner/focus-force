@@ -243,6 +243,10 @@ export const storage = {
     await request<unknown>(`/api/columns/${id}${query}`, { method: 'DELETE' });
   },
 
+  async deleteWorkspace(id: string, confirmName: string): Promise<void> {
+    await request<{ ok: boolean }>(`/api/workspaces/${id}`, { method: 'DELETE', body: { confirmName } });
+  },
+
   async updateWorkspace(id: string, updates: { name?: string; archived?: boolean }): Promise<Workspace> {
     return request<Workspace>(`/api/workspaces/${id}`, { method: 'PATCH', body: updates });
   },
@@ -430,12 +434,12 @@ export const storage = {
    * Clockfy integration
    * ---------------------------
    */
-  async getClockfySettings(): Promise<ClockfySettings> {
-    return request<ClockfySettings>('/api/integrations/clockfy');
+  async getClockfySettings(workspaceId: string): Promise<ClockfySettings> {
+    return request<ClockfySettings>(withWorkspace('/api/integrations/clockfy', workspaceId));
   },
 
-  async updateClockfySettings(settings: Partial<ClockfySettings>): Promise<ClockfySettings> {
-    return request<ClockfySettings>('/api/integrations/clockfy', {
+  async updateClockfySettings(settings: Partial<ClockfySettings>, workspaceId: string): Promise<ClockfySettings> {
+    return request<ClockfySettings>(withWorkspace('/api/integrations/clockfy', workspaceId), {
       method: 'PATCH',
       body: settings,
     });

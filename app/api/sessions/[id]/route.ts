@@ -63,7 +63,7 @@ export async function PATCH(
       session.project?.clockfyProjectId &&
       session.end
     ) {
-      const { settings, apiKey } = await getClockfySettings(userId);
+      const { settings, apiKey } = await getClockfySettings(userId, session.project.workspaceId);
       const workspaces = (settings?.workspaces as any[]) ?? [];
       const credentials = {
         apiKey,

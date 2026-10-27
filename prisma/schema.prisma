@@ -74,7 +74,7 @@ model User {
   dailyPlanBlocks   DailyPlanBlock[]
   pomodoroSettings  PomodoroSettings[]
   boardColumns      BoardColumn[]
-  clockfySettings   ClockfySettings?
+  clockfySettings   ClockfySettings[]
   taskBoardSettings TaskBoardSettings?
 }
 
@@ -150,6 +150,7 @@ model Workspace {
   projects         Project[]
   columns          BoardColumn[]
   pomodoroSettings PomodoroSettings?
+  clockfySettings  ClockfySettings?
   presets          SessionDescriptionPreset[]
 
   @@index([userId])
@@ -375,8 +376,13 @@ model ClockfySettings {
   workspaces  Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  userId      String?  @unique
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  // Cada workspace do app tem a sua própria integração (chave e workspaces do Clockify).
+  appWorkspaceId String?    @unique
+  user           User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appWorkspace   Workspace? @relation(fields: [appWorkspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model TaskBoardSettings {

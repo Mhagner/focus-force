@@ -5,6 +5,7 @@ import { apiError } from '@/lib/api';
 import { assertWithinLimit } from '@/lib/billing/entitlements';
 import { assertWorkspaceOwned } from '@/lib/auth/ownership';
 import { HttpError, requireUser } from '@/lib/auth/require-user';
+import { audit } from '@/lib/auth/audit';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,38 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       data: { name: parsed.name, archived: parsed.archived },
     });
     return NextResponse.json(workspace);
+  } catch (err) {
+    return apiError(err);
+  }
+}
+
+const deleteSchema = z.object({ confirmName: z.string() });
+
+// Exclusão definitiva: só de workspace arquivado e com o nome digitado igual ao do workspace.
+// Projetos, tarefas e sessões não têm cascade a partir do workspace, então apagamos tudo explicitamente.
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { userId } = await requireUser();
+    const { id } = await params;
+    const { confirmName } = deleteSchema.parse(await req.json());
+
+    const workspace = await prisma.workspace.findFirst({ where: { id, userId }, select: { id: true, name: true, archived: true } });
+    if (!workspace) throw new HttpError(404, 'Não encontrado.');
+    if (!workspace.archived) throw new HttpError(409, 'Arquive o workspace antes de excluí-lo.');
+    if (confirmName.trim() !== workspace.name) throw new HttpError(400, 'O nome digitado não confere.');
+
+    await prisma.$transaction(async (tx) => {
+      const projectIds = (await tx.project.findMany({ where: { workspaceId: id, userId }, select: { id: true } })).map((p) => p.id);
+      await tx.dailyPlanBlock.deleteMany({ where: { projectId: { in: projectIds } } });
+      await tx.focusSession.deleteMany({ where: { projectId: { in: projectIds } } });
+      await tx.task.deleteMany({ where: { projectId: { in: projectIds } } });
+      await tx.project.deleteMany({ where: { id: { in: projectIds } } });
+      // Colunas, Pomodoro, Clockfy e descrições saem por cascade.
+      await tx.workspace.delete({ where: { id } });
+    });
+
+    await audit('workspace.delete', { userId, meta: { workspaceId: id } });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return apiError(err);
   }

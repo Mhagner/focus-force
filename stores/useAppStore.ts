@@ -59,6 +59,8 @@ interface AppStore {
   deleteColumn: (id: string, moveTo?: string) => Promise<void>;
   renameWorkspace: (id: string, name: string) => Promise<void>;
   setWorkspaceArchived: (id: string, archived: boolean) => Promise<void>;
+  /** Exclusão definitiva de um workspace arquivado; exige o nome digitado. */
+  deleteWorkspace: (id: string, confirmName: string) => Promise<void>;
 
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
@@ -129,6 +131,7 @@ interface WorkspaceData {
   columns: BoardColumn[];
   pomodoroSettings?: PomodoroSettings;
   sessionDescriptionPresets: SessionDescriptionPreset[];
+  clockfySettings?: ClockfySettings;
 }
 
 /** Tudo o que pertence a um workspace. allSettled: uma requisição que falhe não impede o restante. */
@@ -141,6 +144,7 @@ async function fetchWorkspaceData(workspaceId: string): Promise<{ data: Workspac
     storage.getColumns(workspaceId),
     storage.getPomodoroSettings(workspaceId),
     storage.getSessionDescriptionPresets(workspaceId),
+    storage.getClockfySettings(workspaceId),
   ]);
 
   let failures = 0;
@@ -153,6 +157,7 @@ async function fetchWorkspaceData(workspaceId: string): Promise<{ data: Workspac
   };
 
   const settings = pick<PomodoroSettings | undefined>(5, undefined);
+  const clockfy = pick<ClockfySettings | undefined>(7, undefined);
   return {
     failures,
     data: {
@@ -167,6 +172,7 @@ async function fetchWorkspaceData(workspaceId: string): Promise<{ data: Workspac
         defaultHourlyRate: settings.defaultHourlyRate ?? 0,
       },
       sessionDescriptionPresets: pick<SessionDescriptionPreset[]>(6, []),
+      clockfySettings: clockfy && { ...clockfy, workspaces: clockfy.workspaces ?? [] },
     },
   };
 }
@@ -229,18 +235,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return;
     }
 
-    const [clockfy, workspaceData] = await Promise.all([
-      storage.getClockfySettings().catch((error) => {
-        console.error('[init] falha ao carregar o Clockfy', error);
-        return null;
-      }),
-      fetchWorkspaceData(active.id),
-    ]);
-    const { data, failures } = workspaceData;
+    const { data, failures } = await fetchWorkspaceData(active.id);
 
     writeActiveWorkspaceId(active.id);
     set({
-      initError: failures > 0 || !clockfy ? 'Alguns dados não puderam ser carregados. Tente novamente.' : null,
+      initError: failures > 0 ? 'Alguns dados não puderam ser carregados. Tente novamente.' : null,
       workspaces,
       activeWorkspaceId: active.id,
       projects: data.projects,
@@ -250,7 +249,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       columns: data.columns,
       sessionDescriptionPresets: data.sessionDescriptionPresets,
       ...(data.pomodoroSettings ? { pomodoroSettings: data.pomodoroSettings } : {}),
-      ...(clockfy ? { clockfySettings: { ...clockfy, workspaces: clockfy.workspaces ?? [] } } : {}),
+      ...(data.clockfySettings ? { clockfySettings: data.clockfySettings } : {}),
       isDataInitialized: true,
     });
   },
@@ -269,6 +268,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       dailyPlans: [],
       columns: [],
       sessionDescriptionPresets: [],
+      clockfySettings: { apiKey: '', hasApiKey: false, workspaceId: '', workspaces: [], updatedAt: null },
       isWorkspaceLoading: true,
     });
 
@@ -292,6 +292,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       columns: data.columns,
       sessionDescriptionPresets: data.sessionDescriptionPresets,
       ...(data.pomodoroSettings ? { pomodoroSettings: data.pomodoroSettings } : {}),
+      ...(data.clockfySettings ? { clockfySettings: data.clockfySettings } : {}),
       initError: failures > 0 ? 'Alguns dados não puderam ser carregados. Tente novamente.' : null,
     });
   },
@@ -358,6 +359,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const next = get().workspaces.find((w) => !w.archived);
       if (next) await get().setActiveWorkspace(next.id);
     }
+  },
+
+  deleteWorkspace: async (id, confirmName) => {
+    await storage.deleteWorkspace(id, confirmName);
+    set((state) => ({ workspaces: state.workspaces.filter((w) => w.id !== id) }));
   },
 
   // Projects
@@ -537,7 +543,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       workspaceId: settings.workspaceId ?? current.workspaceId,
       workspaces: settings.workspaces ?? current.workspaces ?? [],
     };
-    const updated = await storage.updateClockfySettings(payload);
+    const workspaceId = get().activeWorkspaceId;
+    if (!workspaceId) throw new Error('Nenhum workspace ativo.');
+    const updated = await storage.updateClockfySettings(payload, workspaceId);
     set({ clockfySettings: updated });
   },
 

@@ -128,7 +128,7 @@ export async function POST(req: Request) {
       return NextResponse.json(project);
     }
 
-    const { settings, apiKey } = await getClockfySettings(userId);
+    const { settings, apiKey } = await getClockfySettings(userId, workspaceId);
     const workspaces = (settings?.workspaces as any[]) ?? [];
     const selectedWorkspaceId =
       parsed.clockfyWorkspaceId ?? settings?.workspaceId ?? workspaces[0]?.id ?? undefined;
